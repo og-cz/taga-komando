@@ -1,0 +1,22 @@
+Battlefield textures in Taga Komando
+
+These photo-scanned surfaces come from Poly Haven (https://polyhaven.com)
+and are released under CC0 (public domain). Each is used at 1024 px:
+colour, normal (OpenGL) and roughness maps.
+
+Ground
+  Leafy Grass         https://polyhaven.com/a/leafy_grass
+  Red Dirt Mud 01     https://polyhaven.com/a/red_dirt_mud_01
+  Brown Mud 02        https://polyhaven.com/a/brown_mud_02
+  Forest Ground 01    https://polyhaven.com/a/forrest_ground_01
+
+Houses
+  Thatch Roof Angled  https://polyhaven.com/a/thatch_roof_angled
+  Bamboo Wall 02      https://polyhaven.com/a/bamboo_wall_02
+
+Plants (colour and alpha of the model textures, used on leaf, fern and grass cards)
+  Island Tree 02      https://polyhaven.com/a/island_tree_02 (leaves)
+  Fern 02             https://polyhaven.com/a/fern_02
+  Grass Medium 01     https://polyhaven.com/a/grass_medium_01
+
+CC0 1.0 Universal: https://creativecommons.org/publicdomain/zero/1.0/
