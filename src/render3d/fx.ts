@@ -65,7 +65,8 @@ class ParticleLayer {
         varying vec4 vCol;
         void main() {
           vec4 t = texture2D(map, vUv);
-          gl_FragColor = vec4(vCol.rgb * gain, min(1.0, vCol.a * t.a * gain));
+          // Colours are picked as screen colours; the frame is linear until it is tone-mapped.
+          gl_FragColor = vec4(pow(vCol.rgb * gain, vec3(2.2)), min(1.0, vCol.a * t.a * gain));
           if (gl_FragColor.a < 0.004) discard;
         }`,
       transparent: true,
@@ -158,10 +159,13 @@ class ParticleLayer {
         r = r + (0.42 - r) * k;
         g = g + (0.4 - g) * k;
         b = b + (0.37 - b) * k;
-        a = Math.min(1, t * 3) * (1 - t) * 0.75;
+        a = Math.min(1, t * 3) * (1 - t) * 0.9;
       } else if (preset === 5) {
         // Smoke screen: thick white-grey that holds, then thins.
         a = Math.min(1, t * 4) * Math.min(1, (1 - t) * 2.2) * 0.8;
+      } else if (preset === 6) {
+        // Drifting dust: a faint veil that swells and fades.
+        a = Math.sin(Math.PI * t) * 0.09;
       } else if (preset === 3) {
         a = (1 - t) * (0.6 + Math.random() * 0.4);
       } else if (preset === 4) {
@@ -321,6 +325,22 @@ export class Effects3D {
     }
   }
 
+  /**
+   * Dust and haze drifting low across the ground in view (x0..x1, z0..z1):
+   * a few faint, wide veils at a time, carried by the wind.
+   */
+  ambientDust(x0: number, z0: number, x1: number, z1: number, dt: number): void {
+    this.dustClock += dt * 2.5 * this.quality;
+    while (this.dustClock >= 1) {
+      this.dustClock--;
+      const shade = 0.58 + Math.random() * 0.1;
+      const size = 40 + Math.random() * 50;
+      this.smoke.spawn(x0 + Math.random() * (x1 - x0), 3 + Math.random() * 8, z0 + Math.random() * (z1 - z0), 4 + Math.random() * 4, 0.3, -2 - Math.random() * 2, 9 + Math.random() * 6, size, size * 1.6, 6, shade, shade * 0.93, shade * 0.8);
+    }
+  }
+
+  private dustClock = 0;
+
   /** The pop of a smoke round or grenade: a quick white burst. */
   smokeBurst(x: number, z: number, radius: number): void {
     for (let i = 0; i < 14; i++) {
@@ -477,11 +497,12 @@ export class Effects3D {
           this.sparks.spawn(f.x + (Math.random() - 0.5) * 5 * f.scale, 3, f.z + (Math.random() - 0.5) * 5 * f.scale, (Math.random() - 0.5) * 10, 14 + Math.random() * 22, (Math.random() - 0.5) * 10, 1 + Math.random() * 1.4, 0.9, 0.4, 3, 1, 0.6, 0.2);
         }
       }
-      f.acc.smoke += dt * (f.smokeOnly ? 2.2 : 5.5) * Math.max(0.4, k) * q;
+      f.acc.smoke += dt * (f.smokeOnly ? 3.4 : 6) * Math.max(0.4, k) * q;
       while (f.acc.smoke >= 1) {
         f.acc.smoke--;
         const dark = f.smokeOnly ? 0.3 : 0.1 + Math.random() * 0.06;
-        this.smoke.spawn(f.x + (Math.random() - 0.5) * 6, 12 * f.scale, f.z + (Math.random() - 0.5) * 6, 0, 5 + Math.random() * 4, 0, 6 + Math.random() * 4, 10 * f.scale, 38 * f.scale, 2, dark, dark * 0.95, dark * 0.9);
+        // A tall, billowing column, leaning with the wind.
+        this.smoke.spawn(f.x + (Math.random() - 0.5) * 6, 12 * f.scale, f.z + (Math.random() - 0.5) * 6, 0, 6 + Math.random() * 5, 0, 9 + Math.random() * 6, 10 * f.scale, 46 * f.scale, 2, dark, dark * 0.95, dark * 0.9);
       }
     }
     for (let i = this.flashes.length - 1; i >= 0; i--) {
