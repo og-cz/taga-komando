@@ -19,4 +19,8 @@ Plants (colour and alpha of the model textures, used on leaf, fern and grass car
   Fern 02             https://polyhaven.com/a/fern_02
   Grass Medium 01     https://polyhaven.com/a/grass_medium_01
 
+Models (glTF, simplified for the battlefield on load)
+  Old Military Crate    https://polyhaven.com/a/old_military_crate
+  Metal Jerrycan Green  https://polyhaven.com/a/metal_jerrycan_green
+
 CC0 1.0 Universal: https://creativecommons.org/publicdomain/zero/1.0/
