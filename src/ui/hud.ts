@@ -1064,6 +1064,27 @@ ${d.description}` }));
         ),
       );
     };
+    if (ins.kind === 'house') {
+      const h = world.houses.find((x) => x.id === ins.id);
+      if (!h || h.stage >= 3) return null;
+      const hp = Math.ceil(h.hp);
+      const holder = h.occupant !== null ? world.get(h.occupant) : undefined;
+      const seen = holder && !holder.dead && (holder.team === this.player || world.canSee(this.player, holder));
+      const held = seen ? (holder.team === this.player ? holder.def.short : `Enemy ${holder.def.short}`) : 'Empty';
+      const state = h.stage === 2 ? 'Burning' : h.stage === 1 ? 'Damaged' : 'Standing';
+      const hint =
+        h.stage === 2
+          ? 'Burning: it hurts anyone inside until they get out, and it will fall in.'
+          : 'Bullets do not hurt it; mortars, shells, grenades and satchels do. Right-click it with infantry to go in.';
+      return {
+        key: `h:${h.id}:${hp}:${h.stage}:${held}`,
+        node: card('enter', 'House', 'Heavy cover from every side for the squad inside; its garrison sees further.', [
+          ['Health', `${hp} / ${h.maxHp}`],
+          ['State', state],
+          ['Held by', held],
+        ], h.hp / h.maxHp, hint),
+      };
+    }
     if (ins.kind === 'defense') {
       const d = defenseAt(world, ins.tx, ins.ty);
       if (!d) return null;
