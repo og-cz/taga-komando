@@ -1,4 +1,8 @@
 import * as THREE from 'three';
+import { GTAOPass } from 'three/examples/jsm/postprocessing/GTAOPass.js';
+import { GradePass } from './grade';
+import { RoomEnvironment } from 'three/examples/jsm/environments/RoomEnvironment.js';
+import { UnrealBloomPass } from 'three/examples/jsm/postprocessing/UnrealBloomPass.js';
 import { TILE } from '../data/balance';
 import { T } from '../data/terrain';
 import type { SimEvent } from '../sim/entities';
@@ -13,23 +17,31 @@ import { Structures3D } from './structures';
 import { Units3D, type UnitLook } from './units';
 import type { Squad } from '../sim/entities';
 import { buildProps } from './props';
-import { disposeTextures, groundDetailTexture, groundNormalTexture } from './textures';
-import { buildVegetation } from './vegetation';
+import { disposeTextures } from './textures';
+import { groundMaterial } from './ground';
+import { disposeSurfaces } from './surfaces';
+import { onModelsLoaded } from './models';
+import { QUALITY, graphicsQuality, type QualitySettings } from './quality';
+import { buildVegetation, wind } from './vegetation';
 
 /**
  * A plane over the map showing the units-and-markers canvas. That canvas is a
  * flat plan of the ground in view (see `overlayView`), so each point of the
  * plane looks up its own spot and the markers lie on the ground in perspective.
  */
-function groundOverlayMaterial(tex: THREE.Texture): THREE.ShaderMaterial {
+function groundOverlayMaterial(tex: THREE.Texture, sceneDepth: THREE.Texture): THREE.ShaderMaterial {
   return new THREE.ShaderMaterial({
-    uniforms: { map: { value: tex }, view: { value: new THREE.Vector4(0, 0, 1, 1) } },
+    uniforms: { map: { value: tex }, view: { value: new THREE.Vector4(0, 0, 1, 1) }, sceneDepth: { value: sceneDepth }, res: { value: new THREE.Vector2(1, 1) } },
     vertexShader: 'varying vec2 vGround; void main() { vec4 w = modelMatrix * vec4(position, 1.0); vGround = w.xz; gl_Position = projectionMatrix * viewMatrix * w; }',
     fragmentShader: `
       uniform sampler2D map;
       uniform vec4 view;
+      uniform sampler2D sceneDepth;
+      uniform vec2 res;
       varying vec2 vGround;
       void main() {
+        // Drawn over the finished frame: hidden wherever the scene stands in front of the ground.
+        if (gl_FragCoord.z > texture2D(sceneDepth, gl_FragCoord.xy / res).x + 0.00002) discard;
         vec2 uv = vec2((vGround.x - view.x) * view.z, 1.0 - (vGround.y - view.y) * view.w);
         if (uv.x < 0.0 || uv.x > 1.0 || uv.y < 0.0 || uv.y > 1.0) discard;
         vec4 c = texture2D(map, uv);
@@ -37,9 +49,20 @@ function groundOverlayMaterial(tex: THREE.Texture): THREE.ShaderMaterial {
         gl_FragColor = c;
       }`,
     transparent: true,
+    depthTest: false,
     depthWrite: false,
   });
 }
+
+/** Fraction of the screen's resolution the battlefield renders at (set by the battle's graphics quality). */
+let renderScale = 1;
+
+/**
+ * Towards the sun: 40° up in the west-north-west, mid-afternoon, so roof
+ * slopes facing the camera still catch some of it and shadows fall east-south-east.
+ */
+const SUN_DIR = new THREE.Vector3(-0.85, 0.84, -0.45).normalize();
+const UP = new THREE.Vector3(0, 1, 0);
 
 /** Where the units-and-markers canvas lies on the ground: canvas pixel = (world - origin) × scale. */
 export interface OverlayView {
@@ -61,8 +84,8 @@ function mapOverlayMaterial(tex: THREE.Texture): THREE.ShaderMaterial {
 }
 
 /** A flat plane lying on the ground over the map (x right, y down in map terms). */
-function mapPlane(w: number, h: number, y: number, mat: THREE.Material): THREE.Mesh {
-  const m = new THREE.Mesh(new THREE.PlaneGeometry(w, h), mat);
+function mapPlane(w: number, h: number, y: number, mat: THREE.Material, step = 0): THREE.Mesh {
+  const m = new THREE.Mesh(new THREE.PlaneGeometry(w, h, step ? Math.ceil(w / step) : 1, step ? Math.ceil(h / step) : 1), mat);
   m.rotation.x = -Math.PI / 2;
   m.position.set(w / 2, y, h / 2);
   return m;
@@ -80,6 +103,8 @@ export class Battlefield3D {
   readonly canvas: HTMLCanvasElement;
   private readonly renderer: THREE.WebGLRenderer;
   private readonly scene = new THREE.Scene();
+  /** The units-and-markers canvas and the fog of war, drawn over the finished frame. */
+  private readonly overlayScene = new THREE.Scene();
   private readonly cam = new THREE.PerspectiveCamera(30, 1, 4, 9000);
   readonly terrain: TerrainLayer;
   private readonly groundTex: THREE.CanvasTexture;
@@ -87,6 +112,7 @@ export class Battlefield3D {
   private readonly overlayMat: THREE.ShaderMaterial;
   private readonly fogTex: THREE.CanvasTexture;
   private readonly sun: THREE.DirectionalLight;
+  private readonly ground: ReturnType<typeof groundMaterial>;
   private statics = new THREE.Group();
   private props = new THREE.Group();
   private info: BuildingInfo = { damaged: [] };
@@ -102,6 +128,24 @@ export class Battlefield3D {
   private fogVersion = -1;
   /** Milliseconds the last frame took to draw (CPU side). */
   frameMs = 0;
+  /**
+   * The frame is drawn in high dynamic range with 2× multisampling, then
+   * ambient occlusion is worked out from its depth and laid over it, and only
+   * then is it tone-mapped and graded for the screen (see GradePass).
+   */
+  private readonly sceneTarget: THREE.WebGLRenderTarget;
+  private readonly aoTarget: THREE.WebGLRenderTarget;
+  private readonly ao: GTAOPass;
+  private readonly grade = new GradePass();
+  /** A faint glow round fires, flashes and tracers only. */
+  private readonly bloom = new UnrealBloomPass(new THREE.Vector2(256, 256), 0.15, 0.4, 0.95);
+  private readonly envMap: THREE.Texture;
+  /** Size of the area the sun's shadow map covers, so it is only re-fitted when the zoom really changes. */
+  private shadowHalf = 0;
+  private readonly stopModelWatch: () => void;
+  /** This battle's graphics quality (see quality.ts). */
+  private readonly q: QualitySettings = QUALITY[graphicsQuality()];
+  private frameNo = 0;
 
   constructor(
     private readonly world: World,
@@ -113,13 +157,25 @@ export class Battlefield3D {
     this.renderer = new THREE.WebGLRenderer({ canvas: this.canvas, antialias: true, powerPreference: 'high-performance' });
     this.renderer.outputColorSpace = THREE.SRGBColorSpace;
     this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
-    this.renderer.toneMappingExposure = 1.18;
+    this.renderer.toneMappingExposure = 1.1;
     this.renderer.shadowMap.enabled = true;
     this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+    // The shadow map follows the camera, so it is redrawn every frame; soldiers and tanks cast real shadows too.
+    // (Redrawn every frame on High, every other frame on Low: see render().)
     this.renderer.shadowMap.autoUpdate = false;
-    this.renderer.setClearColor(0x8c9478);
+    this.renderer.info.autoReset = false;
+    renderScale = this.q.scale;
+    this.sceneTarget = new THREE.WebGLRenderTarget(1, 1, { type: THREE.HalfFloatType, samples: this.q.samples, depthTexture: new THREE.DepthTexture(1, 1) });
+    this.aoTarget = new THREE.WebGLRenderTarget(1, 1, { type: THREE.HalfFloatType });
+    this.ao = new GTAOPass(this.scene, this.cam, 1, 1);
+    // Normals are rebuilt from the depth of the frame itself, so cut-out leaves shade as leaves, not as cards.
+    this.ao.setGBuffer(this.sceneTarget.depthTexture!);
+    this.ao.updateGtaoMaterial({ radius: 7, distanceExponent: 1.4, thickness: 6, scale: 1.15, samples: 8, distanceFallOff: 1, screenSpaceRadius: false });
+    this.ao.updatePdMaterial({ lumaPhi: 10, depthPhi: 2, normalPhi: 3, radius: 5, radiusExponent: 1, rings: 2, samples: 8 });
+    this.ao.blendIntensity = 1;
+    this.renderer.setClearColor(0x14160f);
     // Tropical haze: soft and warm, only far off.
-    this.scene.fog = new THREE.Fog(0x9aa184, 800, 3000);
+    this.scene.fog = new THREE.Fog(0x5a5c48, 800, 3000);
 
     const map = world.map;
     const W = map.pixelWidth;
@@ -129,60 +185,37 @@ export class Battlefield3D {
     this.groundTex.colorSpace = THREE.SRGBColorSpace;
     this.groundTex.anisotropy = this.renderer.capabilities.getMaxAnisotropy();
 
-    // Light: a high mid-afternoon tropical sun from the north-west, a bright
-    // hazy sky and warm bounce off the earth.
-    this.sun = new THREE.DirectionalLight(0xfff0d6, 3.0);
-    this.sun.position.set(W / 2 - 430, 820, H / 2 - 520);
-    this.sun.target.position.set(W / 2, 0, H / 2);
+    // Light: a golden afternoon sun 40° up in the west-north-west, a cool blue sky
+    // filling the shadows, and a little warm bounce off the earth.
+    this.sun = new THREE.DirectionalLight(0xffd8a4, 3.4);
+    this.sun.position.copy(SUN_DIR).multiplyScalar(1400);
     this.sun.castShadow = true;
-    this.sun.shadow.mapSize.set(4096, 4096);
-    const half = Math.max(W, H) * 0.62;
-    Object.assign(this.sun.shadow.camera, { left: -half, right: half, top: half, bottom: -half, near: 10, far: 3200 });
-    this.sun.shadow.bias = -0.0005;
-    this.sun.shadow.normalBias = 0.6;
-    this.sun.shadow.radius = 2.5;
+    this.sun.shadow.mapSize.set(this.q.shadowSize, this.q.shadowSize);
+    Object.assign(this.sun.shadow.camera, { near: 10, far: 3000 });
+    this.sun.shadow.bias = -0.0004;
+    this.sun.shadow.normalBias = 0.35;
     this.scene.add(this.sun, this.sun.target);
-    this.scene.add(new THREE.HemisphereLight(0xc8d8ea, 0x6a5838, 1.55));
+    this.scene.add(new THREE.HemisphereLight(0x687888, 0x2b261e, 1.6));
+    // A soft sky all round for shiny things (wet mud, iron, steel) to reflect, so no shadow is a black void.
+    const pmrem = new THREE.PMREMGenerator(this.renderer);
+    this.envMap = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
+    pmrem.dispose();
+    this.scene.environment = this.envMap;
+    this.scene.environmentIntensity = 0.35;
 
     // The land beyond the battlefield, then the battlefield itself.
     const surround = new THREE.CanvasTexture(this.terrain.surroundCanvas());
     surround.colorSpace = THREE.SRGBColorSpace;
     const m = TerrainLayer.SURROUND_MARGIN;
-    const outer = mapPlane(W + m * 2, H + m * 2, -0.6, new THREE.MeshBasicMaterial({ map: surround, toneMapped: false }));
-    outer.position.set(W / 2, -0.6, H / 2);
+    // Well below the battlefield's lowest ruts and paddy water, so the two never fight.
+    const outer = mapPlane(W + m * 2, H + m * 2, -4, new THREE.MeshBasicMaterial({ map: surround, toneMapped: false }));
+    outer.position.set(W / 2, -4, H / 2);
     this.scene.add(outer);
-    // Grass blades on green ground, grit, pebbles and cracks on bare earth, tiled
-    // over the painted ground so it stays sharp close up, with real bumps for the sun.
-    const detail = groundDetailTexture();
-    const bumps = groundNormalTexture();
-    bumps.repeat.set(W / 40, H / 40);
-    const groundMat = new THREE.MeshStandardMaterial({ map: this.groundTex, roughness: 0.96, normalMap: bumps, normalScale: new THREE.Vector2(0.9, 0.9) });
-    groundMat.onBeforeCompile = (shader) => {
-      shader.uniforms.detailMap = { value: detail };
-      shader.uniforms.detailRepeat = { value: new THREE.Vector2(W / 40, H / 40) };
-      shader.fragmentShader = shader.fragmentShader
-        .replace('#include <common>', '#include <common>\nuniform sampler2D detailMap;\nuniform vec2 detailRepeat;')
-        .replace(
-          '#include <map_fragment>',
-          [
-            '#include <map_fragment>',
-            'vec2 dUv = vMapUv * detailRepeat;',
-            'vec3 dA = texture2D(detailMap, dUv).rgb;',
-            'vec3 dB = texture2D(detailMap, dUv * 0.29 + 0.37).rgb;',
-            'float macro = texture2D(detailMap, dUv * 0.043 + 0.11).b;',
-            // Green ground gets grass, brown ground gets bare earth.
-            'float green = smoothstep(0.95, 1.3, diffuseColor.g / max(diffuseColor.r, 0.001));',
-            'float det = mix(dA.g * 0.6 + dB.g * 0.4, dA.r * 0.6 + dB.r * 0.4, green);',
-            'diffuseColor.rgb *= 0.58 + det * 0.84;',
-            // Broad patches: lush and sun-dried grass, damp and dusty earth.
-            'float m = smoothstep(0.25, 0.75, macro);',
-            'vec3 grassTint = mix(vec3(0.84, 1.0, 0.84), vec3(1.12, 1.04, 0.8), m);',
-            'vec3 earthTint = vec3(mix(0.86, 1.1, m));',
-            'diffuseColor.rgb *= mix(earthTint, grassTint, green);',
-          ].join('\n'),
-        );
-    };
-    const ground = mapPlane(W, H, 0, groundMat);
+    // Photo-scanned grass, road, earth and jungle floor, blended by the terrain's material map.
+    this.ground = groundMaterial(this.terrain, this.groundTex, W, H);
+    const groundMat = this.ground.material;
+    // A vertex every four units, so ruts, dikes, banks and uneven ground are real relief.
+    const ground = mapPlane(W, H, 0, groundMat, this.q.groundStep);
     ground.receiveShadow = true;
     this.scene.add(ground);
 
@@ -192,20 +225,24 @@ export class Battlefield3D {
     this.overlayTex = new THREE.CanvasTexture(overlay);
     this.overlayTex.minFilter = THREE.LinearFilter;
     this.overlayTex.generateMipmaps = false;
-    this.overlayMat = groundOverlayMaterial(this.overlayTex);
-    const overlayPlane = mapPlane(W + 2400, H + 2400, 0.35, this.overlayMat);
-    overlayPlane.position.set(W / 2, 0.35, H / 2);
+    this.overlayMat = groundOverlayMaterial(this.overlayTex, this.sceneTarget.depthTexture!);
+    // A little above the ground's highest bumps, so markers are never buried in them.
+    const overlayPlane = mapPlane(W + 2400, H + 2400, 0.8, this.overlayMat);
+    overlayPlane.position.set(W / 2, 0.8, H / 2);
     overlayPlane.renderOrder = 1;
-    this.scene.add(overlayPlane);
+    // Markers and fog are screen colours: they go over the finished, tone-mapped frame.
+    this.overlayScene.add(overlayPlane);
 
     this.fogTex = new THREE.CanvasTexture(fog);
     this.fogTex.minFilter = THREE.LinearFilter;
     this.fogTex.generateMipmaps = false;
     const fogPlane = mapPlane(W, H, 0.5, mapOverlayMaterial(this.fogTex));
     fogPlane.renderOrder = 5;
-    this.scene.add(fogPlane);
+    this.overlayScene.add(fogPlane);
 
     this.scene.add(this.fx.group, this.structures.group, this.units.group);
+    // Imported models arrive in the background: props are rebuilt with them as they do.
+    this.stopModelWatch = onModelsLoaded(() => this.rebuildProps());
   }
 
   private stageChecksum(): number {
@@ -249,7 +286,7 @@ export class Battlefield3D {
       this.fx.addFire(d.x, d.y, d.stage === 2 ? 1.1 : 0.7, Infinity, true, 'house');
     }
     this.statics.add(b.group);
-    const veg = buildVegetation(map, this.terrain);
+    const veg = buildVegetation(map, this.terrain, this.q.grass);
     this.statics.add(veg.ground, veg.crowns);
     this.scene.add(this.statics);
     this.rebuildProps();
@@ -263,7 +300,7 @@ export class Battlefield3D {
         o.dispose();
       }
     });
-    this.props = buildProps(this.world.map, this.info);
+    this.props = buildProps(this.world.map, this.info, this.terrain.layout);
     this.scene.add(this.props);
     this.renderer.shadowMap.needsUpdate = true;
   }
@@ -280,18 +317,26 @@ export class Battlefield3D {
     const buildingsTouched = map.changes.some((i) => map.tiles[i] === T.Building || this.buildingTiles.has(i));
     this.terrain.sync();
     this.groundTex.needsUpdate = true;
+    this.ground.update();
     if (buildingsTouched) this.buildStatics();
     else this.rebuildProps();
   }
 
   /** Pixel ratio the 3D world renders at: full screen detail costs too much on most GPUs. */
   static pixelRatio(dpr: number): number {
-    return Math.min(dpr, 1);
+    return Math.min(dpr, 1) * renderScale;
   }
 
   setSize(w: number, h: number, dpr: number): void {
     this.renderer.setPixelRatio(Battlefield3D.pixelRatio(dpr));
     this.renderer.setSize(w, h, false);
+    const size = this.renderer.getDrawingBufferSize(new THREE.Vector2());
+    this.sceneTarget.setSize(size.x, size.y);
+    this.aoTarget.setSize(size.x, size.y);
+    // Occlusion is soft: half resolution is plenty.
+    this.ao.setSize(Math.ceil(size.x / 2), Math.ceil(size.y / 2));
+    this.bloom.setSize(Math.ceil(size.x / 2), Math.ceil(size.y / 2));
+    this.overlayMat.uniforms.res.value.copy(size);
     this.canvas.style.width = `${w}px`;
     this.canvas.style.height = `${h}px`;
     // The units-and-markers canvas has a new size: free the old texture so it is
@@ -351,6 +396,7 @@ export class Battlefield3D {
         this.fx.addFire(e.pos.x, e.pos.y, 1.2, 40);
         this.fx.addFire(e.pos.x, e.pos.y, 1, 120, true);
       }
+      else if (e.type === 'death' && !e.vehicle && visible(e.pos)) this.units.died(e.pos.x, e.pos.y);
       else if (e.type === 'death' && e.vehicle && visible(e.pos)) {
         // A knocked-out tank burns.
         this.fx.explosion(e.pos.x, e.pos.y, 26);
@@ -391,14 +437,66 @@ export class Battlefield3D {
       const k = smokeStrength(s, this.world.time);
       if (k > 0) this.fx.smokeScreen(s.pos.x, s.pos.y, s.radius, k, dt);
     }
+    const view = camera.visibleBounds();
+    this.fx.ambientDust(view.x0, view.y0, view.x1, view.y1, dt);
     this.fx.update(dt);
+    wind.value += dt;
     this.overlayTex.needsUpdate = true;
     if (fogVersion !== this.fogVersion) {
       this.fogVersion = fogVersion;
       this.fogTex.needsUpdate = true;
     }
-    this.renderer.render(this.scene, this.cam);
+    const r = this.renderer;
+    // The shadows move with the camera, so they are refitted only on frames they are redrawn.
+    if (this.frameNo++ % this.q.shadowEvery === 0) {
+      this.fitShadows(camera);
+      r.shadowMap.needsUpdate = true;
+    }
+    r.info.reset();
+    r.setRenderTarget(this.sceneTarget);
+    r.render(this.scene, this.cam);
+    let frame = this.sceneTarget;
+    if (this.q.ambientOcclusion) {
+      this.ao.render(r, this.aoTarget, this.sceneTarget, 0, false);
+      frame = this.aoTarget;
+    }
+    // Bloom adds its glow onto the frame in place.
+    if (this.q.bloom) this.bloom.render(r, this.sceneTarget, frame, 0, false);
+    this.grade.render(r, frame.texture, frame.width, frame.height);
+    r.autoClear = false;
+    r.render(this.overlayScene, this.cam);
+    r.autoClear = true;
     this.frameMs = performance.now() - t0;
+  }
+
+  /**
+   * Fit the sun's shadow map to the ground in view (plus room for the shadows
+   * of tall things just outside it), snapped to whole shadow texels so the
+   * shadows do not crawl as the camera pans.
+   */
+  private fitShadows(camera: Camera): void {
+    const b = camera.visibleBounds();
+    const need = Math.max(b.x1 - b.x0, b.y1 - b.y0) / 2 + 70;
+    // Only step the size in coarse jumps, so zooming does not make the shadows swim.
+    if (need > this.shadowHalf || need < this.shadowHalf * 0.7) this.shadowHalf = Math.pow(2, Math.ceil(Math.log2(need) * 4) / 4);
+    const half = this.shadowHalf;
+    const sc = this.sun.shadow.camera;
+    if (sc.right !== half) {
+      Object.assign(sc, { left: -half, right: half, top: half, bottom: -half });
+      sc.updateProjectionMatrix();
+    }
+    const dir = SUN_DIR;
+    const right = new THREE.Vector3().crossVectors(UP, dir).normalize();
+    const up = new THREE.Vector3().crossVectors(dir, right);
+    const centre = new THREE.Vector3((b.x0 + b.x1) / 2, 0, (b.y0 + b.y1) / 2);
+    const texel = (half * 2) / this.sun.shadow.mapSize.x;
+    const cr = Math.round(centre.dot(right) / texel) * texel;
+    const cu = Math.round(centre.dot(up) / texel) * texel;
+    const cd = centre.dot(dir);
+    centre.copy(right).multiplyScalar(cr).addScaledVector(up, cu).addScaledVector(dir, cd);
+    this.sun.target.position.copy(centre);
+    this.sun.position.copy(centre).addScaledVector(dir, 1400);
+    this.sun.target.updateMatrixWorld();
   }
 
   /** Stats for the performance readout. */
@@ -408,6 +506,8 @@ export class Battlefield3D {
   }
 
   dispose(): void {
+    this.stopModelWatch();
+    this.scene.add(...this.overlayScene.children);
     this.scene.traverse((o) => {
       if (o instanceof THREE.Mesh) {
         o.geometry.dispose();
@@ -416,12 +516,19 @@ export class Battlefield3D {
       }
     });
     this.fx.dispose();
+    this.ao.dispose();
+    this.grade.dispose();
+    this.bloom.dispose();
+    this.envMap.dispose();
+    this.sceneTarget.dispose();
+    this.aoTarget.dispose();
     this.structures.dispose();
     this.units.dispose();
     this.groundTex.dispose();
     this.overlayTex.dispose();
     this.fogTex.dispose();
     disposeTextures();
+    disposeSurfaces();
     this.renderer.dispose();
     this.canvas.remove();
   }
