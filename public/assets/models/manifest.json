@@ -1,0 +1,18 @@
+{
+  "models": [
+    {
+      "id": "crate",
+      "file": "old_military_crate/old_military_crate_1k.gltf",
+      "length": 7.5,
+      "keep": 0.2,
+      "source": "Old Military Crate, Poly Haven (CC0), https://polyhaven.com/a/old_military_crate"
+    },
+    {
+      "id": "jerrycan",
+      "file": "metal_jerrycan_green/metal_jerrycan_green_1k.gltf",
+      "length": 3.2,
+      "keep": 0.2,
+      "source": "Metal Jerrycan Green, Poly Haven (CC0), https://polyhaven.com/a/metal_jerrycan_green"
+    }
+  ]
+}
