@@ -2,6 +2,12 @@
 
 [Back to the README](../README.md)
 
+**1.2.0**
+- **Smooth roads, fields and water.** The battlefield is no longer drawn straight from its squares. Roads run as smooth bands with ragged verges and meet in natural crossroads, with a pair of wheel ruts in each lane that follow the road round every bend. Paddies are fields with rounded, natural outlines, a raised dike round each, still muddy water and rice planted in rows, and their fences run along the dike instead of tracing every square. Rivers have the same soft banks. Only how the ground looks has changed: where troops can walk, take cover and drive is exactly as before.
+- **Bahay kubo.** Nipa houses are proper bahay kubo: bamboo stilts and a raised floor, woven sawali walls with windows and a door, a ladder up to it, and a steep hipped thatch roof with a ridge cap, hanging well out over the walls. A shelled one shows its charred rafters through the hole in the thatch. Houses of other shapes keep their tile, iron or thatch roofs as before.
+- **Real models.** Ammunition crates and green jerrycans by the houses and behind sandbag positions are scanned 3D models (CC0, from Poly Haven), simplified so a battlefield can carry them.
+- **Sun from the west-north-west,** so the roof slopes facing you catch some light and shadows fall towards the lower right.
+
 **1.1.0**
 - **Real ground.** The battlefield is laid with photo-scanned surfaces (CC0, from Poly Haven): tropical grass, red-earth roads, bare trodden earth round the houses and in worn patches, and leaf-strewn jungle floor, each with its own bumps and roughness for the sun to catch. They blend into one another along ragged, wandering edges instead of the tile grid; grass grows in lush, sun-dried and leaf-strewn clumps, and each surface is laid at two scales so no repeat shows. Ruts, puddles and craters still mark the ground.
 - **Light that grounds everything.** Ambient occlusion darkens the ground under eaves, round the foot of walls, bushes, sandbags and soldiers, and between leaves. The sun's shadows follow the camera and are about four times sharper; soldiers, weapon teams and tanks now cast real shadows that fall the same way as the houses' and trees', instead of painted ones. The battlefield is drawn in high dynamic range with antialiasing, then tone-mapped; markers, rings and the fog of war keep their exact colours on top.
