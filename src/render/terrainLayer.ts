@@ -1,6 +1,7 @@
 import { TILE } from '../data/balance';
 import { T } from '../data/terrain';
 import { hash2 } from '../core/rng';
+import { VisualLayout } from './layout';
 import type { GameMap } from '../sim/grid';
 
 const SCALE = 2;
@@ -10,6 +11,8 @@ const PX = TILE * SCALE;
 const SURROUND_MARGIN = 900;
 /** Resolution of the surround, in canvas pixels per world unit: it is blurred anyway. */
 const SURROUND_SCALE = 0.5;
+/** World units per texel of the 3D ground-material map. */
+const SPLAT = 1;
 
 /** Light falls from the top-left: shadows reach this far to the bottom-right per pixel of height. */
 const SHADOW = 0.72;
@@ -116,6 +119,25 @@ export class TerrainLayer {
     return this.surround;
   }
   private roofLabel = new Int32Array(0);
+  /**
+   * Ground materials for the 3D battlefield (flat3d only), one texel per
+   * SPLAT world units: red is road, green bare earth, blue jungle floor and
+   * alpha the painting itself (paddies, water, rubble); grass is the rest.
+   */
+  readonly splat: Uint8Array;
+  /**
+   * More of the ground's make-up, on the same grid: red is the dark, trodden
+   * and scorched skirt round buildings and emplacements, green how wet the
+   * ground is, blue how far in from the road's edge (for the ruts) and alpha
+   * how much of a paddy or river covers it.
+   */
+  readonly ground2: Uint8Array;
+  /** Smooth shapes of roads, paddies and water for the 3D battlefield (flat3d only). */
+  readonly layout: VisualLayout | null;
+  readonly splatW: number;
+  readonly splatH: number;
+  /** Bumped whenever the splat changes. */
+  splatVersion = 0;
 
   /**
    * `flat3d`: paint only what lies flat on the ground (soil, roads, paddies,
@@ -134,6 +156,11 @@ export class TerrainLayer {
     this.canopy.width = flat3d ? 1 : map.w * PX;
     this.canopy.height = flat3d ? 1 : map.h * PX;
     this.cctx = this.canopy.getContext('2d')!;
+    this.splatW = flat3d ? Math.ceil(map.pixelWidth / SPLAT) : 1;
+    this.splatH = flat3d ? Math.ceil(map.pixelHeight / SPLAT) : 1;
+    this.splat = new Uint8Array(this.splatW * this.splatH * 4);
+    this.ground2 = new Uint8Array(this.splatW * this.splatH * 4);
+    this.layout = flat3d ? new VisualLayout(map) : null;
     this.paint(0, 0, map.w - 1, map.h - 1);
   }
 
@@ -153,6 +180,7 @@ export class TerrainLayer {
       y1 = Math.max(y1, ty);
     }
     changes.length = 0;
+    this.layout?.update(x0, y0, x1, y1);
     // Shadows and roofs reach a couple of tiles; repaint that much around the change.
     this.paint(Math.max(0, x0 - 2), Math.max(0, y0 - 2), Math.min(this.map.w - 1, x1 + 2), Math.min(this.map.h - 1, y1 + 2));
   }
@@ -183,8 +211,8 @@ export class TerrainLayer {
     canvas.height = Math.ceil((h + m * 2) * SURROUND_SCALE);
     const c = canvas.getContext('2d')!;
     const world = () => c.setTransform(SURROUND_SCALE, 0, 0, SURROUND_SCALE, m * SURROUND_SCALE, m * SURROUND_SCALE);
-    // In 3D the land runs on under the haze; flat, it fades into the dark.
-    c.filter = this.flat3d ? 'blur(2px) saturate(0.8) brightness(0.85)' : 'blur(3px) saturate(0.35) brightness(0.3) sepia(0.2)';
+    // The land beyond the battlefield: dim and blurred, fading to dark, so the eye stays on the field.
+    c.filter = this.flat3d ? 'blur(3px) saturate(0.45) brightness(0.42) sepia(0.15)' : 'blur(3px) saturate(0.35) brightness(0.3) sepia(0.2)';
     for (const i of [-1, 0, 1]) {
       for (const j of [-1, 0, 1]) {
         if (i === 0 && j === 0) continue;
@@ -201,10 +229,10 @@ export class TerrainLayer {
     // Darker the further from the battlefield, like haze over distant country.
     const fade = (gx0: number, gy0: number, gx1: number, gy1: number, rx: number, ry: number, rw: number, rh: number) => {
       const g = c.createLinearGradient(gx0, gy0, gx1, gy1);
-      const tone = this.flat3d ? '120,128,98' : '5,6,5';
-      g.addColorStop(0, `rgba(${tone},${this.flat3d ? 0.05 : 0.62})`);
-      g.addColorStop(0.2, `rgba(${tone},${this.flat3d ? 0.25 : 0.85})`);
-      g.addColorStop(1, `rgba(${tone},${this.flat3d ? 0.9 : 0.98})`);
+      const tone = this.flat3d ? '18,20,15' : '5,6,5';
+      g.addColorStop(0, `rgba(${tone},${this.flat3d ? 0.35 : 0.62})`);
+      g.addColorStop(0.2, `rgba(${tone},${this.flat3d ? 0.7 : 0.85})`);
+      g.addColorStop(1, `rgba(${tone},${this.flat3d ? 0.97 : 0.98})`);
       c.fillStyle = g;
       c.fillRect(rx, ry, rw, rh);
     };
@@ -265,7 +293,10 @@ export class TerrainLayer {
     this.paintRoofs(tx0, ty0, tx1, ty1);
     c.restore();
 
-    if (this.flat3d) return;
+    if (this.flat3d) {
+      this.paintSplat(tx0, ty0, tx1, ty1);
+      return;
+    }
     const cc = this.cctx;
     cc.save();
     cc.clearRect(x, y, w, h);
@@ -274,6 +305,104 @@ export class TerrainLayer {
     cc.clip();
     for (let ty = ay0; ty <= ay1; ty++) for (let tx = ax0; tx <= ax1; tx++) for (const tree of this.treesOf(tx, ty)) this.drawTree(cc, tree);
     cc.restore();
+  }
+
+  /**
+   * Which ground material lies where: tiles blended through warped noise so
+   * the edges wander, roads as smooth bands with ragged verges, bare earth
+   * round the houses and in worn patches across the grass.
+   */
+  private paintSplat(tx0: number, ty0: number, tx1: number, ty1: number): void {
+    const d = this.splat;
+    const sx0 = Math.floor((tx0 * TILE) / SPLAT);
+    const sy0 = Math.floor((ty0 * TILE) / SPLAT);
+    const sx1 = Math.min(this.splatW - 1, Math.ceil(((tx1 + 1) * TILE) / SPLAT));
+    const sy1 = Math.min(this.splatH - 1, Math.ceil(((ty1 + 1) * TILE) / SPLAT));
+    /** [earth, jungle, painted] for a terrain type. */
+    const kind = (t: number): [number, number, number] => {
+      switch (t) {
+        case T.Building:
+        case T.Emplacement:
+        case T.Crater:
+        case T.Sandbag:
+        case T.TankTrap:
+        case T.Wall:
+          return [1, 0, 0];
+        case T.Jungle:
+          return [0.15, 1, 0];
+        case T.Hedge:
+          return [0.2, 0.6, 0];
+        case T.Rampart:
+        case T.Rubble:
+          return [0, 0, 1];
+        default:
+          return [0, 0, 0];
+      }
+    };
+    for (let j = sy0; j <= sy1; j++) {
+      const wy = (j + 0.5) * SPLAT;
+      for (let i = sx0; i <= sx1; i++) {
+        const wx = (i + 0.5) * SPLAT;
+        const u = wx / TILE + (noise(wx / 17, wy / 17, 11) - 0.5) * 0.9 + (noise(wx / 5, wy / 5, 12) - 0.5) * 0.25 - 0.5;
+        const v = wy / TILE + (noise(wx / 17, wy / 17, 13) - 0.5) * 0.9 + (noise(wx / 5, wy / 5, 14) - 0.5) * 0.25 - 0.5;
+        const ix = Math.floor(u);
+        const iy = Math.floor(v);
+        const fx = smooth(0.1, 0.9, u - ix);
+        const fy = smooth(0.1, 0.9, v - iy);
+        const a = kind(this.t(ix, iy));
+        const b = kind(this.t(ix + 1, iy));
+        const c = kind(this.t(ix, iy + 1));
+        const e = kind(this.t(ix + 1, iy + 1));
+        const mix = (k: number) => {
+          const top = a[k] + (b[k] - a[k]) * fx;
+          const bot = c[k] + (e[k] - c[k]) * fx;
+          return top + (bot - top) * fy;
+        };
+        // Roads, paddies and water from the visual layout: smooth shapes, with ragged verges.
+        const lay = this.layout!;
+        const jx = (noise(wx / 11, wy / 11, 15) - 0.5) * 5 + (noise(wx / 3, wy / 3, 22) - 0.5) * 1.5;
+        const jy = (noise(wx / 11, wy / 11, 16) - 0.5) * 5 + (noise(wx / 3, wy / 3, 23) - 0.5) * 1.5;
+        const road = smooth(0.4, 0.6, lay.sample(lay.road, wx + jx, wy + jy));
+        const wetland = Math.max(lay.sample(lay.paddy, wx + jx * 0.4, wy + jy * 0.4), lay.sample(lay.water, wx + jx * 0.4, wy + jy * 0.4));
+        // Worn, bare patches in the grass.
+        const worn = smooth(0.7, 0.88, noise(wx / 29, wy / 29, 17) * 0.75 + noise(wx / 7, wy / 7, 18) * 0.25) * 0.7;
+        const p = (j * this.splatW + i) * 4;
+        const painted = mix(2);
+        d[p] = Math.round(road * (1 - painted) * 255);
+        // Paddies and banks are bare, wet earth under their water.
+        d[p + 1] = Math.round(Math.min(1, mix(0) + worn * (1 - mix(1)) + smooth(0.2, 0.45, wetland)) * (1 - road) * (1 - painted) * 255);
+        d[p + 2] = Math.round(mix(1) * (1 - road) * (1 - painted) * 255);
+        d[p + 3] = Math.round(painted * 255);
+        // Skirt: within about ten units of a building or emplacement, ragged at its edge.
+        let near = Infinity;
+        const ctx0 = Math.floor(wx / TILE);
+        const cty0 = Math.floor(wy / TILE);
+        for (let dy = -1; dy <= 1; dy++) {
+          for (let dx = -1; dx <= 1; dx++) {
+            const tt = this.t(ctx0 + dx, cty0 + dy);
+            if (tt !== T.Building && tt !== T.Emplacement && tt !== T.Rubble && tt !== T.Sandbag && tt !== T.Wall && tt !== T.TankTrap) continue;
+            const x0 = (ctx0 + dx) * TILE;
+            const y0 = (cty0 + dy) * TILE;
+            near = Math.min(near, Math.hypot(Math.max(x0 - wx, 0, wx - x0 - TILE), Math.max(y0 - wy, 0, wy - y0 - TILE)));
+          }
+        }
+        const skirt = smooth(10 + (noise(wx / 6, wy / 6, 19) - 0.5) * 7, 0, near);
+        // Wet: puddled patches on roads and bare earth, damp ground by paddies and water.
+        const wetPatch = smooth(0.6, 0.82, noise(wx / 13, wy / 13, 20) * 0.7 + noise(wx / 4, wy / 4, 21) * 0.3);
+        const bare = road + (d[p + 1] / 255) * 0.8;
+        const damp = smooth(0.15, 0.5, wetland) * 0.6;
+        const wet = Math.min(1, wetPatch * Math.min(1, bare) + damp * 0.5);
+        const q = p;
+        this.ground2[q] = Math.round(skirt * 255);
+        this.ground2[q + 1] = Math.round(wet * 255);
+        // How far inside the road, from its smooth edge (for the ruts).
+        const inRoad = lay.sample(lay.roadDepth, wx + jx * 0.5, wy + jy * 0.5);
+        this.ground2[q + 2] = Math.round(Math.min(1, inRoad / 32) * 255);
+        // How much of a paddy or river lies here (water in the middle, a raised dike round its edge).
+        this.ground2[q + 3] = Math.round(wetland * 255);
+      }
+    }
+    this.splatVersion++;
   }
 
   /** Ground colour per world unit: neighbouring terrain blended through warped noise, then mottled. */
@@ -296,9 +425,10 @@ export class TerrainLayer {
         const fx = smooth(0.15, 0.85, u - ix);
         const fy = smooth(0.15, 0.85, v - iy);
         // Roads are painted below as smooth bands, so here they count as the grass they run through.
+        // (In 3D, paddies and water are drawn from the visual layout as well.)
         const ground = (x: number, y: number) => {
           const tt = this.t(x, y);
-          return tt === T.Road ? GRASS : GROUND[tt];
+          return tt === T.Road || (this.flat3d && (tt === T.Paddy || tt === T.Water)) ? GRASS : GROUND[tt];
         };
         const a = ground(ix, iy);
         const b = ground(ix + 1, iy);
@@ -340,6 +470,11 @@ export class TerrainLayer {
    * so a road drawn as a staircase of tiles becomes a clean diagonal track.
    */
   private roadWeight(wx: number, wy: number): number {
+    return smooth(TILE * 0.78, TILE * 0.5, this.roadDistance(wx, wy));
+  }
+
+  /** Distance from a point to the centre line of the nearest road (Infinity if none is near). */
+  private roadDistance(wx: number, wy: number): number {
     const tx = Math.floor(wx / TILE);
     const ty = Math.floor(wy / TILE);
     let best = Infinity;
@@ -367,7 +502,7 @@ export class TerrainLayer {
         }
       }
     }
-    return smooth(TILE * 0.78, TILE * 0.5, best);
+    return best;
   }
 
   /** Flat things in the ground: ruts and puddles, paddy rows, craters, ripples and banks. */
@@ -378,6 +513,8 @@ export class TerrainLayer {
     const y = ty * PX;
     const hh = (i: number) => hash2(tx, ty, i);
     const same = (dx: number, dy: number) => this.t(tx + dx, ty + dy) === t;
+    // In 3D the visual layout draws roads (with their ruts), paddies and water with smooth edges.
+    if (this.flat3d && (t === T.Road || t === T.Paddy || t === T.Water)) return;
     switch (t) {
       case T.Road: {
         // Ruts run along the road: a road two tiles wide has a road tile beside every tile.
