@@ -212,9 +212,41 @@ const ROQUE: MapDef = {
   ),
 };
 
+/**
+ * The graphics benchmark (development only, not in any menu): a small barrio
+ * crossroads with two huts, a paddy, palms and jungle, two sandbag positions
+ * and room for one squad, always shot from the same camera (see main.ts, ?bench=1).
+ */
+const BENCH: MapDef = {
+  id: 'benchmark',
+  name: 'Benchmark Crossroads',
+  description: 'A fixed scene for judging the battlefield graphics.',
+  width: 40,
+  height: 30,
+  bases: [
+    { x: 4, y: 25 },
+    { x: 36, y: 4 },
+  ],
+  points: [{ x: 20, y: 14, kind: 'victory', name: 'Crossroads' }],
+  features: [
+    circle(T.Jungle, 6, 4, 4),
+    circle(T.Jungle, 33, 26, 4),
+    rect(T.Paddy, 25, 18, 10, 7),
+    line(T.Hedge, 1, [7, 10], [15, 10]),
+    line(T.Hedge, 1, [27, 10], [33, 11]),
+    line(T.Road, 2, [0, 15], [10, 15], [19, 14], [29, 13], [40, 12]),
+    line(T.Road, 2, [19, 0], [20, 8], [20, 14], [22, 22], [23, 30]),
+    rect(T.Building, 23, 7, 3, 2),
+    rect(T.Building, 12, 17, 3, 2),
+    line(T.Sandbag, 1, [16, 11], [18, 11]),
+    line(T.Sandbag, 1, [23, 16], [26, 16]),
+  ],
+};
+
 export const MAPS: Readonly<Record<string, MapDef>> = {
   [BATAAN.id]: BATAAN,
   [ROQUE.id]: ROQUE,
+  [BENCH.id]: BENCH,
   ...Object.fromEntries(LUZON_MAPS.map((m) => [m.id, m])),
 };
 export const MAP_IDS = [BATAAN.id, ROQUE.id, ...LUZON_MAPS.map((m) => m.id)];
