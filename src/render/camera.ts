@@ -2,8 +2,11 @@ import { clamp, type Vec2 } from '../core/vec';
 
 /** How far the 3D battlefield camera leans back from straight down. */
 export const CAMERA_TILT = (38 * Math.PI) / 180;
-/** Vertical field of view of the 3D battlefield camera. */
-export const CAMERA_FOV = (30 * Math.PI) / 180;
+/**
+ * Vertical field of view of the 3D battlefield camera: a long lens from far
+ * back, so the field stays flat and true to the edges of the screen.
+ */
+export const CAMERA_FOV = (28 * Math.PI) / 180;
 
 /**
  * Battlefield camera with pan and zoom. `x`/`y` is the world point at screen centre.
@@ -19,7 +22,8 @@ export class Camera {
   zoom = 1;
   viewW = 1;
   viewH = 1;
-  readonly maxZoom = 4;
+  /** Close enough to see each man's kit and rifle. */
+  readonly maxZoom = 6.5;
   /** Set by the 3D battlefield renderer. */
   tilted = false;
 
