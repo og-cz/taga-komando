@@ -7,7 +7,7 @@
 
 Squad-based real-time tactics game for Windows, set on Luzon.
 
-Version 1.0.0 · Campaign, Theater of War and Skirmish vs. AI · Offline
+Version 1.1.0 · Campaign, Theater of War and Skirmish vs. AI · Offline
 
 <picture>![Taga Komando](docs/screenshot.jpg)</picture>
 <sub>Concept of the look the game is heading toward.</sub>
@@ -198,6 +198,7 @@ What changed in every version: **[docs/CHANGELOG.md](docs/CHANGELOG.md)**.
 - Sound effects (all CC0, from OpenGameArt): **The Free Firearm Sound Library** (gunfire), "25 CC0 bang / firework SFX" by rubberduck, "Explosions" by EZduzziteh, "Cannon fire" and "Cannon hit" by Thimras, "Generator (loop)" by YCbCr, "Rocket launch" by qubodup.
 - Interface and unit sounds (CC0, from OpenGameArt): "Typewriter sounds" by Cassie-OrbitGames, "Crank movie telephone ringtone" by cyberdyne, "Mechanical Sounds" by BMacZero, "Equipment Clicks II" and "equipment clicks III" by LFA, "Car engine start 01" by looneybits.
 - Music: "Triumphant" by Emma_MA (victory) and "The Sad Battle" by Eldritch Grim (defeat), both CC0 from OpenGameArt; "Laments of the War" by Cethiel (menus, CC0, from OpenGameArt) and "Five Armies" by Kevin MacLeod (incompetech.com) for battle, licensed under Creative Commons: By Attribution 4.0 (https://creativecommons.org/licenses/by/4.0/). Both credits ship with the game in `licenses/Music-credits.txt`.
+- Battlefield textures (CC0, from Poly Haven): "Leafy Grass", "Red Dirt Mud 01", "Brown Mud 02", "Forest Ground 01", "Thatch Roof Angled" and "Bamboo Wall 02", and the leaves, fronds and grass of "Island Tree 02", "Fern 02" and "Grass Medium 01". The list ships with the game in `licenses/PolyHaven-CC0.txt`.
 - Display font: **Quiapo Free** by Aaron Amar (http://be.net/aaronamar), used under the SIL Open Font License 1.1. The licence text ships with the game in `licenses/Quiapo-OFL.txt`.
 
 ## Troubleshooting
