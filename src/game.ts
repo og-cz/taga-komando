@@ -86,7 +86,8 @@ export class Game {
     this.hud.onHelp = () => this.toggleHelp();
     window.addEventListener('resize', this.onResize);
     this.resize();
-    this.camera.zoom = 1.4;
+    // Start close in on the infantry, where the fighting is.
+    this.camera.zoom = 2.6;
     const hold = scenario?.defense ? this.world.points[scenario.defense.hold[0]].pos : null;
     this.camera.centerOn(hold ?? this.world.teams[PLAYER].spawn);
     this.input.select(this.world.squads.filter((s) => s.team === PLAYER && (s.def.kind === 'infantry' || s.def.kind === 'team')).map((s) => s.id));
