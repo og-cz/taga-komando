@@ -4,6 +4,7 @@ import type { World } from '../sim/world';
 import { el, formatTime } from './dom';
 import { drawReconMap } from './recon';
 import { controlsTable } from './menu';
+import { graphicsQuality, setGraphicsQuality, type Quality } from '../render3d/quality';
 
 /** Master, music and effects volume, saved between sessions. */
 export function volumeControls(): HTMLElement {
@@ -19,6 +20,26 @@ export function volumeControls(): HTMLElement {
     return el('label', { class: 'volume-row' }, el('span', { text: label }), input, value);
   };
   return el('div', { class: 'volume' }, el('h2', { text: 'Sound' }), row('master', 'Master'), row('music', 'Music'), row('effects', 'Effects'));
+}
+
+/** Graphics quality: High, or Low for integrated graphics; takes effect from the next battle. */
+export function graphicsControls(): HTMLElement {
+  const note = el('p', { class: 'graphics-note' });
+  const high = el('button', { class: 'pause-btn', text: 'High: ambient occlusion, glow, full detail' });
+  const low = el('button', { class: 'pause-btn', text: 'Low: for laptop and integrated graphics' });
+  const show = (q: Quality) => {
+    high.classList.toggle('primary', q === 'high');
+    low.classList.toggle('primary', q === 'low');
+  };
+  const pick = (q: Quality) => {
+    setGraphicsQuality(q);
+    show(q);
+    note.textContent = 'Takes effect from the next battle (or Retry).';
+  };
+  high.addEventListener('click', () => pick('high'));
+  low.addEventListener('click', () => pick('low'));
+  show(graphicsQuality());
+  return el('div', { class: 'volume' }, el('h2', { text: 'Graphics' }), high, low, note);
 }
 
 /** The pause menu: a short list of buttons over the frozen battle; controls and sound open in their own page. */
@@ -48,6 +69,7 @@ export function pauseOverlay(onResume: () => void, onQuit: () => void): HTMLElem
       button('Resume', onResume, 'primary'),
       button('Controls', () => page('Controls', controlsTable())),
       button('Sound', () => page('Sound', volumeControls())),
+      button('Graphics', () => page('Graphics', graphicsControls())),
       quit,
     );
   };
