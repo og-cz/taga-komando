@@ -2,6 +2,8 @@ import './ui/styles.css';
 import './ui/frontend.css';
 import { audio } from './audio/audio';
 import { installUiSounds } from './audio/uiSounds';
+import { preloadSurfaces } from './render3d/surfaces';
+import { preloadModels } from './render3d/models';
 import { hurtHouse } from './sim/systems/garrison';
 import { addSmoke } from './sim/systems/smoke';
 import { CAMPAIGN } from './data/campaign';
@@ -106,6 +108,9 @@ function play(setup: MatchSetup, origin: Origin): void {
 }
 
 installUiSounds();
+// The battlefield's photo-scanned ground and roofing, loaded while the menus are up.
+void preloadSurfaces();
+void preloadModels();
 // Load the display font now: the first screen that uses it may be the result
 // screen, and the title must never flash up in a fallback font.
 void document.fonts.load("400 48px 'Quiapo'").catch(() => {});
@@ -119,6 +124,8 @@ void document.fonts.load("400 48px 'Quiapo'").catch(() => {});
 // &faction=ija plays the Imperial side, &fire=1 lights fires and a blast by the spawned units (3D).
 // &smoke=1 lays two smoke screens by the spawned units, already thick (3D).
 // &ruin=1 shells three houses near the middle of the map into each stage of damage and looks at them.
+// ?battle=benchmark&bench=1: the graphics benchmark, one squad at the crossroads, the north-east hut
+// shelled, fog lifted and the camera always in the same place (capture at 1600 × 900).
 const devBattle = import.meta.env.DEV ? new URLSearchParams(location.search).get('battle') : null;
 if (devBattle) {
   const side = new URLSearchParams(location.search).get('faction') === 'ija' ? 'ija' : 'usaffe';
@@ -141,6 +148,7 @@ interface DevGame {
   renderer: { spectator: boolean; draw(ui: unknown, dt: number): void; world3d: { fx: { addFire(x: number, y: number, s: number, t: number): void; explosion(x: number, y: number, r: number): void; shot(fx: number, fy: number, tx: number, ty: number, hit: boolean, kind: 'rifle' | 'mg' | 'shell', armoured: boolean): void } } | null };
   ui: { buildMenu: false | 'defense' | 'base' };
   hud: { root: HTMLElement };
+  paused: boolean;
   camera: { zoom: number; minZoom: number; maxZoom: number; centerOn(p: { x: number; y: number }): void };
 }
 
@@ -214,6 +222,25 @@ function devSetup(): void {
     game.renderer.draw(game.ui, 1 / 60);
     w.events.length = 0;
     for (let i = 0; i < 200; i++) game.renderer.draw(game.ui, 1 / 60);
+  }
+  if (params.get('bench')) {
+    const w = game.world;
+    const cross = { x: 20.5 * 16, y: 14 * 16 };
+    const sq = w.spawn(0, 'us_riflemen', { x: cross.x - 40, y: cross.y + 24 });
+    game.input.select([sq.id]);
+    const hut = [...w.houses].sort((a, b) => Math.hypot(a.center.x - 24.5 * 16, a.center.y - 8 * 16) - Math.hypot(b.center.x - 24.5 * 16, b.center.y - 8 * 16))[0];
+    // Every house sound, then the one by the north-east corner of the crossroads shelled once.
+    for (const h of w.houses) {
+      h.hp = h.maxHp;
+      h.stage = 0;
+    }
+    if (hut) hurtHouse(w, hut, hut.maxHp * 0.45);
+    w.events.length = 0;
+    game.renderer.spectator = true;
+    game.camera.zoom = 2.7;
+    game.camera.centerOn({ x: cross.x + 10, y: cross.y + 30 });
+    // Held still, so every capture shows the same moment (effects still play when drawn).
+    game.paused = true;
   }
   const end = params.get('end');
   if (end) game.world.winner = end === 'win' ? 0 : 1;
