@@ -4,7 +4,8 @@ import { T } from '../data/terrain';
 import { hash2 } from '../core/rng';
 import type { GameMap } from '../sim/grid';
 import type { TerrainLayer } from '../render/terrainLayer';
-import { groundDetailTexture, wallAtlas } from './textures';
+import { groundDetailTexture, thatchFringeTexture, wallAtlas } from './textures';
+import { surface } from './surfaces';
 
 /** Height of the walls up to the eaves (world units; a tile is 16). */
 export const WALL_H = 11;
@@ -106,11 +107,193 @@ export function buildBuildings(
   const wallUv: number[] = [];
   const wallNorm: number[] = [];
   const wallCol: number[] = [];
+  /** 1 where a wall is woven sawali (a nipa hut), 0 for plaster and iron. */
+  const wallKind: number[] = [];
+  /** The shaggy straw hanging from nipa eaves: quads, cut out by alpha. */
+  const fringePos: number[] = [];
+  const fringeUv: number[] = [];
+  const fringeNorm: number[] = [];
   /** Footings, corner posts and eave boards: boxes, each with its colour. */
   const trim: { m: THREE.Matrix4; c: THREE.Color }[] = [];
   const box = (x: number, y: number, z: number, sx: number, sy: number, sz: number, color: number, k = 1) =>
     trim.push({ m: new THREE.Matrix4().compose(new THREE.Vector3(x, y, z), new THREE.Quaternion(), new THREE.Vector3(sx, sy, sz)), c: new THREE.Color(color).multiplyScalar(k) });
   const N = TILE / STEP;
+
+  /**
+   * A bahay kubo fitted to a rectangle of tiles: bamboo stilts and a raised
+   * floor, woven sawali walls with windows and a door, a ladder up to the door,
+   * and a steep hipped nipa roof hanging well out over the walls, with a ridge
+   * cap and a ragged straw fringe. A shelled one has a hole in its thatch with
+   * the charred rafters showing. It stays inside its tiles, so it never stands
+   * where the simulation says there is open ground.
+   */
+  const kubo = (
+    r: { x0: number; z0: number; x1: number; z1: number },
+    seed: number,
+    stage: number,
+    inHole: (x: number, z: number) => boolean,
+    soot: (x: number, y: number, z: number) => number,
+    hx: number,
+    hz: number,
+    holeR: number,
+  ) => {
+    const h = (i: number) => hash2(seed, i, 950);
+    const char = stage === 2 ? 0.5 : 1;
+    const FLOOR = 3 + h(1) * 0.6;
+    const EAVE = FLOOR + 7.2;
+    // The house body, set in from the tiles; the roof reaches nearly to them.
+    const bx0 = r.x0 + 3;
+    const bz0 = r.z0 + 3;
+    const bx1 = r.x1 - 3;
+    const bz1 = r.z1 - 3;
+    const ex0 = r.x0 + 0.4;
+    const ez0 = r.z0 + 0.4;
+    const ex1 = r.x1 - 0.4;
+    const ez1 = r.z1 - 0.4;
+    const wood = 0x4a3826;
+    // Stilts at the corners and every five units or so along the sides, and the floor on them.
+    const along = (a: number, b: number) => Math.max(1, Math.round((b - a) / 5));
+    const nx = along(bx0, bx1);
+    const nz = along(bz0, bz1);
+    for (let i = 0; i <= nx; i++) {
+      for (let j = 0; j <= nz; j++) {
+        if (i !== 0 && i !== nx && j !== 0 && j !== nz) continue;
+        const x = bx0 + ((bx1 - bx0) * i) / nx;
+        const z = bz0 + ((bz1 - bz0) * j) / nz;
+        box(x, (FLOOR + 0.4) / 2, z, 0.8, FLOOR + 0.4, 0.8, wood, (0.8 + hash2(i, j, seed) * 0.3) * char);
+      }
+    }
+    box((bx0 + bx1) / 2, FLOOR, (bz0 + bz1) / 2, bx1 - bx0 + 1.2, 0.6, bz1 - bz0 + 1.2, 0x6b5638, char);
+    // Floor joists showing under the edge.
+    for (let i = 0; i <= nx; i++) box(bx0 + ((bx1 - bx0) * i) / nx, FLOOR - 0.5, (bz0 + bz1) / 2, 0.5, 0.5, bz1 - bz0 + 2, 0x3e2f20, char);
+    // Walls: one bay per five units or so, sawali, a window in most and a door at the front.
+    const sides: [number, number, number, number, number, number][] = [
+      [bx0, bz1, bx1, bz1, 0, 1],
+      [bx1, bz0, bx0, bz0, 0, -1],
+      [bx0, bz0, bx0, bz1, -1, 0],
+      [bx1, bz1, bx1, bz0, 1, 0],
+    ];
+    const doorSide = 0;
+    sides.forEach(([ax, az, bx, bz, nxx, nzz], si) => {
+      const len = Math.hypot(bx - ax, bz - az);
+      const bays = Math.max(1, Math.round(len / 6));
+      for (let b = 0; b < bays; b++) {
+        const t0 = b / bays;
+        const t1 = (b + 1) / bays;
+        const x0 = ax + (bx - ax) * t0;
+        const z0 = az + (bz - az) * t0;
+        const x1 = ax + (bx - ax) * t1;
+        const z1 = az + (bz - az) * t1;
+        const door = si === doorSide && b === Math.floor(bays / 2);
+        const variant = door ? 2 : hash2(seed, si * 10 + b, 951) < 0.6 ? 1 : 0;
+        const u0 = variant / 3;
+        const u1 = (variant + 1) / 3;
+        const v1 = 1 - 1 / 3;
+        const v0 = 1 - 2 / 3;
+        const top = EAVE + 0.4;
+        const quad = [
+          [x0, FLOOR + 0.3, z0, u0, v0],
+          [x1, FLOOR + 0.3, z1, u1, v0],
+          [x1, top, z1, u1, v1],
+          [x0, FLOOR + 0.3, z0, u0, v0],
+          [x1, top, z1, u1, v1],
+          [x0, top, z0, u0, v1],
+        ];
+        for (const [x, y, z, u, v] of quad) {
+          wallPos.push(x, y, z);
+          wallUv.push(u, v);
+          wallNorm.push(nxx, 0, nzz);
+          wallKind.push(1);
+          const k = soot(x, y - FLOOR, z);
+          wallCol.push(k, k * 0.97, k * 0.94);
+        }
+        // A ladder up to the door.
+        if (door) {
+          const mx = (x0 + x1) / 2 + nxx * 2.2;
+          const mz = (z0 + z1) / 2 + nzz * 2.2;
+          for (const side of [-1, 1]) box(mx + nzz * side * 1.3, FLOOR / 2, mz + nxx * side * 1.3, 0.4, FLOOR + 0.6, 0.4, 0x5a4530, char);
+          for (let k = 1; k < 4; k++) box(mx, (FLOOR * k) / 4, mz, nxx ? 0.35 : 2.8, 0.3, nxx ? 2.8 : 0.35, 0x6a5238, char);
+        }
+      }
+      // Corner posts and a plate beam under the eaves.
+      box(ax, (FLOOR + EAVE) / 2, az, 0.9, EAVE - FLOOR + 0.8, 0.9, 0x3e2e1e, char);
+      box((ax + bx) / 2 + nxx * 0.3, EAVE + 0.2, (az + bz) / 2 + nzz * 0.3, nxx ? 0.6 : len + 0.8, 0.7, nzz ? 0.6 : len + 0.8, 0x3a2a1a, char);
+    });
+    // The roof: a hip, its height the distance in from the eaves, on a fine grid.
+    const RS = 2;
+    const gw = Math.max(2, Math.round((ex1 - ex0) / RS));
+    const gd = Math.max(2, Math.round((ez1 - ez0) / RS));
+    const rise = (x: number, z: number) => Math.min(x - ex0, ex1 - x, z - ez0, ez1 - z) * 1.05;
+    const ids: number[] = [];
+    for (let j = 0; j <= gd; j++) {
+      for (let i = 0; i <= gw; i++) {
+        const x = ex0 + ((ex1 - ex0) * i) / gw;
+        const z = ez0 + ((ez1 - ez0) * j) / gd;
+        let y = EAVE + rise(x, z) + (hash2(i, j, seed + 3) - 0.5) * 0.35;
+        if (holeR > 0) {
+          const d = Math.hypot(x - hx, z - hz);
+          if (d < holeR * 1.35) y -= (1 - d / (holeR * 1.35)) * 4;
+        }
+        ids.push(roofPos.length / 3);
+        roofPos.push(x, y, z);
+        roofUv.push(x / W, 1 - z / H);
+        roofKind.push(1);
+      }
+    }
+    for (let j = 0; j < gd; j++) {
+      for (let i = 0; i < gw; i++) {
+        const x = ex0 + ((ex1 - ex0) * (i + 0.5)) / gw;
+        const z = ez0 + ((ez1 - ez0) * (j + 0.5)) / gd;
+        if (inHole(x, z)) continue;
+        const a = ids[j * (gw + 1) + i];
+        const b = ids[j * (gw + 1) + i + 1];
+        const c = ids[(j + 1) * (gw + 1) + i];
+        const d = ids[(j + 1) * (gw + 1) + i + 1];
+        const ya = roofPos[a * 3 + 1];
+        const yb = roofPos[b * 3 + 1];
+        const yc = roofPos[c * 3 + 1];
+        const yd = roofPos[d * 3 + 1];
+        if (Math.abs(ya - yd) < Math.abs(yb - yc)) roofIdx.push(a, c, d, a, d, b);
+        else roofIdx.push(a, c, b, b, c, d);
+      }
+    }
+    // Ridge cap along the top, where the two long slopes meet.
+    const longX = ex1 - ex0 >= ez1 - ez0;
+    const half = Math.min(ex1 - ex0, ez1 - ez0) / 2;
+    const ridgeLen = Math.abs(ex1 - ex0 - (ez1 - ez0));
+    if (ridgeLen > 0.5 && !inHole((ex0 + ex1) / 2, (ez0 + ez1) / 2)) {
+      box((ex0 + ex1) / 2, EAVE + half * 1.05 + 0.3, (ez0 + ez1) / 2, longX ? ridgeLen + 1 : 1.4, 0.8, longX ? 1.4 : ridgeLen + 1, 0x5b4e3a, char);
+    }
+    // The straw fringe hanging below all four eaves.
+    const edges: [number, number, number, number, number, number][] = [
+      [ex0, ez1, ex1, ez1, 0, 1],
+      [ex1, ez0, ex0, ez0, 0, -1],
+      [ex0, ez0, ex0, ez1, -1, 0],
+      [ex1, ez1, ex1, ez0, 1, 0],
+    ];
+    edges.forEach(([ax, az, bx, bz, nxx, nzz], ei) => {
+      const len = Math.hypot(bx - ax, bz - az);
+      const drop = 2.4 + hash2(seed, ei, 952) * 0.8;
+      const out = 0.8;
+      const u0 = hash2(seed, ei, 953);
+      const u1 = u0 + len / 7;
+      const top = EAVE + 0.3;
+      const quad: [number, number, number, number, number][] = [
+        [ax, top, az, u0, 1],
+        [bx, top, bz, u1, 1],
+        [bx + nxx * out, top - drop, bz + nzz * out, u1, 0],
+        [ax, top, az, u0, 1],
+        [bx + nxx * out, top - drop, bz + nzz * out, u1, 0],
+        [ax + nxx * out, top - drop, az + nzz * out, u0, 0],
+      ];
+      if (inHole((ax + bx) / 2, (az + bz) / 2)) return;
+      for (const [x, y, z, u, v] of quad) {
+        fringePos.push(x, y, z);
+        fringeUv.push(u, v);
+        fringeNorm.push(nxx * 0.5, 0.85, nzz * 0.5);
+      }
+    });
+  };
 
   comps.forEach((comp, ci) => {
     if (comp.tiles.some(covered)) return;
@@ -131,6 +314,20 @@ export function buildBuildings(
     const hx = cx + (hash2(seed, 5, 909) - 0.5) * TILE * Math.min(1, size * 0.5);
     const hz = cz + (hash2(seed, 6, 909) - 0.5) * TILE * Math.min(1, size * 0.5);
     if (damaged) info.damaged.push({ x: hx, y: hz, size: holeR, stage: stage as 1 | 2 });
+    // Under a shell hole, the roof's charred rafters show, running down the slope.
+    if (damaged) {
+      const n = Math.max(2, Math.round((holeR * 2) / 3.2));
+      for (let i = 0; i < n; i++) {
+        if (hash2(seed, i, 911) < 0.2) continue;
+        const off = (i - (n - 1) / 2) * 3.2;
+        const span = holeR * (1.6 + hash2(seed, i, 912) * 0.5);
+        const y = WALL_H + Math.min(RISE_CAP, Math.max(0, holeR) * 0.5) - 1.5 + hash2(seed, i, 913) * 1.2;
+        trim.push({
+          m: new THREE.Matrix4().compose(new THREE.Vector3(hx + off, y, hz), new THREE.Quaternion().setFromEuler(new THREE.Euler(0, 0, (hash2(seed, i, 914) - 0.5) * 0.5)), new THREE.Vector3(0.7, 0.6, span)),
+          c: new THREE.Color(stage === 2 ? 0x120d09 : 0x2a1c12),
+        });
+      }
+    }
     const inHole = (x: number, z: number) => {
       if (!damaged) return false;
       const a = Math.atan2(z - hz, x - hx);
@@ -151,6 +348,13 @@ export function buildBuildings(
     const mat = terrain.roofMaterial(Math.floor(cx / TILE), Math.floor(cz / TILE));
     const slope = mat === 1 ? THATCH_SLOPE : SLOPE;
     const inset = mat === 1 ? THATCH_INSET : INSET;
+
+    // A nipa house on a plain rectangle of tiles gets the bahay kubo prefab, fitted to it.
+    const rect = rectOf(comp.tiles, map.w);
+    if (mat === 1 && rect) {
+      kubo(rect, seed, stage, inHole, soot, hx, hz, holeR);
+      return;
+    }
 
     // Roof: a shared grid of vertices over the whole building.
     const index = new Map<number, number>();
@@ -240,6 +444,7 @@ export function buildBuildings(
           wallPos.push(x, y, z);
           wallUv.push(u, v);
           wallNorm.push(nx, 0, nz);
+          wallKind.push(mat === 1 ? 1 : 0);
           const s = soot(x, y, z);
           wallCol.push(s, s * 0.97, s * 0.94);
         }
@@ -256,6 +461,36 @@ export function buildBuildings(
         const ez = mz + nz * (inset - 0.2);
         const elen = len + (beforeOpen ? inset : 0) + (afterOpen ? inset : 0);
         if (!inHole(ex, ez)) box(ex, WALL_H - 0.2, ez, nx ? 0.35 : elen, 1.1, nz ? 0.35 : elen, 0x3b2a1b, char);
+        // Nipa thatch hangs in a ragged straw fringe below its eaves, splayed out a little.
+        if (mat === 1) {
+          const ox = mx + nx * (inset + 0.15);
+          const oz = mz + nz * (inset + 0.15);
+          const half = elen / 2 + 0.4;
+          const ax2 = ox - Math.abs(nz) * half;
+          const az2 = oz - Math.abs(nx) * half;
+          const bx2 = ox + Math.abs(nz) * half;
+          const bz2 = oz + Math.abs(nx) * half;
+          const drop = 2.6 + hash2(tx, ty, 330 + si) * 0.8;
+          const out = 0.9;
+          const u1 = (elen + 0.8) / 7;
+          const u0 = hash2(tx, ty, 340 + si);
+          const quad: [number, number, number, number, number][] = [
+            // (The fringe texture is a canvas: its top row is v = 1.)
+            [ax2, WALL_H + 0.5, az2, u0, 1],
+            [bx2, WALL_H + 0.5, bz2, u0 + u1, 1],
+            [bx2 + nx * out, WALL_H + 0.5 - drop, bz2 + nz * out, u0 + u1, 0],
+            [ax2, WALL_H + 0.5, az2, u0, 1],
+            [bx2 + nx * out, WALL_H + 0.5 - drop, bz2 + nz * out, u0 + u1, 0],
+            [ax2 + nx * out, WALL_H + 0.5 - drop, az2 + nz * out, u0, 0],
+          ];
+          if (!inHole(ox, oz)) {
+            for (const [x, y, z, u, v] of quad) {
+              fringePos.push(x, y, z);
+              fringeUv.push(u, v);
+              fringeNorm.push(nx * 0.5, 0.85, nz * 0.5);
+            }
+          }
+        }
         // A timber post at each outside corner.
         if (beforeOpen) box(a0x + nx * 0.2, (WALL_H + 0.6) / 2, a0z + nz * 0.2, 1.3, WALL_H + 0.6, 1.3, 0x4a3522, char);
       });
@@ -281,7 +516,8 @@ export function buildBuildings(
     g.setAttribute('uv', new THREE.Float32BufferAttribute(wallUv, 2));
     g.setAttribute('normal', new THREE.Float32BufferAttribute(wallNorm, 3));
     g.setAttribute('color', new THREE.Float32BufferAttribute(wallCol, 3));
-    const walls = new THREE.Mesh(g, new THREE.MeshStandardMaterial({ map: wallAtlas(), roughness: 0.92, side: THREE.DoubleSide, vertexColors: true }));
+    g.setAttribute('wallKind', new THREE.Float32BufferAttribute(wallKind, 1));
+    const walls = new THREE.Mesh(g, wallMaterial());
     walls.castShadow = true;
     walls.receiveShadow = true;
     group.add(walls);
@@ -298,12 +534,101 @@ export function buildBuildings(
     group.add(mesh);
   };
   boxes(trim, new THREE.MeshStandardMaterial({ roughness: 0.95 }));
+  if (fringePos.length) {
+    const g = new THREE.BufferGeometry();
+    g.setAttribute('position', new THREE.Float32BufferAttribute(fringePos, 3));
+    g.setAttribute('uv', new THREE.Float32BufferAttribute(fringeUv, 2));
+    g.setAttribute('normal', new THREE.Float32BufferAttribute(fringeNorm, 3));
+    const tex = thatchFringeTexture();
+    const mat = new THREE.MeshStandardMaterial({ map: tex, alphaTest: 0.5, alphaToCoverage: true, side: THREE.DoubleSide, roughness: 0.95 });
+    // Lit the same from both sides, like the roof it hangs from.
+    mat.onBeforeCompile = (shader) => {
+      shader.fragmentShader = shader.fragmentShader.replace('#include <normal_fragment_begin>', '#include <normal_fragment_begin>' + String.fromCharCode(10) + 'normal = normalize(vNormal);');
+    };
+    const fringe = new THREE.Mesh(g, mat);
+    fringe.castShadow = true;
+    fringe.receiveShadow = true;
+    fringe.customDepthMaterial = new THREE.MeshDepthMaterial({ map: tex, alphaTest: 0.5, depthPacking: THREE.RGBADepthPacking });
+    group.add(fringe);
+  }
   // What is left of houses that fell in.
   const ruins = buildRuins(map);
   boxes(ruins.stubs, new THREE.MeshStandardMaterial({ map: wallAtlas(), roughness: 0.95 }));
   boxes(ruins.debris, new THREE.MeshStandardMaterial({ roughness: 1, flatShading: true }), new THREE.DodecahedronGeometry(1, 0));
   boxes(ruins.beams, new THREE.MeshStandardMaterial({ roughness: 1 }));
   return { group, info };
+}
+
+/** The rectangle (world units) a group of tiles fills, if it fills one exactly. */
+function rectOf(tiles: number[], mapW: number): { x0: number; z0: number; x1: number; z1: number } | null {
+  let tx0 = Infinity;
+  let ty0 = Infinity;
+  let tx1 = -Infinity;
+  let ty1 = -Infinity;
+  for (const k of tiles) {
+    const tx = k % mapW;
+    const ty = Math.floor(k / mapW);
+    tx0 = Math.min(tx0, tx);
+    ty0 = Math.min(ty0, ty);
+    tx1 = Math.max(tx1, tx);
+    ty1 = Math.max(ty1, ty);
+  }
+  if ((tx1 - tx0 + 1) * (ty1 - ty0 + 1) !== tiles.length) return null;
+  return { x0: tx0 * TILE, z0: ty0 * TILE, x1: (tx1 + 1) * TILE, z1: (ty1 + 1) * TILE };
+}
+
+/**
+ * House walls from the facade atlas, except a nipa hut's: woven sawali panels
+ * on a bamboo frame (scanned), with the atlas's dark window and door openings
+ * cut through them.
+ */
+function wallMaterial(): THREE.MeshStandardMaterial {
+  const m = new THREE.MeshStandardMaterial({ map: wallAtlas(), roughness: 0.92, side: THREE.DoubleSide, vertexColors: true });
+  const sawali = surface('bamboo_wall_02');
+  m.onBeforeCompile = (shader) => {
+    shader.uniforms.sawaliColor = { value: sawali.color };
+    shader.uniforms.sawaliNormal = { value: sawali.normal };
+    shader.vertexShader = shader.vertexShader
+      .replace('#include <common>', '#include <common>\nattribute float wallKind;\nvarying float vWallKind;\nvarying vec3 vWallW;\nvarying vec3 vWallN;')
+      .replace(
+        '#include <begin_vertex>',
+        '#include <begin_vertex>\nvWallKind = wallKind;\nvWallW = (modelMatrix * vec4(transformed, 1.0)).xyz;\nvWallN = normalize(mat3(modelMatrix) * objectNormal);',
+      );
+    shader.fragmentShader = shader.fragmentShader
+      .replace('#include <common>', '#include <common>\nuniform sampler2D sawaliColor;\nuniform sampler2D sawaliNormal;\nvarying float vWallKind;\nvarying vec3 vWallW;\nvarying vec3 vWallN;\nvec2 sawaliUv;')
+      .replace(
+        '#include <map_fragment>',
+        [
+          '#include <map_fragment>',
+          'if (vWallKind > 0.5) {',
+          '  float along = abs(vWallN.x) > 0.5 ? vWallW.z : vWallW.x;',
+          '  sawaliUv = vec2(along, vWallW.y) / 14.0;',
+          '  vec3 weave = texture2D(sawaliColor, sawaliUv).rgb * vec3(0.92, 0.88, 0.8);',
+          // Keep the atlas's openings (dark) and its grime along the foot of the wall.
+          '  float lum = dot(diffuseColor.rgb, vec3(0.33));',
+          '  float opening = 1.0 - smoothstep(0.035, 0.08, lum);',
+          '  float foot = smoothstep(2.8, 0.0, vWallW.y);',
+          '  weave *= 1.0 - foot * 0.45;',
+          '  diffuseColor.rgb = mix(weave, diffuseColor.rgb, opening);',
+          '}',
+        ].join('\n'),
+      )
+      .replace(
+        '#include <normal_fragment_maps>',
+        [
+          '#include <normal_fragment_maps>',
+          'if (vWallKind > 0.5) {',
+          '  vec3 sn = texture2D(sawaliNormal, sawaliUv).xyz * 2.0 - 1.0;',
+          '  vec3 nW = normalize(vWallN);',
+          '  vec3 tW = abs(nW.x) > 0.5 ? vec3(0.0, 0.0, 1.0) : vec3(1.0, 0.0, 0.0);',
+          '  vec3 n = normalize(tW * sn.x + vec3(0.0, 1.0, 0.0) * sn.y + nW * sn.z);',
+          '  normal = normalize((viewMatrix * vec4(n, 0.0)).xyz);',
+          '  if (!gl_FrontFacing) normal = -normal;',
+          '}',
+        ].join('\n'),
+      );
+  };
+  return m;
 }
 
 /**
@@ -315,8 +640,11 @@ export function buildBuildings(
 function roofMaterial(groundTex: THREE.Texture): THREE.MeshStandardMaterial {
   const m = new THREE.MeshStandardMaterial({ map: groundTex, roughness: 0.9, metalness: 0.03, side: THREE.DoubleSide });
   const fibres = groundDetailTexture();
+  const thatch = surface('thatch_roof_angled');
   m.onBeforeCompile = (shader) => {
     shader.uniforms.fibreMap = { value: fibres };
+    shader.uniforms.thatchColor = { value: thatch.color };
+    shader.uniforms.thatchNormal = { value: thatch.normal };
     shader.vertexShader = shader.vertexShader
       .replace('#include <common>', '#include <common>\nattribute float roofKind;\nvarying float vKind;\nvarying vec3 vRoofW;\nvarying vec3 vRoofN;')
       .replace(
@@ -324,7 +652,26 @@ function roofMaterial(groundTex: THREE.Texture): THREE.MeshStandardMaterial {
         '#include <begin_vertex>\nvKind = roofKind;\nvRoofW = (modelMatrix * vec4(transformed, 1.0)).xyz;\nvRoofN = normalize(mat3(modelMatrix) * objectNormal);',
       );
     shader.fragmentShader = shader.fragmentShader
-      .replace('#include <common>', '#include <common>\nuniform sampler2D fibreMap;\nvarying float vKind;\nvarying vec3 vRoofW;\nvarying vec3 vRoofN;')
+      .replace(
+        '#include <common>',
+        '#include <common>\nuniform sampler2D fibreMap;\nuniform sampler2D thatchColor;\nuniform sampler2D thatchNormal;\nvarying float vKind;\nvarying vec3 vRoofW;\nvarying vec3 vRoofN;\nvec3 thatchN;\nfloat thatchRough;',
+      )
+      .replace('#include <roughnessmap_fragment>', 'float roughnessFactor = vKind > 0.5 && vKind < 1.5 ? thatchRough : roughness;')
+      .replace(
+        '#include <normal_fragment_maps>',
+        [
+          '#include <normal_fragment_maps>',
+          // The thatch's own bumps, along the contour (u) and up the slope (v).
+          'if (vKind > 0.5 && vKind < 1.5) {',
+          '  vec3 nW = normalize(vRoofN);',
+          '  vec3 tW = normalize(vec3(cd.x, 0.0, cd.y));',
+          '  vec3 bW = normalize(cross(nW, tW));',
+          '  bW *= sign(bW.y + 1e-4);',
+          '  vec3 n = normalize(tW * thatchN.x * 1.2 + bW * thatchN.y * 1.2 + nW * thatchN.z);',
+          '  normal = normalize((viewMatrix * vec4(n, 0.0)).xyz);',
+          '}',
+        ].join('\n'),
+      )
       .replace(
         '#include <map_fragment>',
         [
@@ -335,6 +682,8 @@ function roofMaterial(groundTex: THREE.Texture): THREE.MeshStandardMaterial {
           'float along = dot(vRoofW.xz, cd);',
           'float up = vRoofW.y;',
           'float shade = 1.0;',
+          'thatchN = vec3(0.0, 0.0, 1.0);',
+          'thatchRough = 0.9;',
           'if (vKind < 0.5) {',
           // Clay tiles: rows with a shadowed lower lip, staggered joints.
           '  float row = fract(up * 0.62);',
@@ -342,13 +691,17 @@ function roofMaterial(groundTex: THREE.Texture): THREE.MeshStandardMaterial {
           '  shade = mix(0.7, 1.06, smoothstep(0.0, 0.3, row)) * (1.0 - 0.18 * smoothstep(0.86, 0.98, joint));',
           '  shade *= 0.88 + 0.24 * texture2D(fibreMap, vRoofW.xz * 0.05).b;',
           '} else if (vKind < 1.5) {',
-          // Nipa thatch: shaggy courses, streaks of fibre, greyed in patches.
-          '  float course = fract(up * 0.5 + texture2D(fibreMap, vec2(along * 0.03, 0.5)).r * 0.35);',
-          '  float fib = texture2D(fibreMap, vec2(along * 0.55, up * 0.05)).r;',
-          '  float fib2 = texture2D(fibreMap, vec2(along * 1.7 + 0.3, up * 0.12)).g;',
-          '  shade = mix(0.72, 1.16, smoothstep(0.0, 0.6, course)) * (0.86 + fib * 0.24 + fib2 * 0.16);',
+          // Nipa thatch: the scanned thatch, fibres running down the slope, laid in
+          // overlapping courses, sun-bleached grey in patches.
+          '  vec2 tuv = vec2(along, up * 1.45) / 21.0;',
+          '  vec4 th = texture2D(thatchColor, tuv);',
+          '  float course = fract(up * 0.42 + texture2D(fibreMap, vec2(along * 0.03, 0.5)).r * 0.35);',
+          '  shade = mix(0.92, 1.02, smoothstep(0.0, 0.5, course));',
           '  float patchy = texture2D(fibreMap, vRoofW.xz * 0.012).b;',
-          '  diffuseColor.rgb = mix(diffuseColor.rgb, vec3(dot(diffuseColor.rgb, vec3(0.33))) * vec3(1.02, 0.98, 0.9), 0.35 * patchy);',
+          '  vec3 straw = th.rgb * vec3(2.3, 2.1, 1.7);',
+          '  diffuseColor.rgb = mix(straw, vec3(dot(straw, vec3(0.33))) * vec3(1.05, 1.0, 0.92), 0.4 * patchy);',
+          '  thatchRough = th.a;',
+          '  thatchN = texture2D(thatchNormal, tuv).xyz * 2.0 - 1.0;',
           '} else {',
           // Iron sheets: ribs down the slope, rust streaks.
           '  shade = 0.86 + 0.14 * sin(along * 3.3);',
