@@ -146,6 +146,68 @@ export function stoneTexture(): THREE.Texture {
   return finish('stone', c, { repeat: true });
 }
 
+/** Weathered planks for crates and fences: grey-brown boards with dark seams and grain. */
+export function plankTexture(): THREE.Texture {
+  const hit = cache.get('planks');
+  if (hit) return hit;
+  const [c, x] = canvas(64, 64);
+  for (let b = 0; b < 4; b++) {
+    const shade = 0.8 + hash2(b, 1, 91) * 0.35;
+    x.fillStyle = `rgb(${Math.round(128 * shade)},${Math.round(108 * shade)},${Math.round(82 * shade)})`;
+    x.fillRect(0, b * 16, 64, 16);
+    x.strokeStyle = 'rgba(50,38,26,0.35)';
+    x.lineWidth = 1;
+    for (let g = 0; g < 4; g++) {
+      const y = b * 16 + 3 + g * 3.5 + hash2(b, g, 92) * 2;
+      x.beginPath();
+      x.moveTo(0, y);
+      x.bezierCurveTo(20, y + hash2(b, g, 93) * 2 - 1, 44, y - hash2(b, g, 94) * 2 + 1, 64, y);
+      x.stroke();
+    }
+    x.fillStyle = 'rgba(30,22,14,0.7)';
+    x.fillRect(0, b * 16, 64, 1.5);
+  }
+  noiseSpeckle(x, 64, 64, 260, 'rgba(0,0,0,0.15)', 'rgba(255,250,235,0.1)', 95);
+  return finish('planks', c, { repeat: true });
+}
+
+/**
+ * The straw fringe of a nipa roof's eaves: strands of weathered thatch hanging
+ * down, bunched, their ends ragged, on a transparent ground. Repeats along u.
+ */
+export function thatchFringeTexture(): THREE.Texture {
+  const hit = cache.get('thatch-fringe');
+  if (hit) return hit;
+  const [c, x] = canvas(256, 128);
+  x.lineCap = 'round';
+  for (let i = 0; i < 520; i++) {
+    const px = hash2(i, 1, 121) * 256;
+    const len = 60 + hash2(i, 2, 121) * 66 - (hash2(Math.floor(px / 18), 3, 121) < 0.35 ? 30 : 0);
+    const lean = (hash2(i, 4, 121) - 0.5) * 14;
+    const v = 0.55 + hash2(i, 5, 121) * 0.5;
+    const grey = hash2(i, 6, 121) < 0.4;
+    x.strokeStyle = grey
+      ? `rgb(${Math.round(128 * v)},${Math.round(122 * v)},${Math.round(108 * v)})`
+      : `rgb(${Math.round(150 * v)},${Math.round(128 * v)},${Math.round(88 * v)})`;
+    x.lineWidth = 1.2 + hash2(i, 7, 121) * 1.6;
+    for (const ox of [0, 256, -256]) {
+      x.beginPath();
+      x.moveTo(px + ox, 0);
+      x.quadraticCurveTo(px + ox + lean * 0.3, len * 0.5, px + ox + lean, len);
+      x.stroke();
+    }
+  }
+  // Shade towards the top, where the eave throws it into its own shadow.
+  x.globalCompositeOperation = 'source-atop';
+  const g = x.createLinearGradient(0, 0, 0, 128);
+  g.addColorStop(0, 'rgba(20,16,10,0.55)');
+  g.addColorStop(0.5, 'rgba(20,16,10,0.1)');
+  g.addColorStop(1, 'rgba(20,16,10,0)');
+  x.fillStyle = g;
+  x.fillRect(0, 0, 256, 128);
+  return finish('thatch-fringe', c, { repeat: true });
+}
+
 /** Burlap for sandbags. */
 export function burlapTexture(): THREE.Texture {
   const hit = cache.get('burlap');
@@ -183,27 +245,34 @@ export function barkTexture(): THREE.Texture {
 export function frondTexture(): THREE.Texture {
   const hit = cache.get('frond');
   if (hit) return hit;
-  const [c, x] = canvas(256, 64);
+  const [c, x] = canvas(512, 128);
   x.lineCap = 'round';
-  for (let i = 0; i < 46; i++) {
-    const t = i / 46;
-    const px = 8 + t * 240;
-    const len = 28 * Math.sin(Math.PI * Math.min(1, t * 1.15)) + 4;
-    const shade = 0.75 + hash2(i, 1, 41) * 0.35;
-    x.strokeStyle = `rgb(${Math.round(70 * shade)},${Math.round(118 * shade)},${Math.round(44 * shade)})`;
-    x.lineWidth = 3.2;
+  // Narrow, pointed leaflets in pairs along the midrib, longest in the middle, some torn or
+  // missing, sun-yellowed and browned towards the tips.
+  for (let i = 0; i < 88; i++) {
+    const t = i / 88;
+    const px = 14 + t * 486;
     for (const s of [-1, 1]) {
+      if (hash2(i, s, 42) < 0.08) continue;
+      const len = (54 * Math.sin(Math.PI * Math.min(1, t * 1.12)) + 8) * (0.8 + hash2(i, s, 43) * 0.3);
+      const shade = 0.7 + hash2(i, s, 41) * 0.4;
+      const dry = Math.max(0, t - 0.7) * 2 * hash2(i, s, 44);
+      const r = Math.round((62 + dry * 70) * shade);
+      const g = Math.round((108 - dry * 10) * shade);
+      const b = Math.round((40 + dry * 10) * shade);
+      x.fillStyle = `rgb(${r},${g},${b})`;
       x.beginPath();
-      x.moveTo(px, 32);
-      x.quadraticCurveTo(px + 6, 32 + s * len * 0.5, px + 12, 32 + s * len);
-      x.stroke();
+      x.moveTo(px, 64);
+      x.quadraticCurveTo(px + 10, 64 + s * len * 0.45 - s * 3, px + 22, 64 + s * len);
+      x.quadraticCurveTo(px + 7, 64 + s * len * 0.5 + s * 3, px - 2, 64 + s * 2);
+      x.fill();
     }
   }
-  x.strokeStyle = '#8a8a4a';
-  x.lineWidth = 3;
+  x.strokeStyle = '#8f8a50';
+  x.lineWidth = 5;
   x.beginPath();
-  x.moveTo(4, 32);
-  x.lineTo(252, 32);
+  x.moveTo(6, 64);
+  x.lineTo(506, 64);
   x.stroke();
   return finish('frond', c);
 }
@@ -243,43 +312,6 @@ export function bananaLeafTexture(): THREE.Texture {
   x.lineTo(252, 47);
   x.stroke();
   return finish('banana', c);
-}
-
-/** Dense foliage for broadleaf crowns and bushes: clusters of sunlit and shaded leaves. */
-export function foliageTexture(): THREE.Texture {
-  const hit = cache.get('foliage');
-  if (hit) return hit;
-  const [c, x] = canvas(128, 128);
-  x.fillStyle = '#2f5021';
-  x.fillRect(0, 0, 128, 128);
-  for (let i = 0; i < 520; i++) {
-    const shade = 0.6 + hash2(i, 1, 61) * 0.7;
-    x.fillStyle = `rgb(${Math.round(64 * shade)},${Math.round(104 * shade)},${Math.round(40 * shade)})`;
-    x.beginPath();
-    x.ellipse(hash2(i, 2, 61) * 128, hash2(i, 3, 61) * 128, 2 + hash2(i, 4, 61) * 3, 1.2 + hash2(i, 5, 61) * 1.5, hash2(i, 6, 61) * 3, 0, Math.PI * 2);
-    x.fill();
-  }
-  return finish('foliage', c, { repeat: true });
-}
-
-/** Tufts of tall grass on a transparent ground. */
-export function grassTexture(): THREE.Texture {
-  const hit = cache.get('grass');
-  if (hit) return hit;
-  const [c, x] = canvas(64, 64);
-  x.lineCap = 'round';
-  for (let i = 0; i < 26; i++) {
-    const bx = 8 + hash2(i, 1, 71) * 48;
-    const lean = (hash2(i, 2, 71) - 0.5) * 30;
-    const shade = 0.6 + hash2(i, 3, 71) * 0.6;
-    x.strokeStyle = `rgb(${Math.round(110 * shade)},${Math.round(130 * shade)},${Math.round(56 * shade)})`;
-    x.lineWidth = 1.6;
-    x.beginPath();
-    x.moveTo(bx, 64);
-    x.quadraticCurveTo(bx + lean * 0.3, 40, bx + lean, 10 + hash2(i, 4, 71) * 20);
-    x.stroke();
-  }
-  return finish('grass', c);
 }
 
 /** Soft, lumpy smoke puff (white, tinted per particle). */
@@ -578,35 +610,6 @@ export function groundDetailTexture(): THREE.Texture {
   }
   x.putImageData(img, 0, 0);
   return finish('ground-detail', c, { repeat: true, srgb: false });
-}
-
-/** Bumps of the same grass and stones, as a normal map, so the low sun picks them out. */
-export function groundNormalTexture(): THREE.Texture {
-  const hit = cache.get('ground-normal');
-  if (hit) return hit;
-  const S = GD;
-  const { grass, earth } = layers();
-  const h = (xx: number, y: number) => {
-    const i = ((y + S) % S) * S + ((xx + S) % S);
-    return (grass[i * 4] * 0.4 + earth[i * 4] * 0.6) / 255;
-  };
-  const [c, x] = canvas(S, S);
-  const img = x.createImageData(S, S);
-  const strength = 2.4;
-  for (let y = 0; y < S; y++) {
-    for (let xx = 0; xx < S; xx++) {
-      const dx = (h(xx + 1, y) - h(xx - 1, y)) * strength;
-      const dy = (h(xx, y + 1) - h(xx, y - 1)) * strength;
-      const l = Math.hypot(dx, dy, 1);
-      const p = (y * S + xx) * 4;
-      img.data[p] = (-dx / l * 0.5 + 0.5) * 255;
-      img.data[p + 1] = (dy / l * 0.5 + 0.5) * 255;
-      img.data[p + 2] = (1 / l * 0.5 + 0.5) * 255;
-      img.data[p + 3] = 255;
-    }
-  }
-  x.putImageData(img, 0, 0);
-  return finish('ground-normal', c, { repeat: true, srgb: false });
 }
 
 /** Free every cached texture (when the battle ends). */
