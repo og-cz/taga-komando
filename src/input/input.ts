@@ -649,6 +649,9 @@ export class Input {
     const tx = Math.floor(p.x / TILE);
     const ty = Math.floor(p.y / TILE);
     if (defenseAt(this.world, tx, ty) && this.world.vision.isVisible(this.player, p)) return { kind: 'defense', tx, ty };
+    // A house (standing, damaged or burning): its card shows how much more it can take.
+    const house = houseAt(this.world, p);
+    if (house) return { kind: 'house', id: house.id };
     return null;
   }
 
