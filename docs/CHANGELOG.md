@@ -2,6 +2,12 @@
 
 [Back to the README](../README.md)
 
+**1.2.1**
+- **Runs on laptop graphics.** A new Low graphics setting for integrated chips (AMD Vega, Intel UHD and the like) draws the battlefield about twice as fast: slightly lower resolution, no ambient occlusion, glow or multisampling, a smaller shadow map redrawn every other frame, a coarser ground and half the grass. It is picked automatically on such chips; change it any time under Pause → Graphics (from the next battle).
+- **Grittier.** Colour is held back further and contrast pushed harder; greens are drier and more olive, earth more umber. The land beyond the battlefield is dim and dark, so the eye stays on the fight.
+- **Closer to the fighting.** You can zoom in much further, close enough to see each man's kit and rifle, and a battle now starts zoomed in on your infantry.
+- **Soldiers move like soldiers.** Legs swing from the hip and the body bobs in step; a running man leans into it, rifle across his chest; a man standing still breathes, shifts his weight and looks about; when he fires he brings the rifle to his shoulder and it kicks back; suppressed men crouch. A man who is killed falls, his helmet and rifle beside him, and lies there for a while.
+
 **1.2.0**
 - **Smooth roads, fields and water.** The battlefield is no longer drawn straight from its squares. Roads run as smooth bands with ragged verges and meet in natural crossroads, with a pair of wheel ruts in each lane that follow the road round every bend. Paddies are fields with rounded, natural outlines, a raised dike round each, still muddy water and rice planted in rows, and their fences run along the dike instead of tracing every square. Rivers have the same soft banks. Only how the ground looks has changed: where troops can walk, take cover and drive is exactly as before.
 - **Bahay kubo.** Nipa houses are proper bahay kubo: bamboo stilts and a raised floor, woven sawali walls with windows and a door, a ladder up to it, and a steep hipped thatch roof with a ridge cap, hanging well out over the walls. A shelled one shows its charred rafters through the hole in the thatch. Houses of other shapes keep their tile, iron or thatch roofs as before.
