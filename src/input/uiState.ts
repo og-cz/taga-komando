@@ -13,7 +13,7 @@ export type Mode =
   | { kind: 'callIn'; callInId: string };
 
 /** Something on the ground that was clicked to see its info: a defense tile, a construction job or one of our mines. */
-export type Inspect = { kind: 'defense'; tx: number; ty: number } | { kind: 'construction'; id: number } | { kind: 'mine'; id: number };
+export type Inspect = { kind: 'defense'; tx: number; ty: number } | { kind: 'construction'; id: number } | { kind: 'mine'; id: number } | { kind: 'house'; id: number };
 
 /** Presentation-side state shared by input, renderer and HUD. Never read by the simulation. */
 export interface UIState {
