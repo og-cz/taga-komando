@@ -91,11 +91,8 @@ const LOOK: Record<string, FactionLook> = {
   },
 };
 
-/**
- * Direction shadows fall on the ground (unit vector) and how long they are per
- * unit of height: from the 3D scene's high north-west sun.
- */
-const SUN_SHADOW = { x: 0.64, y: 0.77, length: 0.82 };
+/** Direction shadows fall on the flat battlefield's ground (unit vector), from the west-north-west sun. */
+const SUN_SHADOW = { x: 0.88, y: 0.47 };
 
 /** Draws the world from the player's point of view. Reads the simulation, never writes it. */
 export class Renderer {
@@ -301,9 +298,7 @@ export class Renderer {
     }
     ctx.save();
     if (this.world3d) {
-      // The 3D scene has its own light and haze: only darken the corners a little.
-      ctx.fillStyle = this.gradeCache.vignette;
-      ctx.fillRect(0, 0, w, h);
+      // The 3D scene grades its own picture, corners and all.
       ctx.restore();
       return;
     }
@@ -612,9 +607,9 @@ export class Renderer {
       else if (hovered) this.ring(m.pos, 6.5, 'rgba(255,255,255,0.55)');
       const w = m.weapons[0]?.def;
       if (this.world3d) {
-        // The soldier is a 3D model. The ground keeps his shadow (dark under his feet, and
-        // long away from the low sun like the houses' and trees') and his wounds.
-        this.groundShadow(m.pos, pinned ? 1.8 : 8.4, pinned ? 4.2 : 2.6);
+        // The soldier is a 3D model and casts his own shadow in the sun. The ground keeps a
+        // soft dark patch under his feet, and his wounds.
+        this.contactShadow(m.pos, pinned ? 4.2 : 2.6);
         const hpFrac = m.hp / m.maxHp;
         if (hpFrac < 0.99) {
           ctx.fillStyle = hpFrac > 0.5 ? '#c9f08a' : hpFrac > 0.25 ? '#f2c94c' : '#ff5a4a';
@@ -881,12 +876,15 @@ export class Renderer {
       ctx.ellipse(0, 0, L * 0.56, W * 0.56, sq.heading, 0, Math.PI * 2);
       ctx.fill();
     }
-    ctx.translate(SUN_SHADOW.x * 7, SUN_SHADOW.y * 7);
-    ctx.rotate(sq.heading);
-    ctx.fillStyle = 'rgba(8,10,5,0.38)';
-    ctx.beginPath();
-    ctx.roundRect(-L / 2 - 1, -W / 2 - 1, L + 2, W + 2, 3);
-    ctx.fill();
+    // (In 3D the tank casts its own.)
+    if (!this.world3d) {
+      ctx.translate(SUN_SHADOW.x * 7, SUN_SHADOW.y * 7);
+      ctx.rotate(sq.heading);
+      ctx.fillStyle = 'rgba(8,10,5,0.38)';
+      ctx.beginPath();
+      ctx.roundRect(-L / 2 - 1, -W / 2 - 1, L + 2, W + 2, 3);
+      ctx.fill();
+    }
     ctx.restore();
     ctx.rotate(sq.heading);
     // Track prints every few paces while it drives.
@@ -1005,34 +1003,16 @@ export class Renderer {
     if (healthFraction(sq) < 0.4 && Math.random() < 0.15) this.effects.puff(sq.pos);
   }
 
-  /**
-   * Shadow of something `height` tall standing at `p`: a dark contact patch
-   * under it and a soft streak cast away from the low sun, the way the 3D
-   * buildings and trees throw theirs.
-   */
-  private groundShadow(p: Vec2, height: number, width: number): void {
+  /** A soft dark patch on the ground under something standing at `p`, where the sky's light cannot reach. */
+  private contactShadow(p: Vec2, width: number): void {
     const { ctx } = this;
-    const len = height * SUN_SHADOW.length;
-    const a = Math.atan2(SUN_SHADOW.y, SUN_SHADOW.x);
-    ctx.save();
-    ctx.translate(p.x, p.y);
-    ctx.fillStyle = 'rgba(6,8,4,0.55)';
-    ctx.beginPath();
-    ctx.ellipse(0, 0, width * 0.85, width * 0.7, 0, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.rotate(a);
-    const g = ctx.createLinearGradient(0, 0, len, 0);
+    const g = ctx.createRadialGradient(p.x, p.y, 0, p.x, p.y, width);
     g.addColorStop(0, 'rgba(6,8,4,0.42)');
-    g.addColorStop(1, 'rgba(6,8,4,0.05)');
+    g.addColorStop(1, 'rgba(6,8,4,0)');
     ctx.fillStyle = g;
     ctx.beginPath();
-    ctx.moveTo(0, -width * 0.55);
-    ctx.lineTo(len, -width * 0.4);
-    ctx.quadraticCurveTo(len + width * 0.6, 0, len, width * 0.4);
-    ctx.lineTo(0, width * 0.55);
-    ctx.closePath();
+    ctx.ellipse(p.x, p.y, width, width * 0.85, 0, 0, Math.PI * 2);
     ctx.fill();
-    ctx.restore();
   }
 
   /** A house held by a squad: its outline, dashed in the army's colour (green when selected). */
