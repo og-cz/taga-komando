@@ -113,9 +113,6 @@ export interface UnitDef {
   vehicle: VehicleDef | null;
   radius: number;
   vetXp: readonly number[];
-  /** Plain-language counters, shown in tooltips and on the unit card. */
-  strongVs: string;
-  weakVs: string;
   /** Defenses this unit can construct (engineers). */
   builds: readonly string[];
   /** Can repair vehicles and structures (engineers). */
@@ -129,6 +126,52 @@ export interface UnitDef {
   supplies: boolean;
   /** Tier building (unit id) that must be standing before this unit can be recruited. */
   requires?: string;
+  /** Only for an army that chose this doctrine. */
+  doctrine?: string;
+  /** Hidden from the enemy while it holds still and holds fire (guerrillas). */
+  camo?: boolean;
+  /** Uniform seen from above, when it differs from the army's own. */
+  look?: { cloth: string; helmet: string; helmetStyle: 'm1' | 'type90' | 'cap' | 'bandana' | 'none' };
+}
+
+/** What a commander call-in does. */
+export type CallInEffect =
+  | { kind: 'barrage'; weapon: string; shots: number; interval: number; scatter: number; delay: number }
+  | { kind: 'recon'; radius: number; duration: number }
+  | { kind: 'buff'; duration: number; speed?: number; accuracy?: number; received?: number; steady?: boolean; camo?: boolean; rally?: boolean }
+  | { kind: 'paradrop'; unit: string }
+  | { kind: 'levy'; unit: string }
+  | { kind: 'mines'; count: number; radius: number };
+
+/** A commander call-in: unlocked by command points, paid in resources, then on a cooldown. */
+export interface CallInDef {
+  id: string;
+  name: string;
+  description: string;
+  /** Command points the army must have earned before it can be used. */
+  cp: number;
+  cost: Resources;
+  cooldown: number;
+  /** Aimed at a spot on the map (otherwise it acts at once). */
+  targeted: boolean;
+  effect: CallInEffect;
+}
+
+/** A doctrine: the army's way of fighting, with its own unit, call-ins and colours. */
+export interface DoctrineDef {
+  id: string;
+  faction: string;
+  name: string;
+  /** Plain-language summary, e.g. "Lightning assault". */
+  style: string;
+  description: string;
+  /** Banner colours shown on the tier buildings. */
+  field: string;
+  stripe: string;
+  emblem: 'sun' | 'star' | 'k' | 'shield' | 'wings' | 'leaf';
+  /** The special unit the doctrine adds. */
+  unit: string;
+  callIns: readonly CallInDef[];
 }
 
 /** A weapon upgrade: some of the squad's basic soldiers swap their rifles for something heavier. */
@@ -169,6 +212,8 @@ export interface BuildableDef {
   unique?: boolean;
   /** Structures: the tiles it takes up, wide × deep. */
   footprint?: readonly [number, number];
+  /** Most an army may have standing (or going up) at once. */
+  limit?: number;
   /** Terrain laid down when a tile is finished; null for mines and structures. */
   terrain: number | null;
   maxLength: number;
