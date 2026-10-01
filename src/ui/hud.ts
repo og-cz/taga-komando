@@ -29,8 +29,6 @@ const glyphOf = (def: UnitDef): SVGSVGElement => icon(unitIcon(def));
 interface Tip {
   title: string;
   body?: string;
-  strong?: string;
-  weak?: string;
   cost?: Resources;
   key?: string;
   warn?: string;
@@ -206,8 +204,6 @@ export class Hud {
       }
       parts.push(row);
     }
-    if (t.strong) parts.push(el('div', { class: 'tip-vs strong' }, el('b', { text: 'Strong vs ' }), t.strong));
-    if (t.weak) parts.push(el('div', { class: 'tip-vs weak' }, el('b', { text: 'Weak vs ' }), t.weak));
     if (t.warn) parts.push(el('div', { class: 'tip-warn', text: t.warn }));
     this.tooltip.replaceChildren(...parts);
     const r = src.node.getBoundingClientRect();
@@ -419,8 +415,6 @@ Buy near headquarters or a supplied friendly point. Arrives in ${o.def.time}s. O
       title: def.type ? `${def.name} · ${def.type}` : def.name,
       body: `${def.description}\n\nPopulation ${def.pop} · Build time ${def.buildTime}s`,
       cost: def.cost,
-      strong: def.strongVs,
-      weak: def.weakVs,
       warn: this.world.hasTech(this.player, def.requires) ? undefined : `Locked: engineers must build the ${UNITS[def.requires!].name} (Base menu, W)`,
     }));
     this.builds.push({ id, node });
@@ -869,7 +863,7 @@ Buy near headquarters or a supplied friendly point. Arrives in ${o.def.time}s. O
         }))
       : null;
     const portrait = el('div', { class: 'portrait' }, icon(unitIcon(sq.def), 'ico portrait-icon'), el('span', { class: 'portrait-vet', text: '★'.repeat(sq.vet) }));
-    this.tip(portrait, () => ({ title: titleOf(sq), body: sq.def.description, strong: sq.def.strongVs, weak: sq.def.weakVs }));
+    this.tip(portrait, () => ({ title: titleOf(sq), body: sq.def.description }));
     return el(
       'div',
       { class: `portrait-card t${sq.team}` },
