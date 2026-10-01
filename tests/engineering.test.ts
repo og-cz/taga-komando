@@ -27,6 +27,8 @@ function battle() {
   const w = new World({ map: MAPS.bataan, factions: ['usaffe', 'ija'] });
   for (let x = 18; x <= 30; x++) for (let y = 28; y <= 33; y++) w.map.set(x, y, T.Open);
   w.map.changes.length = 0;
+  // Engineers build only on ground their army holds: give us the field.
+  for (const p of w.points) p.owner = 0;
   return w;
 }
 
