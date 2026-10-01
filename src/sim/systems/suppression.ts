@@ -1,9 +1,11 @@
+import { teamFlag } from './doctrine';
 import { SUPPRESSION } from '../../data/balance';
 import { isSoft, type Squad, type SuppressionState } from '../entities';
 import type { World } from '../world';
 
 export function applySuppression(world: World, sq: Squad, amount: number): void {
   if (amount <= 0 || sq.dead || !isSoft(sq)) return;
+  if (teamFlag(world, sq.team, 'steady')) return;
   sq.suppression = Math.min(1, sq.suppression + amount);
   sq.lastSuppressed = world.time;
 }
