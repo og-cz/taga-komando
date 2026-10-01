@@ -35,19 +35,19 @@ const LIST: BuildableDef[] = [
   {
     id: 'mg_nest', name: 'MG Nest', hotkey: 'B',
     description: 'A machine gun behind a ring of sandbags that fires all round at anything in range.',
-    cost: { manpower: 90, munitions: 35, fuel: 0 }, buildTime: 20, shape: 'structure', unit: 'mg_nest', footprint: [2, 2], terrain: null, maxLength: 1,
+    cost: { manpower: 90, munitions: 35, fuel: 0 }, buildTime: 20, shape: 'structure', unit: 'mg_nest', limit: 4, footprint: [2, 2], terrain: null, maxLength: 1,
     hp: 0, blastResist: 0,
   },
   {
     id: 'bunker', name: 'Bunker', hotkey: 'N',
     description: 'A sturdy bunker with a machine gun. Squads nearby can reinforce and pick up upgrades there.',
-    cost: { manpower: 220, munitions: 0, fuel: 0 }, buildTime: 35, shape: 'structure', unit: 'bunker', footprint: [2, 2], terrain: null, maxLength: 1,
+    cost: { manpower: 220, munitions: 0, fuel: 0 }, buildTime: 35, shape: 'structure', unit: 'bunker', limit: 3, footprint: [2, 2], terrain: null, maxLength: 1,
     hp: 0, blastResist: 0,
   },
   {
     id: 'aid_tent', name: 'Aid Tent', hotkey: 'M',
     description: 'Heals friendly soldiers nearby while they are out of combat.',
-    cost: { manpower: 150, munitions: 0, fuel: 0 }, buildTime: 25, shape: 'structure', unit: 'aid_tent', footprint: [2, 2], terrain: null, maxLength: 1,
+    cost: { manpower: 150, munitions: 0, fuel: 0 }, buildTime: 25, shape: 'structure', unit: 'aid_tent', limit: 2, footprint: [2, 2], terrain: null, maxLength: 1,
     hp: 0, blastResist: 0,
   },
   // ─── Base: tier buildings, one of each per army ───
