@@ -26,7 +26,7 @@ export function reinforceSource(world: World, sq: Squad): Vec2 | null {
   const hq = world.hqOf(sq.team);
   if (hq && !hq.dead) consider(hq.pos, LOGISTICS.reinforceHqRadius);
   for (const s of world.squads) {
-    if (!s.dead && s.team === sq.team && s.def.supplies) consider(s.pos, LOGISTICS.reinforceBaseRadius);
+    if (!s.dead && s.team === sq.team && s.def.supplies && s.building === null) consider(s.pos, LOGISTICS.reinforceBaseRadius);
   }
   // Assaults: the reinforcement point moves forward with the front.
   if (world.objective.mode === 'offensive') consider(world.teams[sq.team].spawn, LOGISTICS.reinforcePointRadius);
@@ -74,19 +74,26 @@ export function updateLogistics(world: World, dt: number): void {
       for (const m of sq.models) if (m.alive) m.hp = Math.min(m.maxHp, m.hp + rate * dt);
     } else if (calm && sq.def.kind !== 'vehicle') {
       // Aid tents patch up soldiers nearby.
-      const tent = world.squads.find((s) => !s.dead && s.team === sq.team && s.def.healRate > 0 && dist(sq.pos, s.pos) <= s.def.healRadius);
+      const tent = world.squads.find((s) => !s.dead && s.team === sq.team && s.def.healRate > 0 && s.building === null && dist(sq.pos, s.pos) <= s.def.healRadius);
       if (tent) for (const m of sq.models) if (m.alive) m.hp = Math.min(m.maxHp, m.hp + tent.def.healRate * dt);
     }
 
     if (!sq.reinforcing) continue;
-    if (aliveCount(sq) >= sq.def.models || sq.retreating || !canReinforceHere(world, sq)) {
-      // Full, retreating or out of supply: the soldiers still waiting are called off and refunded.
-      if (!sq.retreating && aliveCount(sq) < sq.def.models) {
-        world.emit({ type: 'notify', team: sq.team, text: `${sq.def.name}: reinforcements called off (too far from a base)`, tone: 'bad' });
-      }
+    // Full up: anyone still waiting is called off and refunded.
+    if (aliveCount(sq) >= sq.def.models) {
       dropReinforcements(world, sq);
+      sq.reinforcePaused = false;
       continue;
     }
+    // Too far from a base (or running back to one): the soldiers wait, nothing is lost.
+    if (sq.retreating || !canReinforceHere(world, sq)) {
+      if (!sq.reinforcePaused && !sq.retreating) {
+        world.emit({ type: 'notify', team: sq.team, text: `${sq.def.name}: reinforcements paused until the squad is back near a base`, tone: 'info' });
+      }
+      sq.reinforcePaused = true;
+      continue;
+    }
+    sq.reinforcePaused = false;
     sq.reinforceTimer -= dt;
     if (sq.reinforceTimer > 0) continue;
     addRecruit(world, sq, reinforceSource(world, sq) ?? undefined);
