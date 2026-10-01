@@ -14,6 +14,7 @@ import {
 } from '../entities';
 import { hasLineOfSight } from '../los';
 import type { World } from '../world';
+import { earnCp, teamMult } from './doctrine';
 import { coverAt } from './cover';
 import { startSetup } from './setup';
 import { damageDefenses } from './defenses';
@@ -23,8 +24,9 @@ export function updateCombat(world: World, dt: number): void {
   for (const sq of world.squads) {
     if (sq.dead) continue;
     tickWeapons(sq, dt);
-    // Retreating squads, and engineers busy repairing or building, do not fight.
-    if (sq.retreating || sq.order.kind === 'repair' || sq.order.kind === 'build') {
+    // Retreating squads run without looking back; engineers busy repairing or building
+    // and structures still going up do not fight.
+    if (sq.retreating || sq.order.kind === 'repair' || sq.order.kind === 'build' || sq.building !== null) {
       sq.targetId = null;
       if (sq.def.vehicle) aimTurret(sq, null, dt);
       continue;
@@ -225,6 +227,7 @@ export function hitChance(world: World, sq: Squad, w: WeaponDef, d: number, targ
   acc *= suppressionAccuracy(sq);
   acc *= VETERANCY.accuracy[sq.vet] ?? 1;
   acc *= target.def.receivedAccuracy * (VETERANCY.receivedAccuracy[target.vet] ?? 1);
+  acc *= teamMult(world, sq.team, 'accuracy') * teamMult(world, target.team, 'received');
   if (target.retreating) acc *= RETREAT.receivedAccuracy;
   if (isSoft(target)) acc *= w.infantryAccuracy * COVER[coverAt(world.map, tm.pos, from)].accuracy;
   return clamp(acc, 0.02, 0.97);
@@ -333,6 +336,8 @@ export function explode(world: World, pos: Vec2, w: WeaponDef, source: Squad | n
 
 export function applyDamage(world: World, target: Squad, m: Model, dmg: number, source: Squad | null): void {
   if (!m.alive || target.dead || dmg <= 0) return;
+  // Retreating troops are running for cover: hits do less.
+  if (target.retreating) dmg *= RETREAT.damage;
   const dealt = Math.min(m.hp, dmg);
   m.hp -= dmg;
   target.lastHurt = world.time;
@@ -370,6 +375,7 @@ function handOverCrewWeapon(sq: Squad, fallen: Model): void {
 
 export function addXp(world: World, sq: Squad, amount: number): void {
   sq.xp += amount;
+  earnCp(world, sq.team, amount);
   let vet = 0;
   for (const t of sq.def.vetXp) if (sq.xp >= t) vet++;
   if (vet > sq.vet) {
