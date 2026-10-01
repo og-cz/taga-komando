@@ -9,7 +9,7 @@ import { aliveCount, type Squad } from './entities';
 import { resetMovement, setOrder } from './orders';
 import { canAfford, pay, popUsed, refund } from './systems/economy';
 import { defenseAt } from './systems/defenses';
-import { planBuild } from './systems/engineering';
+import { ownGround, placeFrame, planBuild } from './systems/engineering';
 import { canReinforceHere, dropReinforcements, reinforceCost } from './systems/logistics';
 import { startSetup, startTeardown } from './systems/setup';
 import type { World } from './world';
@@ -97,7 +97,7 @@ export function issueReinforce(world: World, sq: Squad): CommandResult {
   if (aliveCount(sq) + sq.reinforceQueued >= sq.def.models) return fail(sq.reinforceQueued > 0 ? 'Every missing soldier is already on the way' : 'Squad is at full strength');
   if (sq.retreating) return RETREATING;
   if (squadJobs(sq) >= LOGISTICS.squadQueue) return fail('Queue full: three jobs at a time');
-  if (!canReinforceHere(world, sq)) return fail('Must be near HQ or a supplied friendly point');
+  if (!canReinforceHere(world, sq)) return fail('Must be close to headquarters, a tier building or a bunker');
   const cost = reinforceCost(sq.def);
   const res = world.teams[sq.team].resources;
   if (res.manpower < cost) return fail('Not enough manpower');
@@ -147,9 +147,16 @@ export function issueBuild(world: World, sq: Squad, buildId: string, from: Vec2,
     return fail(`${def.name} is already built`);
   }
   if (def.requires && !standing(def.requires)) return fail(`Build the ${UNITS[def.requires].name} first`);
-  const plan = planBuild(world, buildId, from, to);
+  if (def.limit !== undefined) {
+    const have = world.squads.filter((s) => !s.dead && s.team === sq.team && s.def.id === def.unit).length;
+    if (have >= def.limit) return fail(`At most ${def.limit} ${def.name}s at a time`);
+  }
+  const plan = planBuild(world, buildId, from, to, sq.team);
   const tiles = plan.tiles.filter((t) => t.valid);
-  if (tiles.length === 0) return fail('Cannot build there');
+  if (tiles.length === 0) {
+    const anyOwn = plan.tiles.some((t) => world.map.inBounds(t.tx, t.ty) && ownGround(world, sq.team, t.tx, t.ty));
+    return fail(anyOwn ? 'Cannot build there' : 'Only on ground you hold');
+  }
   if (!canAfford(world.teams[sq.team].resources, plan.cost)) {
     return fail(plan.cost.munitions > world.teams[sq.team].resources.munitions ? 'Not enough munitions' : 'Not enough manpower');
   }
@@ -176,6 +183,8 @@ export function issueBuild(world: World, sq: Squad, buildId: string, from: Vec2,
     facing,
   };
   world.constructions.push(construction);
+  // A structure's frame goes up on the site straight away.
+  if (structure) placeFrame(world, construction);
   sq.channel = null;
   setOrder(sq, { kind: 'build', targetId: construction.id });
   return OK;
@@ -211,7 +220,7 @@ export function issueUpgrade(world: World, sq: Squad, upgradeId: string): Comman
   if (sq.upgrades.length > 0 || sq.upgrading) return fail('Squad is already upgraded');
   if (sq.retreating) return RETREATING;
   if (!world.hasTech(sq.team, def.requires)) return fail(`Build the ${UNITS[def.requires!].name} first`);
-  if (!canReinforceHere(world, sq)) return fail('Must be near HQ or a supplied friendly point');
+  if (!canReinforceHere(world, sq)) return fail('Must be close to headquarters, a tier building or a bunker');
   const res = world.teams[sq.team].resources;
   if (!canAfford(res, def.cost)) return fail('Not enough munitions');
   if (squadJobs(sq) >= LOGISTICS.squadQueue) return fail('Queue full: three jobs at a time');
@@ -265,6 +274,7 @@ export function queueProduction(world: World, team: TeamId, unitId: string, prod
   const hq = world.hqOf(team);
   const from = producer && !producer.dead && producer.team === team && (producer.def.role === 'hq' || producer.def.id === def.requires) ? producer : hq;
   if (!from || from.dead) return fail('Headquarters destroyed');
+  if (def.doctrine && t.doctrine !== def.doctrine) return fail('Needs its doctrine');
   if (!world.hasTech(team, def.requires)) return fail(`Build the ${UNITS[def.requires!].name} first`);
   if (from.production.length >= ECONOMY.maxQueue) return fail('Production queue full');
   if (popUsed(world, team) + def.pop > ECONOMY.popCap) return fail('Population cap reached');
@@ -291,3 +301,5 @@ function clampToMap(world: World, p: Vec2): Vec2 {
     y: Math.max(4, Math.min(world.map.pixelHeight - 4, p.y)),
   };
 }
+
+export { chooseDoctrine, useCallIn } from './systems/doctrine';
