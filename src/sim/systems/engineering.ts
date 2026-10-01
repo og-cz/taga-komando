@@ -59,8 +59,14 @@ function lineTiles(x0: number, y0: number, x1: number, y1: number, max: number):
   return out;
 }
 
+/** Ground the team holds: its base sector, or a sector whose point it owns. */
+export function ownGround(world: World, team: number, tx: number, ty: number): boolean {
+  const sector = world.territory.sectorOf[world.map.idx(tx, ty)];
+  return world.territory.ownerOf(sector, world.points) === team;
+}
+
 /** What placing `buildId` from `from` to `to` would produce, and what it would cost. Used for previews too. */
-export function planBuild(world: World, buildId: string, from: Vec2, to: Vec2): BuildPlan {
+export function planBuild(world: World, buildId: string, from: Vec2, to: Vec2, team?: number): BuildPlan {
   const def = BUILDABLES[buildId];
   const tx0 = Math.floor(from.x / TILE);
   const ty0 = Math.floor(from.y / TILE);
@@ -77,6 +83,8 @@ export function planBuild(world: World, buildId: string, from: Vec2, to: Vec2): 
   }
   const tiles = cells.map(([tx, ty]) => {
     let valid = world.map.inBounds(tx, ty) && BUILDABLE_GROUND.has(world.map.get(tx, ty)) && !pending.has(world.map.idx(tx, ty));
+    // Only on ground you hold.
+    if (valid && team !== undefined && !ownGround(world, team, tx, ty)) valid = false;
     if (valid && def.shape === 'point') {
       const center = world.map.tileCenter(tx, ty);
       valid = !world.mines.some((m) => dist(m.pos, center) < TILE);
@@ -147,7 +155,9 @@ export function workSpot(world: World, sq: Squad, c: Construction): Vec2 | null 
 export function constructionAt(world: World, team: number, p: Vec2): Construction | undefined {
   const tx = Math.floor(p.x / TILE);
   const ty = Math.floor(p.y / TILE);
-  return world.constructions.find((c) => c.team === team && c.tiles.some((t) => !t.done && t.tx === tx && t.ty === ty));
+  return world.constructions.find(
+    (c) => c.team === team && (c.tiles.some((t) => !t.done && t.tx === tx && t.ty === ty) || (c.footprint ?? []).some((f) => f.tx === tx && f.ty === ty)),
+  );
 }
 
 export function constructionOf(world: World, sq: Squad): Construction | undefined {
@@ -181,6 +191,10 @@ function updateConstructions(world: World, dt: number): void {
   for (const c of world.constructions) {
     const def = BUILDABLES[c.buildId];
     const workers = workersOf(world, c);
+    if (def.shape === 'structure') {
+      if (advanceFrame(world, c, workers, dt)) keep.push(c);
+      continue;
+    }
     const unbuilt = c.tiles.filter((t) => !t.done).length;
     // Abandoned (every squad on it took another order, retreated or died): refund whatever was not built.
     if (workers.length === 0) {
@@ -206,19 +220,7 @@ function updateConstructions(world: World, dt: number): void {
     }
     if (tile.progress < 1) continue;
     tile.done = true;
-    if (def.shape === 'structure') {
-      const tiles = c.footprint ?? [{ tx: tile.tx, ty: tile.ty }];
-      const sq = world.spawn(c.team as TeamId, def.unit!, footprintCenter(tiles), c.facing ?? workers[0].heading);
-      sq.footprint = tiles;
-      for (const f of tiles) world.map.set(f.tx, f.ty, T.Emplacement);
-      // Anyone standing where it now stands steps out of the way.
-      for (const s of world.squads) {
-        if (s.dead || s.def.kind === 'structure') continue;
-        const mover = s.def.vehicle ? 'vehicle' : 'infantry';
-        if (!world.map.worldPassable(s.pos, mover)) s.pos = world.map.nearestPassable(s.pos, mover);
-        for (const m of s.models) if (m.alive && !world.map.worldPassable(m.pos, 'infantry')) m.pos = world.map.nearestPassable(m.pos, 'infantry');
-      }
-    } else if (def.terrain !== null) {
+    if (def.terrain !== null) {
       if (BUILDABLE_GROUND.has(world.map.get(tile.tx, tile.ty))) world.map.set(tile.tx, tile.ty, def.terrain);
       resetDefense(world, tile.tx, tile.ty);
     } else {
@@ -226,6 +228,66 @@ function updateConstructions(world: World, dt: number): void {
     }
   }
   world.constructions = keep;
+}
+
+/**
+ * Raise the frame of a structure placed on the site when the job began. It goes up
+ * as engineers work on it, and how far along it is is how much punishment it can
+ * take. Left alone it simply waits: any engineer can carry on, and the enemy can
+ * knock it down. Returns false once the job is over (finished or destroyed).
+ */
+function advanceFrame(world: World, c: Construction, workers: Squad[], dt: number): boolean {
+  const def = BUILDABLES[c.buildId];
+  const frame = world.get(c.squadId);
+  if (!frame || frame.dead) {
+    for (const w of workers) finishOrder(w);
+    return false;
+  }
+  const hull = frame.models[0];
+  const reach = frame.def.radius + WORK_RANGE + TILE * 0.5;
+  let gained = 0;
+  for (const w of workers) {
+    if (w.moving || w.suppState === 'pinned' || dist(w.pos, frame.pos) > reach) continue;
+    gained += (dt * (aliveCount(w) / w.def.models)) / def.buildTime;
+  }
+  if (gained > 0) {
+    const before = frame.building ?? 0;
+    const now = Math.min(1, before + gained);
+    frame.building = now;
+    c.tiles[0].progress = now;
+    hull.hp = Math.min(hull.maxHp, hull.hp + hull.maxHp * 0.9 * (now - before));
+  }
+  if ((frame.building ?? 1) < 1) return true;
+  frame.building = null;
+  c.tiles[0].done = true;
+  for (const w of workers) finishOrder(w);
+  world.emit({ type: 'notify', team: c.team, text: `${def.name} finished`, tone: 'good', pos: { ...frame.pos } });
+  return false;
+}
+
+/** Put up the frame of a new structure on its footprint, ready for the engineers to raise. */
+export function placeFrame(world: World, c: Construction): Squad {
+  const def = BUILDABLES[c.buildId];
+  const tiles = c.footprint ?? [{ tx: c.tiles[0].tx, ty: c.tiles[0].ty }];
+  const sq = world.spawn(c.team as TeamId, def.unit!, footprintCenter(tiles), c.facing ?? 0);
+  sq.footprint = tiles;
+  sq.building = 0;
+  sq.models[0].hp = sq.models[0].maxHp * 0.1;
+  for (const f of tiles) world.map.set(f.tx, f.ty, T.Emplacement);
+  // Anyone standing where it goes up steps out of the way.
+  for (const s of world.squads) {
+    if (s.dead || s.def.kind === 'structure') continue;
+    const mover = s.def.vehicle ? 'vehicle' : 'infantry';
+    if (!world.map.worldPassable(s.pos, mover)) s.pos = world.map.nearestPassable(s.pos, mover);
+    for (const m of s.models) if (m.alive && !world.map.worldPassable(m.pos, 'infantry')) m.pos = world.map.nearestPassable(m.pos, 'infantry');
+  }
+  c.squadId = sq.id;
+  return sq;
+}
+
+/** The team's unfinished structure job whose frame is `sq`, if any. */
+export function frameJob(world: World, sq: Squad): Construction | undefined {
+  return world.constructions.find((c) => c.squadId === sq.id);
 }
 
 function updateRepairs(world: World, dt: number): void {
