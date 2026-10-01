@@ -811,21 +811,6 @@ button:disabled {
   color: #9ad06b;
 }
 
-/* Strengths and weaknesses */
-.tip-vs.strong b {
-  color: #8ed36f;
-}
-
-.tip-vs.weak b {
-  color: #ff8a70;
-}
-
-.tip-vs {
-  margin-top: 4px;
-  font-size: 12px;
-  color: #cfc9b6;
-}
-
 /* Rich tooltip */
 .tooltip {
   position: fixed;
