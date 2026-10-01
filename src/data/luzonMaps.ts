@@ -145,10 +145,104 @@ function clearBase(grid: string[][], c: Cell): void {
   }
 }
 
-function build(src: LuzonMapSource): MapDef {
-  const grid = prepareGrid(src.rows);
+/**
+ * Make a battlefield fair: the western half is copied onto the eastern half,
+ * turned half a circle, so both armies fight over the same ground. A road is
+ * laid across the middle so the two halves always join up.
+ */
+function mirrorGrid(grid: string[][]): void {
   const H = grid.length;
   const W = grid[0].length;
+  for (let y = 0; y < H; y++) {
+    for (let x = 0; x < W; x++) {
+      const mx = W - 1 - x;
+      const my = H - 1 - y;
+      // Copy from the western half (and the top half of a middle column).
+      if (x < mx || (x === mx && y < my)) grid[my][mx] = grid[y][x];
+    }
+  }
+  const cy = Math.floor(H / 2);
+  for (let x = Math.floor(W / 2) - 4; x <= Math.ceil(W / 2) + 3; x++) {
+    for (const y of [cy - 1, cy]) if (x >= 0 && x < W) grid[y][x] = '=';
+  }
+}
+
+/**
+ * Make sure the middle of the map is part of the main drivable area: if it is
+ * cut off, lay a road from it to the nearest ground that is, and the same road
+ * mirrored on the other side so the map stays fair.
+ */
+function joinMiddle(grid: string[][]): void {
+  const H = grid.length;
+  const W = grid[0].length;
+  const drivable = (x: number, y: number) => !UNDRIVABLE.has(grid[y][x]);
+  // Label the largest drivable area.
+  const region = new Int32Array(W * H).fill(-1);
+  let biggest = -1;
+  let biggestSize = 0;
+  for (let s = 0; s < W * H; s++) {
+    if (region[s] !== -1 || !drivable(s % W, Math.floor(s / W))) continue;
+    const stack = [s];
+    region[s] = s;
+    let size = 0;
+    while (stack.length) {
+      const i = stack.pop()!;
+      size++;
+      const x = i % W;
+      const y = Math.floor(i / W);
+      for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+        const nx = x + dx;
+        const ny = y + dy;
+        if (nx < 0 || ny < 0 || nx >= W || ny >= H || region[ny * W + nx] !== -1 || !drivable(nx, ny)) continue;
+        region[ny * W + nx] = s;
+        stack.push(ny * W + nx);
+      }
+    }
+    if (size > biggestSize) {
+      biggestSize = size;
+      biggest = s;
+    }
+  }
+  const cx = Math.floor(W / 2);
+  const cy = Math.floor(H / 2);
+  if (region[cy * W + cx] === biggest) return;
+  // Walk out from the middle over any ground to the nearest tile of the main area.
+  const prev = new Int32Array(W * H).fill(-1);
+  const queue = [cy * W + cx];
+  prev[cy * W + cx] = cy * W + cx;
+  let found = -1;
+  for (let head = 0; head < queue.length && found < 0; head++) {
+    const i = queue[head];
+    const x = i % W;
+    const y = Math.floor(i / W);
+    for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+      const nx = x + dx;
+      const ny = y + dy;
+      if (nx < 0 || ny < 0 || nx >= W || ny >= H || prev[ny * W + nx] !== -1) continue;
+      prev[ny * W + nx] = i;
+      if (region[ny * W + nx] === biggest) {
+        found = ny * W + nx;
+        break;
+      }
+      queue.push(ny * W + nx);
+    }
+  }
+  for (let i = found; i >= 0 && i !== cy * W + cx; i = prev[i]) {
+    const x = i % W;
+    const y = Math.floor(i / W);
+    grid[y][x] = '=';
+    grid[H - 1 - y][W - 1 - x] = '=';
+  }
+  grid[cy][cx] = '=';
+}
+
+function build(src: LuzonMapSource): MapDef {
+  const grid = prepareGrid(src.rows);
+  mirrorGrid(grid);
+  joinMiddle(grid);
+  const H = grid.length;
+  const W = grid[0].length;
+  const mirror = (c: Cell): Cell => ({ x: W - 1 - c.x, y: H - 1 - c.y });
   const drivable = (x: number, y: number) => x >= 0 && y >= 0 && x < W && y < H && !UNDRIVABLE.has(grid[y][x]);
 
   const around = (c: Cell, r: number, test: (ch: string) => boolean) => {
@@ -194,8 +288,9 @@ function build(src: LuzonMapSource): MapDef {
       biggest = id;
     }
   }
-  const bases = ([0, 1] as const).map((side) => {
-    let best: Cell = { x: side === 0 ? BASE_CLEAR + 2 : W - BASE_CLEAR - 3, y: Math.floor(H / 2) };
+  const westBase = (() => {
+    const side = 0;
+    let best: Cell = { x: BASE_CLEAR + 2, y: Math.floor(H / 2) };
     let bestScore = Infinity;
     for (let inset = BASE_CLEAR + 2; inset < W / 2 - 12; inset++) {
       const x = side === 0 ? inset : W - 1 - inset;
@@ -209,9 +304,10 @@ function build(src: LuzonMapSource): MapDef {
         }
       }
     }
-    clearBase(grid, best);
     return best;
-  });
+  })();
+  const bases = [westBase, mirror(westBase)];
+  for (const b of bases) clearBase(grid, b);
 
   // Driving distance (in tiles) from each base.
   const distanceFrom = (from: Cell): Float32Array => {
@@ -267,50 +363,43 @@ function build(src: LuzonMapSource): MapDef {
     if (c) points.push({ x: c.x + 0.5, y: c.y + 0.5, kind, name });
   };
 
-  // Victory points. First the heart of the village, equally far from both bases.
-  const firstFit = (tols: number[], make: (tol: number) => Cell | null) => {
-    for (const tol of tols) {
-      const c = make(tol);
-      if (c) return c;
+  // Victory points. The heart of the village is the same distance from both bases;
+  // the other two are a mirrored pair, one on each side of it.
+  // The very middle of a mirrored map is exactly as far from both bases.
+  const heart: Cell = { x: Math.floor(W / 2), y: Math.floor(H / 2) };
+  chosen.push(heart);
+  points.push({ x: W / 2, y: H / 2, kind: 'victory', name: src.names.victory[0] });
+  const pair = (score: (c: Cell) => number, share: [number, number], min: number): [Cell, Cell] | null => {
+    for (const tol of [0.05, 0.1, 0.18]) {
+      const c = pick((p, a, b) => Math.abs(a / (a + b) - share[0]) < tol && Math.hypot(mirror(p).x - p.x, mirror(p).y - p.y) >= min, score, min);
+      if (!c) continue;
+      const m = mirror(c);
+      chosen.push(m);
+      return [c, m];
     }
     return null;
   };
-  const heart = firstFit([2, 4, 8, 14], (tol) => pick((_c, a, b) => Math.abs(a - b) <= tol, (p) => houses(p) + (grid[p.y][p.x] === '=' ? 2 : 0), 16));
-  add(heart, 'victory', src.names.victory[0]);
-  // Then a river crossing if the map has one (the most even one), else another contested spot away from the first.
-  // Spread out from the first point, but keep away from the map's edges and corners.
-  const spread = (p: Cell) => (heart ? Math.hypot(heart.x - p.x, heart.y - p.y) * 0.3 : 0) - Math.hypot(p.x - W / 2, (p.y - H / 2) * 1.4) * 0.15;
-  const crossing = src.bridge
-    ? pick((c, a, b) => bridge(c) === 1 && Math.abs(a - b) <= (a + b) * 0.3, (p) => -Math.abs(dA[p.y * W + p.x] - dB[p.y * W + p.x]), 14)
-    : null;
-  const second =
-    crossing ??
-    firstFit([3, 6, 10, 16], (tol) => pick((_c, a, b) => Math.abs(a - b) <= tol, (p) => houses(p) + spread(p), 16)) ??
-    firstFit([6, 14, 28], (tol) => pick((_c, a, b) => Math.abs(a - b) <= tol, (p) => houses(p) + spread(p), 9));
-  add(second, 'victory', crossing && src.bridge ? src.bridge : src.names.victory[1]);
-  // The third balances the second: if the second is nearer one side, the third is as much nearer the other.
-  const skew = second ? dA[second.y * W + second.x] - dB[second.y * W + second.x] : 0;
-  const third =
-    firstFit([2, 4, 8, 14, 22, 34], (tol) => pick((_c, a, b) => Math.abs(a - b + skew) <= tol, (p) => houses(p) + spread(p), 16)) ??
-    firstFit([4, 10, 20, 40], (tol) => pick((_c, a, b) => Math.abs(a - b) <= tol, (p) => houses(p) + spread(p), 9));
-  add(third, 'victory', src.names.victory[2]);
+  const crossingScore = (p: Cell) => bridge(p) * 20 + houses(p);
+  const vpPair = pair(src.bridge ? crossingScore : houses, [0.47, 0.53], 16) ?? pair(houses, [0.4, 0.6], 12);
+  if (vpPair) {
+    add(vpPair[0], 'victory', src.bridge && bridge(vpPair[0]) ? src.bridge : src.names.victory[1]);
+    add(vpPair[1], 'victory', src.names.victory[2]);
+  }
 
-  // Resources: each side gets munitions and fuel at matching distances from its own base.
+  // Resources: each side gets munitions and fuel at exactly mirrored places.
   (['munitions', 'fuel'] as const).forEach((kind) => {
-    const ownShare = (share: number) => (_c: Cell, a: number, b: number) => Math.abs(a / (a + b) - share) < 0.06;
     const score = kind === 'munitions' ? houses : (p: Cell) => around(p, 3, (ch) => ch === '=') - houses(p) * 0.2;
-    const west = pick(ownShare(0.3), score);
-    if (!west) return;
-    const target = dA[west.y * W + west.x];
-    const east =
-      firstFit([2, 4, 7, 11, 16], (tol) => pick((_c, a, b) => Math.abs(b - target) <= tol && a > b, score)) ??
-      firstFit([0.06, 0.1, 0.16, 0.25], (tol) => pick((_c, a, b) => Math.abs(a / (a + b) - 0.7) < tol, score)) ??
-      pick((_c, a, b) => a > b, score, 10);
-    add(west, kind, src.names[kind][0]);
-    add(east, kind, src.names[kind][1]);
+    const res = pair(score, [0.3, 0.7], 12) ?? pair(score, [0.36, 0.64], 9);
+    if (!res) return;
+    add(res[0], kind, src.names[kind][0]);
+    add(res[1], kind, src.names[kind][1]);
   });
 
   dressBattlefield(grid, src.id, bases, points.map((p) => ({ x: Math.floor(p.x), y: Math.floor(p.y) })));
+  // Dress both halves alike, so cover and craters are fair too.
+  mirrorGrid(grid);
+  joinMiddle(grid);
+  for (const b of bases) clearBase(grid, b);
   const features: MapFeature[] = [{ kind: 'grid', rows: grid.map(encodeGridRow) }];
   return { id: src.id, name: src.name, description: src.description, width: W, height: H, bases: [bases[0], bases[1]], points, features };
 }
