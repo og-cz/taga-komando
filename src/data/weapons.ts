@@ -33,7 +33,7 @@ const weapon = (id: string, name: string, stats: Partial<WeaponDef>): WeaponDef 
 
 const LIST: WeaponDef[] = [
   // Small arms
-  weapon('m1_garand', 'M1 Garand', {
+  weapon('m1_garand', 'Riple Kalayaan', {
     vs: { team: 1.1, structure: 0.2 },
     range: 180, accuracy: [0.62, 0.36], damage: 16, cooldown: 1.15, clip: 8, reload: 2.5,
     suppression: 0.006, moveAccuracy: 0.55,
@@ -43,12 +43,12 @@ const LIST: WeaponDef[] = [
     range: 180, accuracy: [0.58, 0.38], damage: 16, cooldown: 1.35, clip: 5, reload: 2.6,
     suppression: 0.006, moveAccuracy: 0.45,
   }),
-  weapon('m1_carbine', 'M1 Carbine', {
+  weapon('m1_carbine', 'Karabina Kalayaan', {
     vs: { team: 1.1, structure: 0.2 },
     range: 150, accuracy: [0.55, 0.3], damage: 12, cooldown: 0.95, clip: 15, reload: 2.4,
     suppression: 0.004, moveAccuracy: 0.65,
   }),
-  weapon('bar', 'Browning Automatic Rifle', {
+  weapon('bar', 'Ripleng Awtomatiko', {
     vs: { team: 1.0, structure: 0.2 },
     range: 180, accuracy: [0.5, 0.3], damage: 10, cooldown: 0.33, clip: 20, reload: 3,
     suppression: 0.012, moveAccuracy: 0.45,
@@ -65,7 +65,7 @@ const LIST: WeaponDef[] = [
   }),
 
   // Crew-served machine guns: must set up, narrow arc, heavy suppression
-  weapon('m1917_hmg', 'M1917 Browning HMG', {
+  weapon('m1917_hmg', 'Mabigat na Ametralyadora', {
     vs: { team: 0.75, structure: 0.1 },
     range: 225, accuracy: [0.42, 0.24], damage: 8, cooldown: 0.12, clip: 50, reload: 4.5,
     suppression: 0.03, moveAccuracy: 0, crew: true, arc: 70,
@@ -77,7 +77,7 @@ const LIST: WeaponDef[] = [
   }),
 
   // Indirect fire
-  weapon('m2_mortar', 'M2 60mm Mortar', {
+  weapon('m2_mortar', 'Mortero 60mm', {
     vs: { infantry: 0.75, team: 1.8, structure: 1.5, fort: 2 },
     range: 440, minRange: 120, damage: 55, penetration: [6, 6], cooldown: 4.2, suppression: 0.22,
     moveAccuracy: 0, aoe: 26, indirect: true, scatter: 42, craterChance: 0.3, crew: true, projectile: 'mortar',
@@ -89,7 +89,7 @@ const LIST: WeaponDef[] = [
   }),
 
   // Anti-tank
-  weapon('bazooka', 'M1 Bazooka', {
+  weapon('bazooka', 'Kanyong Balikat', {
     vs: { infantry: 0.6, team: 0.6, fort: 2 },
     range: 230, accuracy: [0.7, 0.5], damage: 190, penetration: [110, 85], cooldown: 4.5,
     suppression: 0.05, moveAccuracy: 0, infantryAccuracy: 0.3, prefers: 'vehicle', projectile: 'rocket',
@@ -101,7 +101,7 @@ const LIST: WeaponDef[] = [
   }),
 
   // Tank guns
-  weapon('m6_37mm', 'M6 37mm Gun', {
+  weapon('m6_37mm', 'Kanyon 37mm', {
     vs: { infantry: 0.8, team: 0.8, fort: 2 },
     range: 210, accuracy: [0.72, 0.5], damage: 70, penetration: [85, 65], cooldown: 3.1, suppression: 0.04,
     moveAccuracy: 0.7, infantryAccuracy: 0.45, turret: true, prefers: 'any', projectile: 'shell',
@@ -111,7 +111,7 @@ const LIST: WeaponDef[] = [
     range: 205, accuracy: [0.62, 0.42], damage: 45, penetration: [62, 48], cooldown: 3.8, suppression: 0.2,
     moveAccuracy: 0.6, aoe: 18, craterChance: 0.15, turret: true, prefers: 'infantry', projectile: 'shell',
   }),
-  weapon('coax_30cal', 'Coaxial .30 cal', {
+  weapon('coax_30cal', 'Kasamang Ametralyadora', {
     vs: { team: 0.9 },
     range: 190, accuracy: [0.4, 0.22], damage: 8, cooldown: 0.16, clip: 40, reload: 3.5,
     suppression: 0.012, moveAccuracy: 0.7, turret: true,
@@ -126,6 +126,50 @@ const LIST: WeaponDef[] = [
   weapon('hq_mg', 'Base Defense MG', {
     vs: {},
     range: 200, accuracy: [0.4, 0.25], damage: 8, cooldown: 0.25, clip: 30, reload: 4, suppression: 0.02,
+  }),
+
+  // ─── Doctrine weapons ───
+  weapon('riple_luma', 'Lumang Riple', {
+    vs: { team: 1.1, structure: 0.2 },
+    range: 160, accuracy: [0.5, 0.28], damage: 15, cooldown: 1.8, clip: 5, reload: 3, suppression: 0.005, moveAccuracy: 0.4,
+  }),
+  weapon('murata', 'Murata Jū', {
+    vs: { team: 1.1, structure: 0.2 },
+    range: 160, accuracy: [0.5, 0.28], damage: 15, cooldown: 1.8, clip: 5, reload: 3, suppression: 0.005, moveAccuracy: 0.4,
+  }),
+  // Blades: deadly up close, useless against armour and walls.
+  weapon('bolo', 'Bolo', {
+    vs: { team: 1.2, structure: 0.02, vehicle: 0, fort: 0.02 },
+    range: 20, accuracy: [0.85, 0.85], damage: 30, cooldown: 1.1, moveAccuracy: 1, suppression: 0.02,
+  }),
+  weapon('takeyari', 'Takeyari', {
+    vs: { team: 1.2, structure: 0.02, vehicle: 0, fort: 0.02 },
+    range: 22, accuracy: [0.8, 0.8], damage: 27, cooldown: 1.2, moveAccuracy: 1, suppression: 0.02,
+  }),
+  // Submachine guns: shock troops fire on the run.
+  weapon('subfusil', 'Subfusil Kidlat', {
+    vs: { team: 1.1, structure: 0.15 },
+    range: 115, accuracy: [0.62, 0.3], damage: 9, cooldown: 0.14, clip: 30, reload: 2.6, suppression: 0.009, moveAccuracy: 0.85,
+  }),
+  weapon('type100_smg', 'Type 100 Kikanshō-jū', {
+    vs: { team: 1.1, structure: 0.15 },
+    range: 115, accuracy: [0.6, 0.3], damage: 9, cooldown: 0.15, clip: 30, reload: 2.7, suppression: 0.009, moveAccuracy: 0.85,
+  }),
+  // Towed anti-tank guns: set up, then very hard on armour.
+  weapon('at_gun_37', 'Kanyong Pangontra 37mm', {
+    vs: { infantry: 0.5, team: 0.6, fort: 2 },
+    range: 270, accuracy: [0.75, 0.55], damage: 170, penetration: [120, 95], cooldown: 4.2, suppression: 0.05,
+    moveAccuracy: 0, infantryAccuracy: 0.35, crew: true, arc: 60, prefers: 'vehicle', projectile: 'shell',
+  }),
+  weapon('type1_47mm', 'Type 1 47mm Sokushahō', {
+    vs: { infantry: 0.5, team: 0.6, fort: 2 },
+    range: 270, accuracy: [0.74, 0.55], damage: 175, penetration: [125, 100], cooldown: 4.4, suppression: 0.05,
+    moveAccuracy: 0, infantryAccuracy: 0.35, crew: true, arc: 60, prefers: 'vehicle', projectile: 'shell',
+  }),
+  // Off-map artillery for commander barrages.
+  weapon('artillery', 'Artillery', {
+    vs: { infantry: 0.9, team: 1.6, structure: 1.5, fort: 2.2 },
+    range: 0, damage: 95, penetration: [40, 40], aoe: 34, suppression: 0.4, craterChance: 0.6, projectile: 'mortar',
   }),
 
   // Emplaced guns only fire through their front arc (the way they were built facing).
@@ -145,7 +189,7 @@ const LIST: WeaponDef[] = [
   }),
 
   // Ability-only munitions
-  weapon('mk2_grenade', 'Mk 2 Grenade', {
+  weapon('mk2_grenade', 'Granada', {
     vs: { team: 1.5, fort: 1.6 },
     range: 110, damage: 80, penetration: [10, 10], aoe: 30, suppression: 0.35, scatter: 16,
     craterChance: 0.05, projectile: 'grenade',
