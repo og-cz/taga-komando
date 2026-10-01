@@ -560,7 +560,7 @@ export class Renderer {
   }
 
   /**
-   * Tanks in their army's paint: the Maharlika Stuart in olive drab with a
+   * Tanks in their army's paint: the Maharlika Tamaraw in olive drab with a
    * long 37mm gun and a sun on the hull; the Chi-Ha in three-colour
    * camouflage with its off-centre turret, stubby 57mm and hoop aerial.
    */
@@ -654,7 +654,7 @@ export class Renderer {
     // Hull marking.
     this.emblem(look.emblem, hullX + hullW * 0.32, 0, 2.6);
 
-    // Turret: the Stuart's is central, the Chi-Ha's sits to one side.
+    // Turret: the Tamaraw's is central, the Chi-Ha's sits to one side.
     ctx.translate(look.chiHa ? 1 : 0.5, look.chiHa ? -1.2 : 0);
     ctx.rotate(sq.turret - sq.heading);
     ctx.fillStyle = '#1b1b18';
@@ -858,7 +858,7 @@ export class Renderer {
 
   /**
    * Engineer structures, each army building in its own way:
-   * MG nest: Maharlika sandbags round a water-cooled M1917; Imperial log-lined
+   * MG nest: Maharlika sandbags round a water-cooled heavy gun; Imperial log-lined
    * pit round a finned Type 92.
    * Bunker: Maharlika coconut logs under palm fronds; Imperial round concrete
    * pillbox under camouflage netting.
@@ -923,7 +923,7 @@ export class Renderer {
         ctx.stroke();
       }
       if (filipino) {
-        // M1917: a fat water jacket round the barrel.
+        // A fat water jacket round the barrel.
         this.barrel(x, y, aim, r - 1, '#2a2b26', 2.8);
         this.barrel(x, y, aim, r + 2.5, '#1c1c1a', 1.2);
       } else {
