@@ -5,7 +5,7 @@ import type { TeamId, UnitRole } from '../data/types';
 import { UNITS } from '../data/units';
 import { UPGRADES } from '../data/upgrades';
 import { WEAPONS } from '../data/weapons';
-import { dist, lerpVec, type Vec2 } from '../core/vec';
+import { angleDiff, dist, lerpVec, type Vec2 } from '../core/vec';
 import {
   issueAbility,
   issueAttack,
@@ -21,6 +21,8 @@ import {
 } from '../sim/commands';
 import { aliveCount, healthFraction, isSoft, type CapturePoint, type Squad } from '../sim/entities';
 import { fortPriority } from '../sim/systems/combat';
+import { callInBlock, chooseDoctrine, useCallIn } from '../sim/systems/doctrine';
+import { DOCTRINES, doctrinesOf } from '../data/doctrines';
 import { coverAt } from '../sim/systems/cover';
 import { canAfford } from '../sim/systems/economy';
 import { canReinforceHere, reinforceCost } from '../sim/systems/logistics';
@@ -43,6 +45,7 @@ export class AICommander {
     this.timer = 0.8;
     const own = world.squads.filter((s) => s.team === this.team && !s.dead && s.def.kind !== 'structure');
     this.scout(world);
+    this.commander(world, own);
     this.produce(world, own);
     for (const sq of own) this.control(world, sq, own);
     for (const id of this.objective.keys()) if (!world.get(id)) this.objective.delete(id);
@@ -78,6 +81,7 @@ export class AICommander {
       [counts.mg < 1, 'mg', false],
       [counts.tank < 1, 'tank', true],
       [counts.line < 4, 'line', false],
+      [this.special(world, own) < 2, 'special' as UnitRole, true],
       [counts.mortar < 1, 'mortar', false],
       [counts.engineer < 1 && counts.tank > 0, 'engineer', false],
       [counts.tank < 2, 'tank', true],
@@ -86,14 +90,16 @@ export class AICommander {
     ];
     for (const [want, role, optional] of plan) {
       if (!want) continue;
-      const id = unitFor(role);
+      const id = role === ('special' as UnitRole) ? this.specialUnit(world) : unitFor(role);
       // Units whose tier building is not up yet are skipped.
       if (!id || !world.hasTech(this.team, UNITS[id].requires)) continue;
       if (!canAfford(t.resources, UNITS[id].cost)) {
         if (optional) continue;
         return;
       }
-      queueProduction(world, this.team, id);
+      const req = UNITS[id].requires;
+      const producer = req ? world.squads.find((s) => !s.dead && s.team === this.team && s.def.id === req && s.building === null) : undefined;
+      queueProduction(world, this.team, id, producer);
       return;
     }
   }
@@ -305,12 +311,99 @@ export class AICommander {
     if (sq.def.kind === 'team') return false;
     if (sq.order.kind === 'attack') {
       const t = world.get(sq.order.targetId);
-      if (t && !t.dead && t.def.role === 'fort') return true;
+      if (t && !t.dead && (t.def.role === 'fort' || t.def.role === 'tech')) return true;
     }
-    const forts = this.enemies(world).filter((e) => e.def.role === 'fort' && dist(e.pos, sq.pos) < 450 && fortPriority(sq, e) < 1);
-    if (forts.length === 0) return false;
-    forts.sort((a, b) => dist(a.pos, sq.pos) - dist(b.pos, sq.pos));
-    return issueAttack(world, sq, forts[0]).ok;
+    const near = this.enemies(world)
+      .filter((e) => (e.def.role === 'fort' || e.def.role === 'tech') && dist(e.pos, sq.pos) < 450)
+      .sort((a, b) => dist(a.pos, sq.pos) - dist(b.pos, sq.pos));
+    if (near.length === 0) return false;
+    // Tanks and anti-tank weapons can break it head on.
+    const breakable = near.find((e) => fortPriority(sq, e) < 1);
+    if (breakable) return issueAttack(world, sq, breakable).ok;
+    // Riflemen do not walk into a machine gun's arc: they work round its flank,
+    // close to grenade range, and throw (the grenade goes on emplacements first).
+    const gun = near.find((e) => e.models[0]?.weapons.some((w) => w.def.arc < 360));
+    if (!gun || !sq.def.abilities.length) return false;
+    const arc = Math.max(...gun.models[0].weapons.map((w) => w.def.arc));
+    const half = (arc * Math.PI) / 360;
+    const from = Math.atan2(sq.pos.y - gun.pos.y, sq.pos.x - gun.pos.x);
+    const off = angleDiff(gun.heading, from);
+    if (Math.abs(off) > half + 0.25 && dist(sq.pos, gun.pos) < 105) return false;
+    const side = off >= 0 ? 1 : -1;
+    const flankA = gun.heading + side * (half + 0.6);
+    const spot = world.map.nearestPassable({ x: gun.pos.x + Math.cos(flankA) * 95, y: gun.pos.y + Math.sin(flankA) * 95 }, 'infantry');
+    if (sq.order.kind === 'move' && sq.order.dest && dist(sq.order.dest, spot) < 30) return true;
+    return issueMove(world, sq, spot).ok;
+  }
+
+  // ─── Commander: doctrine, call-ins, special units ─────────────
+
+  /** Pick a doctrine early on, then use its call-ins when they would help. */
+  private commander(world: World, own: Squad[]): void {
+    const t = world.teams[this.team];
+    if (!t.doctrine && world.time > 40) {
+      const options = doctrinesOf(t.faction.id);
+      chooseDoctrine(world, this.team, options[Math.floor(world.rng.next() * options.length)].id);
+    }
+    if (!t.doctrine) return;
+    const enemies = this.enemies(world);
+    const engaged = own.filter((s) => s.targetId !== null && isSoft(s)).length;
+    const hurting = own.filter((s) => world.time - s.lastHurt < 4).length;
+    const shaken = own.filter((s) => s.suppState !== 'normal').length;
+    for (const c of DOCTRINES[t.doctrine].callIns) {
+      if (callInBlock(world, this.team, c.id)) continue;
+      const e = c.effect;
+      let target: Vec2 | undefined;
+      let go = false;
+      switch (e.kind) {
+        case 'buff':
+          go = e.rally ? shaken >= 2 : e.received ? hurting >= 2 : e.camo ? own.filter((s) => s.order.kind === 'idle').length >= 3 : engaged >= 2;
+          break;
+        case 'levy':
+          go = t.resources.manpower > c.cost.manpower + 150;
+          break;
+        case 'barrage': {
+          // Shell a dug-in emplacement first, else a cluster of enemies.
+          const fort = enemies.find((x) => x.def.role === 'fort' || x.def.role === 'tech' || (x.def.kind === 'team' && x.setup === 'deployed'));
+          const cluster = enemies.find((x) => enemies.filter((y) => dist(x.pos, y.pos) < 90).length >= 3);
+          target = (fort ?? cluster)?.pos;
+          go = !!target;
+          break;
+        }
+        case 'recon': {
+          const enemyHq = world.hqOf(this.team === 0 ? 1 : 0);
+          target = enemyHq ? lerpVec(enemyHq.pos, t.base, 0.3) : undefined;
+          go = !!target && world.time > 150;
+          break;
+        }
+        case 'paradrop': {
+          const p = world.points.find((pt) => pt.owner !== this.team && world.vision.isVisible(this.team, pt.pos));
+          target = p ? lerpVec(p.pos, t.base, 0.15) : undefined;
+          go = !!target;
+          break;
+        }
+        case 'mines': {
+          const p = world.points.find((pt) => pt.owner === this.team && this.threatened(world, pt));
+          target = p ? lerpVec(p.pos, world.teams[this.team === 0 ? 1 : 0].base, 0.12) : undefined;
+          go = !!target;
+          break;
+        }
+      }
+      if (go) useCallIn(world, this.team, c.id, target);
+    }
+  }
+
+  /** The doctrine's special unit, if it can be recruited now. */
+  private specialUnit(world: World): string | undefined {
+    const t = world.teams[this.team];
+    if (!t.doctrine) return undefined;
+    const id = DOCTRINES[t.doctrine].unit;
+    return world.hasTech(this.team, UNITS[id].requires) ? id : undefined;
+  }
+
+  private special(world: World, own: Squad[]): number {
+    const id = this.specialUnit(world);
+    return id ? own.filter((s) => s.def.id === id).length : 99;
   }
 
   private useAbilities(world: World, sq: Squad): void {
