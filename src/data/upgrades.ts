@@ -3,13 +3,13 @@ import type { UpgradeDef } from './types';
 const LIST: UpgradeDef[] = [
   // ─── Hukbong Maharlika ─────────────────────────────────────
   {
-    id: 'us_bazooka_kit', name: 'Bazooka', hotkey: 'T',
-    description: 'One rifleman takes an M1 bazooka, so the squad can fight back against tanks.',
+    id: 'us_bazooka_kit', name: 'Kanyong Balikat', hotkey: 'T',
+    description: 'One rifleman takes a shoulder-fired rocket launcher, so the squad can fight back against tanks.',
     cost: { manpower: 0, munitions: 60, fuel: 0 }, time: 12, weapons: ['bazooka'], count: 1, requires: 'us_tech2',
   },
   {
-    id: 'us_bar', name: 'Browning Automatic Rifle', hotkey: 'Y',
-    description: 'One rifleman takes a BAR: much more firepower against infantry at mid range.',
+    id: 'us_bar', name: 'Ripleng Awtomatiko', hotkey: 'Y',
+    description: 'One rifleman takes an automatic rifle: much more firepower against infantry at mid range.',
     cost: { manpower: 0, munitions: 50, fuel: 0 }, time: 12, weapons: ['bar'], count: 1, requires: 'us_tech1',
   },
 
