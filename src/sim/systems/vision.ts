@@ -35,6 +35,17 @@ export class Vision {
         if (sq.dead || sq.team !== team) continue;
         this.cast(vis, sq.pos, sq.def.sight, sq.def.radius);
       }
+      // Spotter planes see everything around their target.
+      for (const r of world.teams[team].reveals) {
+        const rt = r.radius / TILE;
+        const cx = r.pos.x / TILE;
+        const cy = r.pos.y / TILE;
+        for (let ty = Math.floor(cy - rt); ty <= Math.ceil(cy + rt); ty++) {
+          for (let tx = Math.floor(cx - rt); tx <= Math.ceil(cx + rt); tx++) {
+            if (this.map.inBounds(tx, ty) && Math.hypot(tx + 0.5 - cx, ty + 0.5 - cy) <= rt) vis[ty * this.map.w + tx] = 1;
+          }
+        }
+      }
     }
     this.version++;
   }
