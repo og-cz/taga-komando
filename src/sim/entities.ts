@@ -1,3 +1,4 @@
+import type { Buff } from './systems/doctrine';
 import { WEAPONS } from '../data/weapons';
 import type { FactionDef, LoadoutEntry, Owner, PointKind, ProjectileKind, Resources, TeamId, UnitDef, WeaponDef } from '../data/types';
 import { add, rotate, type Vec2 } from '../core/vec';
@@ -92,6 +93,10 @@ export interface Squad {
   production: ProductionItem[];
   /** Structures built by engineers: the tiles they take up, freed when they fall. */
   footprint: { tx: number; ty: number }[];
+  /** Structures still going up: how far along (0..1); null once finished. */
+  building: number | null;
+  /** Reinforcements are waiting (squad too far from a base): shown, not cancelled. */
+  reinforcePaused: boolean;
   rally: Vec2 | null;
   lastHurt: number;
   lastFired: number;
@@ -130,6 +135,8 @@ export interface Construction {
   footprint?: { tx: number; ty: number }[];
   /** Structures: which way it will face (its guns' arc), radians. */
   facing?: number;
+  /** Structures: the frame standing on the site while it goes up. */
+  squadId?: number;
 }
 
 export interface Mine {
@@ -169,6 +176,15 @@ export interface TeamState {
   spawn: Vec2;
   retreatPoint: Vec2;
   stats: TeamStats;
+  /** Chosen doctrine id, or null until picked. */
+  doctrine: string | null;
+  /** Command points earned so far (they unlock the doctrine's call-ins). */
+  cp: number;
+  /** When each call-in is ready again (battle time). */
+  callInReady: Record<string, number>;
+  buffs: Buff[];
+  /** Areas revealed by spotter planes. */
+  reveals: { pos: Vec2; radius: number; until: number }[];
 }
 
 export type Tone = 'info' | 'good' | 'bad';
@@ -275,6 +291,8 @@ export function createSquad(nextId: () => number, team: TeamId, def: UnitDef, po
     reinforceTimer: 0,
     production: [],
     footprint: [],
+    building: null,
+    reinforcePaused: false,
     rally: null,
     lastHurt: -Infinity,
     lastFired: -Infinity,
