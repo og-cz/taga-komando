@@ -156,21 +156,6 @@ How the mission types work:
 | Anti-tank | Pangontra-Tangke (bazooka squad) | Taisensha-hei (AT rifle team) |
 | Tank | M3 Stuart | Type 97 Chi-Ha |
 
-### Unit roles
-
-No unit is simply the strongest. Each one has a job and a threat:
-
-| Unit | Strong against | Weak against |
-| --- | --- | --- |
-| Rifle squad | Weapon teams from the flank, other infantry (grenades flush dug-in crews) | Machine guns from the front, tanks |
-| Machine gun team | Infantry inside its firing cone | Mortars, flanking infantry, tanks |
-| Mortar team | Set-up weapon teams, infantry in cover | Infantry rushes (it cannot fire at close range), tanks; needs a spotter |
-| Anti-tank squad | Tanks, especially from the side or rear | Infantry and machine guns |
-| Tank | Infantry and weapon teams | Anti-tank squads, shots to its thin rear armour |
-| Engineers | Fortifying ground, keeping tanks in the fight | Any real firefight |
-
-Machine guns turn slowly once set up, so attacking them from the side works. The unit card and every build button show these strengths and weaknesses.
-
 **Maps:**
 - Skirmish: Bataan Crossroads, Barrio San Roque, and thirteen Luzon towns: Calumpit, Plaridel, Pilar, Orani, Porac, Abucay, San Fernando, Dinalupihan, Hermosa, Guagua, Lingayen, Baliuag and Lubao (river towns, coast, jungle and open farmland).
 - Missions: Intramuros (a walled city on the bay), Mount Samat, Route 3 and Layac Junction, plus Calumpit and San Fernando for the open battles.
