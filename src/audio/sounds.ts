@@ -26,6 +26,12 @@ export const FIRE: Readonly<Record<string, SoundSpec>> = {
   coax_type97: s('coax', 0.4, 0.08),
   hq_mg: s('hmg', 0.4, 0.1),
   nest_mg: s('hmg', 0.45, 0.08),
+  riple_luma: s('arisaka', 0.5),
+  murata: s('arisaka', 0.5),
+  subfusil: s('coax', 0.4, 0.07),
+  type100_smg: s('coax', 0.4, 0.07),
+  at_gun_37: s('tankgun', 0.7, 0.2),
+  type1_47mm: s('tankgun', 0.75, 0.2),
   bunker_mg: s('hmg', 0.45, 0.08),
   bazooka: s('bazooka', 0.6, 0.2),
   type97_at_rifle: s('atrifle', 0.6, 0.15),
@@ -44,6 +50,7 @@ export const IMPACT: Readonly<Record<string, SoundSpec>> = {
 
 /** Blast sounds, by weapon id; anything unlisted uses the small blast. */
 export const BLAST: Readonly<Record<string, SoundSpec>> = {
+  artillery: s('explode_big', 0.85, 0.08),
   mine: s('explode_big', 0.9, 0.1),
   type97_mortar: s('explode_big', 0.75, 0.08),
   m2_mortar: s('explode_small', 0.75, 0.06),
