@@ -1,5 +1,6 @@
 import { ECONOMY, TILE, VICTORY } from '../data/balance';
 import { FACTIONS } from '../data/factions';
+import { isHidden, updateDoctrines, type Drop, type Strike } from './systems/doctrine';
 import { T } from '../data/terrain';
 import type { Difficulty, MapDef, Owner, PlacedUnit, ScenarioDef, TeamId, WinCondition } from '../data/types';
 import { UNITS } from '../data/units';
@@ -53,6 +54,9 @@ export class World {
   projectiles: Projectile[] = [];
   constructions: Construction[] = [];
   mines: Mine[] = [];
+  /** Commander artillery strikes and paradrops in progress. */
+  strikes: Strike[] = [];
+  drops: Drop[] = [];
   /** Damaged defense tiles: tile index → hit points left. Missing means untouched. */
   readonly defenseHp = new Map<number, number>();
   events: SimEvent[] = [];
@@ -123,6 +127,11 @@ export class World {
         spawn: add(base, scale(dir, TILE * 5.5)),
         retreatPoint: add(base, scale(dir, TILE * 4)),
         stats: { produced: 0, lost: 0, killed: 0 },
+        doctrine: null,
+        cp: 0,
+        callInReady: {},
+        buffs: [],
+        reveals: [],
       };
     });
     this.teams = [teams[0], teams[1]];
@@ -183,7 +192,7 @@ export class World {
   /** True if the tier building `unitId` (or nothing, if undefined) is standing for this team. */
   hasTech(team: TeamId, unitId: string | undefined): boolean {
     if (!unitId || this.techFree) return true;
-    return this.squads.some((s) => !s.dead && s.team === team && s.def.id === unitId);
+    return this.squads.some((s) => !s.dead && s.team === team && s.def.id === unitId && s.building === null);
   }
 
   emit(e: SimEvent): void {
@@ -197,6 +206,7 @@ export class World {
   /** Fog-of-war check: own units are always known, enemies only when a model is in vision. */
   canSee(team: TeamId, sq: Squad): boolean {
     if (sq.team === team) return true;
+    if (isHidden(this, team, sq)) return false;
     for (const m of sq.models) if (m.alive && this.vision.isVisible(team, m.pos)) return true;
     return false;
   }
@@ -209,6 +219,7 @@ export class World {
     updateLogistics(this, dt);
     updateUpgrades(this, dt);
     updateAbilities(this, dt);
+    updateDoctrines(this, dt);
     updateMovement(this, dt);
     updateEngineering(this, dt);
     updateCombat(this, dt);
