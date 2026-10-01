@@ -1,3 +1,4 @@
+import { teamMult } from './doctrine';
 import { RETREAT, TILE } from '../../data/balance';
 import { ABILITIES } from '../../data/abilities';
 import {
@@ -151,7 +152,7 @@ function moveInfantry(world: World, sq: Squad, goal: Vec2 | null, dt: number): v
 
 function advanceAlongPath(world: World, sq: Squad, dt: number): void {
   const speed =
-    sq.def.speed * world.map.speedAt(sq.pos, 'infantry') * suppressionSpeed(sq) * (sq.retreating ? RETREAT.speed : 1);
+    sq.def.speed * world.map.speedAt(sq.pos, 'infantry') * suppressionSpeed(sq) * (sq.retreating ? RETREAT.speed : 1) * teamMult(world, sq.team, 'speed');
   let step = speed * dt;
   while (step > 0 && sq.path.length > 0) {
     const wp = sq.path[0];
@@ -173,7 +174,7 @@ function advanceAlongPath(world: World, sq: Squad, dt: number): void {
 function updateInfantryModels(world: World, sq: Squad, dt: number): void {
   const n = aliveCount(sq);
   const deployed = sq.def.kind === 'team' && sq.setup !== 'packed';
-  const speed = sq.def.speed * 1.3 * (sq.retreating ? RETREAT.speed : 1) * Math.max(0.3, suppressionSpeed(sq));
+  const speed = sq.def.speed * 1.3 * (sq.retreating ? RETREAT.speed : 1) * Math.max(0.3, suppressionSpeed(sq)) * teamMult(world, sq.team, 'speed');
   let i = 0;
   for (const m of sq.models) {
     if (!m.alive) continue;
