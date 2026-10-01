@@ -26,7 +26,8 @@ export const SUPPRESSION = {
   pinnedAccuracy: 0.35,
 };
 
-export const RETREAT = { speed: 1.4, receivedAccuracy: 0.55, arriveRadius: 60 };
+/** Retreating squads run faster, are harder to hit and take only part of the damage. */
+export const RETREAT = { speed: 1.4, receivedAccuracy: 0.55, damage: 0.55, arriveRadius: 60 };
 
 export const LOGISTICS = {
   healRadius: 180,
