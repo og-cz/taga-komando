@@ -1,7 +1,7 @@
 import { ABILITIES } from '../data/abilities';
 import { BUILDABLES } from '../data/buildables';
 import { CAPTURE, TILE } from '../data/balance';
-import type { DoctrineDef, TeamId, WeaponDef } from '../data/types';
+import type { DoctrineDef, TeamId, WeaponDef, HeadGear } from '../data/types';
 import { UNITS } from '../data/units';
 import { CALL_INS, DOCTRINES } from '../data/doctrines';
 import { WEAPONS } from '../data/weapons';
@@ -33,7 +33,7 @@ interface FactionLook {
   helmet: string;
   pack: string;
   /** m1: wide round helmet; type90: smaller helmet with a star and a cloth neck flap. */
-  helmetStyle: 'm1' | 'type90';
+  helmetStyle: HeadGear;
   hull: string;
   turret: string;
   camo?: string[];
@@ -50,10 +50,11 @@ interface FactionLook {
 
 const LOOK: Record<string, FactionLook> = {
   usaffe: {
-    cloth: '#6f6f47',
-    helmet: '#4e5335',
-    pack: '#47442d',
-    helmetStyle: 'm1',
+    // Rayadillo under a woven straw Baliwag hat.
+    cloth: '#8b98a5',
+    helmet: '#c4a866',
+    pack: '#5e4a30',
+    helmetStyle: 'straw',
     hull: '#58603a',
     turret: '#626b41',
     barrel: 19,
@@ -622,6 +623,60 @@ export class Renderer {
         ctx.fillStyle = '#e8c547';
         ctx.fillRect(hx + 1.1, -0.45, 0.9, 0.9);
         break;
+      case 'straw': {
+        // A wide woven straw hat with a dark band round the crown.
+        const brim = prone ? 3.6 : 4.3;
+        ctx.fillStyle = kit.helmet;
+        ctx.beginPath();
+        ctx.arc(hx, 0, brim, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.strokeStyle = 'rgba(70,52,24,0.7)';
+        ctx.stroke();
+        ctx.strokeStyle = 'rgba(90,68,30,0.35)';
+        ctx.lineWidth = 0.4;
+        ctx.beginPath();
+        ctx.arc(hx, 0, brim * 0.75, 0, Math.PI * 2);
+        ctx.stroke();
+        // Black ribbon round the crown, a red cockade on it.
+        ctx.fillStyle = '#161512';
+        ctx.beginPath();
+        ctx.arc(hx, 0, 2, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.fillStyle = '#b3261e';
+        ctx.fillRect(hx - 0.4, 1.4, 0.9, 0.9);
+        ctx.fillStyle = '#dcc488';
+        ctx.beginPath();
+        ctx.arc(hx - 0.2, -0.2, 1.5, 0, Math.PI * 2);
+        ctx.fill();
+        break;
+      }
+      case 'salakot': {
+        // A conical salakot: ribs running down from a knob at the top.
+        const r = prone ? 3.4 : 4;
+        const g = ctx.createRadialGradient(hx - 1, -1, 0.3, hx, 0, r);
+        g.addColorStop(0, '#e2c98e');
+        g.addColorStop(1, kit.helmet);
+        ctx.fillStyle = g;
+        ctx.beginPath();
+        ctx.arc(hx, 0, r, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.strokeStyle = 'rgba(70,52,24,0.7)';
+        ctx.stroke();
+        ctx.strokeStyle = 'rgba(80,58,26,0.45)';
+        ctx.lineWidth = 0.35;
+        ctx.beginPath();
+        for (let i = 0; i < 8; i++) {
+          const a = (i / 8) * Math.PI * 2;
+          ctx.moveTo(hx, 0);
+          ctx.lineTo(hx + Math.cos(a) * r, Math.sin(a) * r);
+        }
+        ctx.stroke();
+        ctx.fillStyle = '#5a4020';
+        ctx.beginPath();
+        ctx.arc(hx, 0, 0.7, 0, Math.PI * 2);
+        ctx.fill();
+        break;
+      }
       case 'cap':
         // Kepi with a visor at the front.
         ctx.fillStyle = kit.helmet;
