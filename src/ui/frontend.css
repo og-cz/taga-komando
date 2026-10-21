@@ -24,7 +24,8 @@
 }
 
 /* The live battle behind the menus is desaturated and darkened like a newsreel. */
-body.cinematic #game {
+body.cinematic #game,
+body.cinematic #game3d {
   filter: saturate(0.5) sepia(0.25) brightness(0.55) contrast(1.1);
   pointer-events: none;
 }
