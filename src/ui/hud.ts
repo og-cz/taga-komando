@@ -168,7 +168,9 @@ export class Hud {
   /** The HQ's production queue: three slots beside the orders. */
   private readonly queueSlots: HTMLElement[] = [];
   /** Upgrades for the selected unit, beside its card. */
-  private readonly upgradePanel = el('div', { class: 'panel upgrade-panel' });
+  private readonly upgradePanel = el('div', { class: 'upgrade-panel' });
+  /** Which idle squad the idle buttons last picked, to cycle through them. */
+  private idleIndex = 0;
   /** Headquarters and tier buildings, as tabs over the order grid. */
   private readonly buildingTabs = el('div', { class: 'building-tabs' });
   private readonly buildingTabNodes: { node: HTMLButtonElement; find: () => Squad | undefined }[] = [];
@@ -232,12 +234,18 @@ export class Hud {
     this.tip(menu, () => ({ title: 'Menu', body: 'Pause the battle, see the controls, or leave.', key: 'Esc' }));
     this.tip(help, () => ({ title: 'Controls', body: 'Show every key binding.', key: 'F1' }));
     this.roster = el('div', { class: 'roster' });
-    const corner = el(
-      'div',
-      { class: 'hud-corner' },
-      el('div', { class: 'corner-btns' }, help, menu),
-      this.roster,
-    );
+    const corner = el('div', { class: 'hud-corner' }, this.roster);
+    // Round buttons on the map's frame: next idle infantry / vehicle, help, menu.
+    const mapBtn = (cls: string, glyph: string, title: string, body: string, fn: () => void, label?: string) => {
+      const b = el('button', { class: `map-btn ${cls}` }, label ? el('span', { text: label }) : icon(glyph, 'ico'));
+      b.addEventListener('click', fn);
+      this.tip(b, () => ({ title, body }));
+      return b;
+    };
+    menu.className = 'map-btn menu';
+    help.className = 'map-btn help';
+    const idleInf = mapBtn('idle-inf', 'line', 'Next idle infantry', 'Select and go to the next infantry squad with no orders.', () => this.nextIdle(false));
+    const idleVeh = mapBtn('idle-veh', 'tank', 'Next idle vehicle', 'Select and go to the next vehicle with no orders.', () => this.nextIdle(true));
 
     // ─── Bottom: minimap · unit card · queue · command grid ───
     this.unitPanel = el('div', { class: 'unit-panel' });
@@ -256,18 +264,18 @@ export class Hud {
     this.buildUpgradeButtons();
     for (const id of team.faction.roster) this.buildButton(id);
     this.rallyButton();
-    const queue = el('div', { class: 'panel queue-panel' });
+    const queue = el('div', { class: 'queue-panel' });
     for (let i = 0; i < ECONOMY.maxQueue; i++) queue.append(this.queueSlot(i));
     this.buildBuildingTabs();
 
     const bottom = el(
       'div',
       { class: 'bottombar' },
-      el('div', { class: 'panel minimap-panel' }, minimap.canvas),
-      el('div', { class: 'panel unit-card' }, this.unitPanel),
-      this.upgradePanel,
-      queue,
-      el('div', { class: 'panel resources' }, mpBox, muBox, fuBox, popBox),
+      el('div', { class: 'panel minimap-panel' }, minimap.canvas, idleInf, idleVeh, help, menu),
+      // The information panel: the unit, its upgrades, then the production queue at its right end.
+      el('div', { class: 'panel unit-card' }, this.unitPanel, this.upgradePanel, queue),
+      // Resources sit along the top edge of the panel, by the orders.
+      el('div', { class: 'resources res-strip' }, mpBox, muBox, fuBox, popBox),
       el(
         'div',
         { class: 'panel command-card' },
@@ -1154,8 +1162,23 @@ ${d.description}` }));
         el('div', { class: 'portrait-head' }, el('div', { class: 'portrait-name', text: sq.def.name }), el('div', { class: 'portrait-type', text: (sq.def.type || this.world.teams[sq.team].faction.name) + (enemy ? ' · enemy' : '') })),
         ...rows,
         el('div', { class: 'chips' }, ...chips.map(([text, tone]) => el('span', { class: `chip ${tone}`, text }))),
+        el('div', { class: 'portrait-desc', text: sq.def.description }),
       ),
     );
+  }
+
+  /** Select the next infantry squad (or vehicle) that has no orders, and go to it. */
+  private nextIdle(vehicles: boolean): void {
+    const idle = this.world.squads.filter(
+      (s) => !s.dead && s.team === this.player && (vehicles ? s.def.kind === 'vehicle' : s.def.kind === 'infantry' || s.def.kind === 'team') && s.order.kind === 'idle' && !s.moving,
+    );
+    if (!idle.length) {
+      this.toast(vehicles ? 'No idle vehicles' : 'No idle infantry');
+      return;
+    }
+    const sq = idle[this.idleIndex++ % idle.length];
+    this.input.select([sq.id]);
+    this.input.centerOnSelection();
   }
 }
 
