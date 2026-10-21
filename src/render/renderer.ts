@@ -1,8 +1,9 @@
 import { ABILITIES } from '../data/abilities';
 import { BUILDABLES } from '../data/buildables';
 import { CAPTURE, TILE } from '../data/balance';
-import type { TeamId, WeaponDef } from '../data/types';
+import type { DoctrineDef, TeamId, WeaponDef } from '../data/types';
 import { UNITS } from '../data/units';
+import { CALL_INS, DOCTRINES } from '../data/doctrines';
 import { WEAPONS } from '../data/weapons';
 import { add, angleTo, fromAngle, rotate, type Vec2 } from '../core/vec';
 import { aliveCount, formationOffset, healthFraction, maxRange, type Squad } from '../sim/entities';
@@ -113,7 +114,7 @@ export class Renderer {
     this.fog = document.createElement('canvas');
     this.fog.width = w;
     this.fog.height = h;
-    this.fogCtx = this.fog.getContext('2d')!;
+    this.fogCtx = this.fog.getContext('2d', { willReadFrequently: true })!;
     this.fogData = this.fogCtx.createImageData(w, h);
     this.territoryCanvas = document.createElement('canvas');
     this.territoryCanvas.width = w;
@@ -130,6 +131,11 @@ export class Renderer {
     this.camera.resize(w, h);
   }
 
+  /** Where each tank last left track prints. */
+  private readonly tracks = new Map<number, Vec2>();
+  /** Each soldier's last position and stride, for the walking animation. */
+  private readonly strides = new Map<number, { x: number; y: number; phase: number; moving: boolean }>();
+
   visibleToPlayer = (p: Vec2): boolean => this.spectator || this.world.vision.isVisible(this.player, p);
 
   draw(ui: UIState, dt: number): void {
@@ -141,6 +147,12 @@ export class Renderer {
     ctx.fillStyle = '#10140f';
     ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
     camera.apply(ctx, this.dpr);
+    // Blasts near the camera shake the view a little.
+    if (this.effects.shake > 0.2) {
+      const s = this.effects.shake * this.dpr;
+      const m = ctx.getTransform();
+      ctx.setTransform(m.a, m.b, m.c, m.d, m.e + (Math.random() - 0.5) * s, m.f + (Math.random() - 0.5) * s);
+    }
 
     this.terrain.sync();
     const topLeft = camera.screenToWorld(0, 0);
@@ -206,7 +218,7 @@ export class Renderer {
     const t = world.territory;
     if (t.version !== this.territoryVersion) {
       this.territoryVersion = t.version;
-      const tctx = this.territoryCanvas.getContext('2d')!;
+      const tctx = this.territoryCanvas.getContext('2d', { willReadFrequently: true })!;
       const img = tctx.createImageData(world.map.w, world.map.h);
       const rgb = [
         [79, 148, 232],
@@ -471,7 +483,12 @@ export class Renderer {
         }
         ctx.restore();
       }
-      this.drawSoldier(m.pos, m.facing, sq, w, pinned);
+      // Walking: the stride advances with the ground covered since last frame.
+      const last = this.strides.get(m.id);
+      const moved = last ? Math.hypot(m.pos.x - last.x, m.pos.y - last.y) : 0;
+      const phase = (last?.phase ?? 0) + moved * 0.55;
+      this.strides.set(m.id, { x: m.pos.x, y: m.pos.y, phase, moving: moved > 0.05 });
+      this.drawSoldier(m.pos, m.facing, sq, w, pinned, moved > 0.05 || (last?.moving && moved > 0) ? phase : 0);
       const hpFrac = m.hp / m.maxHp;
       if (hpFrac < 0.99) {
         ctx.fillStyle = hpFrac > 0.5 ? '#c9f08a' : hpFrac > 0.25 ? '#f2c94c' : '#ff5a4a';
@@ -485,10 +502,12 @@ export class Renderer {
    * with a team-coloured edge, a pack on the back and the weapon held forward.
    * Pinned soldiers lie flat.
    */
-  private drawSoldier(p: Vec2, facing: number, sq: Squad, w: WeaponDef | undefined, prone: boolean): void {
+  private drawSoldier(p: Vec2, facing: number, sq: Squad, w: WeaponDef | undefined, prone: boolean, stride = 0): void {
     const { ctx } = this;
     const col = TEAM[sq.team];
-    const kit = this.look(sq);
+    const army = this.look(sq);
+    // Doctrine units wear their own kit (rayadillo, camisa, paratrooper green…).
+    const kit = { cloth: sq.def.look?.cloth ?? army.cloth, helmet: sq.def.look?.helmet ?? army.helmet, style: sq.def.look?.helmetStyle ?? army.helmetStyle, pack: army.pack };
     ctx.save();
     ctx.translate(p.x, p.y);
     ctx.rotate(facing);
@@ -497,16 +516,26 @@ export class Renderer {
     ctx.ellipse(0.8, 1.1, prone ? 5.6 : 4.2, prone ? 3 : 3.8, 0, 0, Math.PI * 2);
     ctx.fill();
 
-    const gun = w && !w.crew ? (w.prefers === 'vehicle' ? 9.5 : 7) : 0;
     const bodyX = prone ? -2.2 : 0;
-    // Weapon first, so the arms and shoulders sit over its stock.
+    // Legs stepping out from under the body while he walks.
+    if (!prone && stride !== 0) {
+      const s = Math.sin(stride) * 2.2;
+      ctx.fillStyle = '#2a2a22';
+      ctx.beginPath();
+      ctx.ellipse(s, -1.6, 1.5, 0.9, 0, 0, Math.PI * 2);
+      ctx.ellipse(-s, 1.6, 1.5, 0.9, 0, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    const gun = w && !w.crew ? (w.prefers === 'vehicle' ? 9.5 : w.range < 30 ? 5 : 7) : 0;
+    // Weapon first, so the arms and shoulders sit over its stock. Blades are short and bright.
     if (gun) {
-      ctx.strokeStyle = '#1a1a17';
-      ctx.lineWidth = w!.prefers === 'vehicle' ? 2.3 : 1.2;
+      const blade = w!.range < 30;
+      ctx.strokeStyle = blade ? '#b9b6a8' : '#1a1a17';
+      ctx.lineWidth = w!.prefers === 'vehicle' ? 2.3 : blade ? 1 : 1.2;
       ctx.lineCap = 'round';
       ctx.beginPath();
       ctx.moveTo(bodyX + 0.5, 1.6);
-      ctx.lineTo(gun, 1);
+      ctx.lineTo(gun, blade ? 2.8 : 1);
       ctx.stroke();
     }
     // Pack.
@@ -521,40 +550,75 @@ export class Renderer {
     else ctx.ellipse(0, 0, 2.4, 4.1, 0, 0, Math.PI * 2);
     ctx.fill();
     ctx.stroke();
-    // Helmet, with a little light on it. The Maharlika wear a wide round
-    // helmet; the Imperial Army a smaller one with a star and a cloth neck flap.
     const hx = prone ? 2.6 : 0.4;
-    const m1 = kit.helmetStyle === 'm1';
-    if (!m1) {
-      ctx.fillStyle = kit.cloth;
-      ctx.beginPath();
-      ctx.moveTo(hx - 0.5, -1.9);
-      ctx.lineTo(hx - 3.2, -2.3);
-      ctx.lineTo(hx - 3.2, 2.3);
-      ctx.lineTo(hx - 0.5, 1.9);
-      ctx.closePath();
-      ctx.fill();
-    }
-    ctx.fillStyle = kit.helmet;
     ctx.strokeStyle = 'rgba(0,0,0,0.55)';
     ctx.lineWidth = 0.6;
-    ctx.beginPath();
-    ctx.arc(hx, 0, m1 ? 2.6 : 2, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.stroke();
-    if (m1) {
-      // The brim.
-      ctx.strokeStyle = 'rgba(0,0,0,0.3)';
-      ctx.beginPath();
-      ctx.arc(hx, 0, 1.8, 0, Math.PI * 2);
-      ctx.stroke();
-    } else {
-      ctx.fillStyle = '#e8c547';
-      ctx.fillRect(hx + 1.1, -0.45, 0.9, 0.9);
+    switch (kit.style) {
+      case 'm1':
+        // Wide round helmet with a brim.
+        ctx.fillStyle = kit.helmet;
+        ctx.beginPath();
+        ctx.arc(hx, 0, 2.6, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.stroke();
+        ctx.strokeStyle = 'rgba(0,0,0,0.3)';
+        ctx.beginPath();
+        ctx.arc(hx, 0, 1.8, 0, Math.PI * 2);
+        ctx.stroke();
+        break;
+      case 'type90':
+        // Small helmet with a star and a cloth neck flap.
+        ctx.fillStyle = kit.cloth;
+        ctx.beginPath();
+        ctx.moveTo(hx - 0.5, -1.9);
+        ctx.lineTo(hx - 3.2, -2.3);
+        ctx.lineTo(hx - 3.2, 2.3);
+        ctx.lineTo(hx - 0.5, 1.9);
+        ctx.closePath();
+        ctx.fill();
+        ctx.fillStyle = kit.helmet;
+        ctx.beginPath();
+        ctx.arc(hx, 0, 2, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.stroke();
+        ctx.fillStyle = '#e8c547';
+        ctx.fillRect(hx + 1.1, -0.45, 0.9, 0.9);
+        break;
+      case 'cap':
+        // Kepi with a visor at the front.
+        ctx.fillStyle = kit.helmet;
+        ctx.beginPath();
+        ctx.arc(hx, 0, 1.9, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.stroke();
+        ctx.fillStyle = '#16181c';
+        ctx.fillRect(hx + 1.2, -1.2, 1.4, 2.4);
+        break;
+      case 'bandana':
+      case 'none':
+        // Bare head, with a headband or bandana knotted round it.
+        ctx.fillStyle = '#9c7350';
+        ctx.beginPath();
+        ctx.arc(hx, 0, 1.9, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.fillStyle = '#1f1a14';
+        ctx.beginPath();
+        ctx.arc(hx - 0.4, 0, 1.6, Math.PI * 0.5, Math.PI * 1.5);
+        ctx.fill();
+        if (kit.style === 'bandana') {
+          ctx.strokeStyle = kit.helmet;
+          ctx.lineWidth = 0.9;
+          ctx.beginPath();
+          ctx.arc(hx, 0, 1.9, -Math.PI * 0.6, Math.PI * 0.6);
+          ctx.stroke();
+          ctx.fillStyle = kit.helmet;
+          ctx.fillRect(hx - 3, -0.5, 1.4, 1);
+        }
+        break;
     }
-    ctx.fillStyle = 'rgba(255,255,230,0.22)';
+    ctx.fillStyle = 'rgba(255,255,230,0.2)';
     ctx.beginPath();
-    ctx.arc(hx - 0.6, -0.7, 0.9, 0, Math.PI * 2);
+    ctx.arc(hx - 0.6, -0.7, 0.8, 0, Math.PI * 2);
     ctx.fill();
     ctx.restore();
   }
@@ -582,6 +646,12 @@ export class Renderer {
     ctx.rotate(sq.heading);
     ctx.fillStyle = 'rgba(0,0,0,0.3)';
     ctx.fillRect(-L / 2 + 2, -W / 2 + 2, L, W);
+    // Track prints every few paces while it drives.
+    const lastTrack = this.tracks.get(sq.id);
+    if (!lastTrack || Math.hypot(sq.pos.x - lastTrack.x, sq.pos.y - lastTrack.y) > 7) {
+      if (lastTrack) this.effects.track(sq.pos, sq.heading);
+      this.tracks.set(sq.id, { x: sq.pos.x, y: sq.pos.y });
+    }
 
     // Tracks, with links.
     ctx.fillStyle = '#23231f';
@@ -727,6 +797,49 @@ export class Renderer {
   }
 
   private drawStructure(sq: Squad, ui: UIState): void {
+    if (sq.building === null) {
+      this.drawStructureBody(sq, ui);
+      return;
+    }
+    // Still going up: a pale outline of the finished building inside its scaffold.
+    this.ctx.globalAlpha = 0.4;
+    this.drawStructureBody(sq, ui);
+    this.ctx.globalAlpha = 1;
+    this.drawScaffold(sq);
+  }
+
+  /** Poles and braces round a building that is still going up, and how far along it is. */
+  private drawScaffold(sq: Squad): void {
+    const { ctx } = this;
+    const tiles = sq.footprint.length ? sq.footprint : [{ tx: Math.floor(sq.pos.x / TILE), ty: Math.floor(sq.pos.y / TILE) }];
+    const x0 = Math.min(...tiles.map((f) => f.tx)) * TILE + 1;
+    const y0 = Math.min(...tiles.map((f) => f.ty)) * TILE + 1;
+    const x1 = (Math.max(...tiles.map((f) => f.tx)) + 1) * TILE - 1;
+    const y1 = (Math.max(...tiles.map((f) => f.ty)) + 1) * TILE - 1;
+    ctx.strokeStyle = '#8a6a3e';
+    ctx.lineWidth = 1.3;
+    ctx.strokeRect(x0, y0, x1 - x0, y1 - y0);
+    ctx.lineWidth = 0.8;
+    ctx.beginPath();
+    for (let x = x0 + 8; x < x1; x += 8) {
+      ctx.moveTo(x, y0);
+      ctx.lineTo(x, y1);
+    }
+    ctx.moveTo(x0, y0);
+    ctx.lineTo(x1, y1);
+    ctx.moveTo(x1, y0);
+    ctx.lineTo(x0, y1);
+    ctx.stroke();
+    ctx.fillStyle = '#5a4428';
+    for (const [px, py] of [[x0, y0], [x1, y0], [x0, y1], [x1, y1]]) ctx.fillRect(px - 1.5, py - 1.5, 3, 3);
+    const k = sq.building ?? 0;
+    ctx.fillStyle = 'rgba(0,0,0,0.6)';
+    ctx.fillRect(x0, y1 + 3, x1 - x0, 3);
+    ctx.fillStyle = '#e0c34a';
+    ctx.fillRect(x0, y1 + 3, (x1 - x0) * k, 3);
+  }
+
+  private drawStructureBody(sq: Squad, ui: UIState): void {
     if (sq.def.role === 'tech') {
       this.drawTech(sq, ui);
       return;
@@ -849,6 +962,7 @@ export class Renderer {
       ctx.fillRect(x + ridge - 2, top + hh - 2, 4, 4);
     }
 
+    this.drawCompoundLife(sq, wall, filipino);
     if (ui.selected.has(sq.id)) {
       ctx.strokeStyle = '#9dff7a';
       ctx.lineWidth = 1.5;
@@ -1192,11 +1306,144 @@ export class Renderer {
         ctx.stroke();
       }
     }
+    // Once the army has a doctrine, its banner flies over the tier buildings.
+    const doctrine = this.world.teams[sq.team].doctrine;
+    if (doctrine && sq.building === null) this.drawBanner(DOCTRINES[doctrine], x + hw - 3, y - hh + 2);
     if (ui.selected.has(sq.id)) {
       ctx.strokeStyle = '#9dff7a';
       ctx.lineWidth = 1.4;
       ctx.strokeRect(x - hw - 3, y - hh - 3, hw * 2 + 6, hh * 2 + 6);
     }
+  }
+
+  /** Life inside the headquarters compound: a supply truck, stacked crates, a radio mast and gun posts. */
+  private drawCompoundLife(sq: Squad, wall: number, filipino: boolean): void {
+    const { ctx } = this;
+    const { x, y } = sq.pos;
+    const look = this.look(sq);
+    // Supply truck parked inside the gate.
+    ctx.save();
+    ctx.translate(x - wall + 11, y + wall - 9);
+    ctx.fillStyle = 'rgba(0,0,0,0.3)';
+    ctx.fillRect(-6, -2.5, 14, 7);
+    ctx.fillStyle = look.hull;
+    ctx.fillRect(-7, -3.5, 9, 7);
+    ctx.fillStyle = filipino ? '#7c7a52' : '#8a7a4c';
+    ctx.fillRect(2, -3, 5, 6);
+    ctx.fillStyle = '#1d1d1a';
+    ctx.fillRect(4.5, -2.4, 1.6, 4.8);
+    ctx.restore();
+    // Crates.
+    ctx.strokeStyle = '#3d331e';
+    ctx.lineWidth = 0.6;
+    for (const [cx, cy] of [[wall - 9, wall - 8], [wall - 14, wall - 8], [wall - 11.5, wall - 12.5]]) {
+      ctx.fillStyle = '#6b5a35';
+      ctx.fillRect(x + cx - 2.4, y + cy - 2, 4.8, 4);
+      ctx.strokeRect(x + cx - 2.4, y + cy - 2, 4.8, 4);
+    }
+    // Radio mast with guy wires.
+    const mx = x - wall + 6;
+    const my = y - wall + 6;
+    ctx.strokeStyle = 'rgba(40,40,36,0.6)';
+    ctx.lineWidth = 0.5;
+    ctx.beginPath();
+    for (const [dx, dy] of [[-4, -4], [4, -4], [-4, 4], [4, 4]]) {
+      ctx.moveTo(mx, my);
+      ctx.lineTo(mx + dx, my + dy);
+    }
+    ctx.stroke();
+    ctx.fillStyle = '#2b2b27';
+    ctx.beginPath();
+    ctx.arc(mx, my, 1.4, 0, Math.PI * 2);
+    ctx.fill();
+    // Sandbagged gun posts at the two front corners.
+    for (const side of [-1, 1]) {
+      const gx = x + side * (wall - 4);
+      const gy = y + wall - 4;
+      ctx.fillStyle = filipino ? '#b09c70' : '#8a7550';
+      for (let i = 0; i < 6; i++) {
+        const a = (i / 6) * Math.PI * 2;
+        ctx.beginPath();
+        ctx.ellipse(gx + Math.cos(a) * 3.2, gy + Math.sin(a) * 3.2, 1.8, 1.1, a + Math.PI / 2, 0, Math.PI * 2);
+        ctx.fill();
+      }
+      ctx.strokeStyle = '#1c1c1a';
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.moveTo(gx, gy);
+      ctx.lineTo(gx + side * 3, gy + 5);
+      ctx.stroke();
+    }
+  }
+
+  /** A doctrine banner on a pole: its field, stripe and emblem. */
+  private drawBanner(d: DoctrineDef, x: number, y: number): void {
+    const { ctx } = this;
+    const wave = Math.sin(this.world.time * 3 + x) * 0.8;
+    ctx.fillStyle = 'rgba(0,0,0,0.3)';
+    ctx.fillRect(x + 1, y - 1, 2, 3);
+    ctx.fillStyle = '#2b2620';
+    ctx.fillRect(x - 0.7, y - 22, 1.4, 22);
+    ctx.save();
+    ctx.translate(x + 0.7, y - 22);
+    ctx.beginPath();
+    ctx.moveTo(0, 0);
+    ctx.lineTo(15, wave);
+    ctx.lineTo(15, 10 + wave);
+    ctx.lineTo(0, 10);
+    ctx.closePath();
+    ctx.fillStyle = d.field;
+    ctx.fill();
+    ctx.fillStyle = d.stripe;
+    ctx.fillRect(0, 7.5 + wave * 0.5, 15, 2.5);
+    ctx.strokeStyle = 'rgba(0,0,0,0.5)';
+    ctx.lineWidth = 0.5;
+    ctx.stroke();
+    // Emblem.
+    const ex = 7.5;
+    const ey = 4 + wave * 0.5;
+    switch (d.emblem) {
+      case 'sun':
+      case 'star':
+        this.emblem(d.emblem, ex, ey, 2.4);
+        break;
+      case 'k':
+        this.emblem('sun', ex, ey, 2.2);
+        ctx.fillStyle = d.field;
+        ctx.font = 'bold 3.5px sans-serif';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText('K', ex, ey + 0.2);
+        ctx.textBaseline = 'alphabetic';
+        break;
+      case 'shield':
+        ctx.fillStyle = '#e0c34a';
+        ctx.beginPath();
+        ctx.moveTo(ex - 2.4, ey - 2.4);
+        ctx.lineTo(ex + 2.4, ey - 2.4);
+        ctx.lineTo(ex + 2.4, ey);
+        ctx.lineTo(ex, ey + 2.8);
+        ctx.lineTo(ex - 2.4, ey);
+        ctx.closePath();
+        ctx.fill();
+        break;
+      case 'wings':
+        ctx.strokeStyle = '#f1ece0';
+        ctx.lineWidth = 0.9;
+        ctx.beginPath();
+        ctx.moveTo(ex - 4, ey - 1);
+        ctx.quadraticCurveTo(ex - 1.5, ey + 1, ex, ey);
+        ctx.quadraticCurveTo(ex + 1.5, ey + 1, ex + 4, ey - 1);
+        ctx.stroke();
+        break;
+      case 'leaf':
+        ctx.fillStyle = '#9fae6a';
+        ctx.beginPath();
+        ctx.ellipse(ex, ey, 2.8, 1.4, -0.6, 0, Math.PI * 2);
+        ctx.fill();
+        break;
+    }
+    ctx.restore();
   }
 
   /** White patch with a red cross, on an aid station's roof. */
@@ -1301,6 +1548,21 @@ export class Renderer {
       ctx.arc(cursor.x, cursor.y, w.aoe + w.scatter * 0.6, 0, Math.PI * 2);
       ctx.fill();
       ctx.stroke();
+      return;
+    }
+    if (ui.mode.kind === 'callIn') {
+      const c = CALL_INS[ui.mode.callInId];
+      const e = c?.effect;
+      const r = !e ? 30 : e.kind === 'barrage' ? e.scatter + WEAPONS[e.weapon].aoe : e.kind === 'recon' ? e.radius : e.kind === 'mines' ? e.radius : 34;
+      ctx.strokeStyle = 'rgba(255,200,90,0.85)';
+      ctx.fillStyle = 'rgba(255,200,90,0.08)';
+      ctx.lineWidth = 1.5;
+      ctx.setLineDash([7, 5]);
+      ctx.beginPath();
+      ctx.arc(cursor.x, cursor.y, r, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.stroke();
+      ctx.setLineDash([]);
       return;
     }
     if (ui.mode.kind === 'setup') {
