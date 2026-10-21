@@ -8,7 +8,9 @@ export type Mode =
   | { kind: 'build'; buildId: string }
   | { kind: 'repair' }
   /** HQ selected: the next left click sets where new units go. */
-  | { kind: 'rally' };
+  | { kind: 'rally' }
+  /** Aiming a commander call-in: the next left click is its target. */
+  | { kind: 'callIn'; callInId: string };
 
 /** Something on the ground that was clicked to see its info: a defense tile, a construction job or one of our mines. */
 export type Inspect = { kind: 'defense'; tx: number; ty: number } | { kind: 'construction'; id: number } | { kind: 'mine'; id: number };
