@@ -2,6 +2,7 @@ import { audio, type Channel } from '../audio/audio';
 import type { TeamId } from '../data/types';
 import type { World } from '../sim/world';
 import { el, formatTime } from './dom';
+import { drawReconMap } from './recon';
 import { controlsTable } from './menu';
 
 /** Master, music and effects volume, saved between sessions. */
@@ -98,20 +99,37 @@ export function endOverlay(world: World, player: TeamId, title: string, actions:
     button('Retry mission', 'end-btn primary', actions.onRetry);
   }
 
+  // The battle's recon maps, clipped to boards either side of the report.
+  const sideMap = (side: string) => {
+    const c = document.createElement('canvas');
+    c.width = 440;
+    c.height = Math.round((440 * world.map.h) / world.map.w);
+    drawReconMap(c.getContext('2d')!, world.map, c.width, c.height);
+    return el('div', { class: `end-board ${side}` }, el('div', { class: 'end-clip' }), c);
+  };
+
   return el(
     'div',
     { class: `end-screen ${won ? 'victory' : 'defeat'}` },
     el('div', { class: 'grain' }),
     el(
       'div',
-      { class: 'end-box' },
-      el('div', { class: 'end-kicker', text: title }),
-      el('h1', { class: 'end-title', text: won ? 'Victory' : 'Defeat' }),
-      el('div', { class: 'end-rule' }),
-      el('div', { class: 'end-reason', text: world.endReason || (won ? 'The enemy has been defeated' : 'Your forces have been defeated') }),
-      el('div', { class: 'end-time', text: `Battle lasted ${formatTime(world.time)}${progress}` }),
-      stats,
-      el('div', { class: 'end-actions' }, ...buttons),
+      { class: 'end-desk' },
+      sideMap('left'),
+      sideMap('right'),
+      el(
+        'div',
+        { class: 'end-box end-paper' },
+        el('div', { class: 'end-clip' }),
+        el('div', { class: 'end-postmark' }, el('span', { text: 'HQ LUZON' })),
+        el('div', { class: 'end-kicker', text: title }),
+        el('h1', { class: 'end-title', text: won ? 'Victory' : 'Defeat' }),
+        el('div', { class: 'end-reason', text: world.endReason || (won ? 'The enemy has been defeated' : 'Your forces have been defeated') }),
+        el('div', { class: 'end-time', text: `Battle lasted ${formatTime(world.time)}${progress}` }),
+        stats,
+        el('div', { class: 'end-actions' }, ...buttons),
+        el('div', { class: 'end-stamp', text: 'Ulat ng Labanan' }),
+      ),
     ),
   );
 }
