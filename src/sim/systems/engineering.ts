@@ -83,8 +83,8 @@ export function planBuild(world: World, buildId: string, from: Vec2, to: Vec2, t
   }
   const tiles = cells.map(([tx, ty]) => {
     let valid = world.map.inBounds(tx, ty) && BUILDABLE_GROUND.has(world.map.get(tx, ty)) && !pending.has(world.map.idx(tx, ty));
-    // Only on ground you hold.
-    if (valid && team !== undefined && !ownGround(world, team, tx, ty)) valid = false;
+    // Emplacements only on ground you hold; wire, traps, sandbags and mines go anywhere.
+    if (valid && team !== undefined && def.shape === 'structure' && !ownGround(world, team, tx, ty)) valid = false;
     if (valid && def.shape === 'point') {
       const center = world.map.tileCenter(tx, ty);
       valid = !world.mines.some((m) => dist(m.pos, center) < TILE);
