@@ -454,7 +454,6 @@ button:disabled {
   display: block;
   cursor: pointer;
   max-height: 138px;
-  image-rendering: pixelated;
 }
 
 /* Selected unit (bottom centre) */
@@ -1381,274 +1380,526 @@ button:disabled {
   color: var(--accent);
 }
 
-/* ─── Field-desk skin ─────────────────────────────── */
-/* Blackened iron plates edged in worn brass and studded with rivets; the
-   map on parchment, the selected unit in a framed plate. Layout above is
-   unchanged; this only dresses it. */
+/* ═══ Field gear: the game's design system ═══════════════════════════
+   Olive-drab painted steel worn at the edges, recessed wells for what you
+   read, raised switches for what you press, paper for maps and dossiers.
+   Quiapo for names and headings, a typewriter for orders and reports.
+   Every panel, button and plate below draws on these tokens. */
 
 :root {
-  --brass: #a8873f;
-  --brass-hi: #e6c97c;
-  --brass-lo: #4f3d1a;
-  --iron: #1b1a15;
-  --iron-hi: #2c2a22;
-  --plate: linear-gradient(180deg, #2a2820 0%, #1a1914 55%, #121109 100%);
-  --plate-edge: #5a4720;
-  --plate-hi: #c9a75a;
-  /* Four rivets, one per corner. */
-  --rivets:
-    radial-gradient(circle at 6px 6px, #e6c97c 0 1.4px, #6b5424 1.6px 2.6px, transparent 2.8px),
-    radial-gradient(circle at calc(100% - 6px) 6px, #e6c97c 0 1.4px, #6b5424 1.6px 2.6px, transparent 2.8px),
-    radial-gradient(circle at 6px calc(100% - 6px), #e6c97c 0 1.4px, #6b5424 1.6px 2.6px, transparent 2.8px),
-    radial-gradient(circle at calc(100% - 6px) calc(100% - 6px), #e6c97c 0 1.4px, #6b5424 1.6px 2.6px, transparent 2.8px);
+  --od: #3e4131;
+  --od-hi: #5c604a;
+  --od-lo: #26281d;
+  --od-deep: #16170f;
+  --edge: #0b0c07;
+  --cream: #e9dfc0;
+  --cream-dim: #a9a184;
+  --amber: #d8a84c;
+  --amber-hi: #f2cf7e;
+  --rust: #7a4a26;
+  --paper: #d9ccaa;
+  --paper-ink: #2a2316;
+  --type: 'Courier New', 'Courier Prime', monospace;
+  --grain: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='180' height='180'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0 0 0 0.5 0'/></filter><rect width='100%25' height='100%25' filter='url(%23n)'/></svg>");
+  --wear: repeating-linear-gradient(115deg, rgba(255, 255, 240, 0.018) 0 1px, transparent 1px 9px);
+  --steel: var(--grain), var(--wear), linear-gradient(180deg, #474a39 0%, #34362a 45%, #25271d 100%);
+  --steel-raised: var(--grain), linear-gradient(180deg, #5a5d49 0%, #3d4032 55%, #2b2d22 100%);
+  --well: var(--grain), linear-gradient(180deg, #121309, #1c1d14);
+  --bevel: inset 0 1px 0 rgba(255, 255, 230, 0.14), inset 0 -2px 0 rgba(0, 0, 0, 0.35), inset 0 0 0 1px rgba(0, 0, 0, 0.35);
+  --sunk: inset 0 2px 7px rgba(0, 0, 0, 0.75), inset 0 0 0 1px rgba(0, 0, 0, 0.6), 0 1px 0 rgba(255, 255, 230, 0.08);
+  --rivet: radial-gradient(circle, #8b8e74 0 1px, #2c2e22 1.4px 2.2px, transparent 2.5px);
+  --plate: var(--steel);
+  --plate-edge: var(--edge);
+  --plate-hi: var(--od-hi);
 }
 
-/* One continuous desk along the bottom, brass rail on top. */
+/* ─── The console along the bottom ─────────────────── */
 .bottombar {
-  height: 156px;
-  gap: 6px;
-  padding: 9px 8px 7px;
+  height: 168px;
+  gap: 8px;
+  padding: 12px 10px 9px;
+  overflow: visible;
   pointer-events: auto !important;
-  background:
-    repeating-linear-gradient(90deg, rgba(255, 255, 255, 0.012) 0 2px, transparent 2px 5px),
-    linear-gradient(180deg, #2b2519 0%, #1c1810 40%, #100d08 100%);
-  border-top: 3px solid var(--brass);
-  box-shadow: 0 -1px 0 var(--brass-hi), 0 -1px 0 4px rgba(0, 0, 0, 0.55), 0 -10px 30px rgba(0, 0, 0, 0.55), inset 0 2px 0 var(--brass-lo);
+  background: var(--steel);
+  border-top: 1px solid var(--edge);
+  box-shadow: inset 0 2px 0 var(--od-hi), inset 0 3px 0 rgba(0, 0, 0, 0.4), 0 -6px 26px rgba(0, 0, 0, 0.6);
+}
+
+/* Rivets along the console's top lip. */
+.bottombar::before {
+  position: absolute;
+  top: 4px;
+  left: 0;
+  right: 0;
+  height: 6px;
+  background: var(--rivet) 18px 0 / 48px 6px repeat-x;
+  opacity: 0.8;
+  content: '';
+  pointer-events: none;
 }
 
 .panel {
   position: relative;
   padding: 8px;
-  background: var(--rivets), var(--plate);
-  border: 2px solid var(--brass-lo);
-  border-top-color: var(--brass);
-  border-bottom-color: #2e240f;
-  border-radius: 3px;
-  box-shadow: inset 0 0 0 1px rgba(230, 201, 124, 0.12), inset 0 10px 22px rgba(0, 0, 0, 0.4), 0 2px 6px rgba(0, 0, 0, 0.6);
+  background: var(--steel-raised);
+  border: 1px solid var(--edge);
+  border-radius: 4px;
+  box-shadow: var(--bevel), 0 2px 5px rgba(0, 0, 0, 0.55);
 }
 
-/* The map, inked on old parchment, with its tab. */
+/* ─── Recon map, on paper, with its folder tab ─────── */
 .minimap-panel {
-  padding: 18px 6px 6px;
-  background: var(--rivets), linear-gradient(180deg, #3a3021, #211a10);
+  overflow: visible;
+  padding: 6px;
 }
 
 .minimap-panel::before {
   position: absolute;
-  top: 2px;
-  left: 50%;
-  transform: translateX(-50%);
-  padding: 0 14px;
-  font: 400 13px/14px 'Quiapo', var(--display);
-  letter-spacing: 0.12em;
-  color: var(--brass-hi);
-  content: 'MAPA';
+  top: -21px;
+  left: 10px;
+  padding: 3px 18px 2px;
+  font: 400 15px/16px 'Quiapo', var(--display);
+  letter-spacing: 0.14em;
+  color: var(--cream);
+  background: var(--steel-raised);
+  border: 1px solid var(--edge);
+  border-bottom: none;
+  border-radius: 4px 4px 0 0;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 230, 0.14);
+  content: 'MAP';
 }
 
 .minimap {
-  max-height: 126px;
-  filter: sepia(0.55) saturate(0.85) contrast(1.05) brightness(0.95);
-  border: 2px solid #8a7146;
-  box-shadow: 0 0 0 1px #2a2010, inset 0 0 18px rgba(60, 40, 10, 0.6);
+  max-height: 144px;
+  border: 3px solid var(--paper);
+  box-shadow: 0 0 0 1px var(--edge), 0 3px 8px rgba(0, 0, 0, 0.6);
 }
 
-/* The selected unit: a stamped insignia in a brass frame. */
+/* ─── Selected unit: identification plate ──────────── */
+.unit-card {
+  padding: 9px 12px;
+}
+
 .portrait {
-  width: 118px;
-  color: #2d2414;
-  background:
-    radial-gradient(circle at 50% 42%, rgba(255, 246, 214, 0.55), transparent 60%),
-    linear-gradient(180deg, #cdb98a, #9c8658);
-  border: 3px solid var(--brass);
-  outline: 1px solid #1a140a;
-  box-shadow: inset 0 0 0 2px rgba(60, 44, 16, 0.6), inset 0 0 22px rgba(70, 48, 14, 0.55);
+  width: 112px;
+  color: var(--cream);
+  background: var(--well);
+  border: 1px solid var(--edge);
+  box-shadow: var(--sunk);
 }
 
 .portrait-card.t1 .portrait {
-  color: #3a120d;
-  background:
-    radial-gradient(circle at 50% 42%, rgba(255, 228, 214, 0.5), transparent 60%),
-    linear-gradient(180deg, #c9a08a, #93644f);
+  color: #f0cfc6;
+  background: var(--grain), linear-gradient(180deg, #2a1310, #1a0c0a);
 }
 
-.portrait-icon {
-  filter: drop-shadow(0 1px 0 rgba(255, 240, 200, 0.6)) drop-shadow(0 -1px 0 rgba(0, 0, 0, 0.35));
+/* A soldier's photograph: black and white, grainy, in a white print border. */
+.portrait.photo,
+.portrait-card.t1 .portrait.photo {
+  padding: 4px;
+  background: #d8d1bd;
+  box-shadow: 0 0 0 1px var(--edge), 0 3px 8px rgba(0, 0, 0, 0.6);
+}
+
+.unit-photo {
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  filter: grayscale(1) contrast(1.2) brightness(0.95) sepia(0.12);
+}
+
+.unit-photo svg {
+  display: block;
+  width: 100%;
+  height: 100%;
 }
 
 .portrait-vet {
-  color: #6b1d12;
-  text-shadow: 0 1px 0 rgba(255, 240, 200, 0.6);
+  top: 6px;
+  left: 8px;
+  z-index: 1;
+  color: var(--amber-hi);
+  text-shadow: 0 1px 2px #000;
 }
 
 .portrait-name {
-  color: #f1e3b8;
-  text-shadow: 0 2px 0 rgba(0, 0, 0, 0.6);
+  font-size: 28px;
+  color: var(--cream);
+  text-shadow: 0 2px 0 rgba(0, 0, 0, 0.7);
 }
 
-.portrait-type,
+.portrait-type {
+  font: 700 12px var(--type);
+  letter-spacing: 0.06em;
+  color: var(--cream-dim);
+}
+
 .stat-label {
-  color: #b9a477;
+  font: 700 11px var(--type);
+  letter-spacing: 0.08em;
+  color: var(--cream-dim);
+}
+
+.stat-val {
+  color: var(--cream);
 }
 
 .hpbar {
-  height: 7px;
-  background: #0b0a07;
-  border: 1px solid #4a3a18;
-  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.8);
+  height: 8px;
+  background: var(--od-deep);
+  border: 1px solid var(--edge);
+  box-shadow: var(--sunk);
 }
 
 .hpbar .fill {
-  background: linear-gradient(180deg, #a3d07a, #5f8f3e);
+  background: linear-gradient(180deg, #a2c071, #5d7d3a);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 230, 0.3);
+}
+
+.pip {
+  background: linear-gradient(180deg, #e9dfc0, #b2a780);
 }
 
 .chip {
-  color: #e2d4ac;
-  background: linear-gradient(180deg, #2c281d, #1a170f);
-  border: 1px solid #5a4720;
+  padding: 2px 8px;
+  font: 700 11px var(--type);
+  color: var(--cream);
+  background: var(--well);
+  border: 1px solid #4d503e;
   border-radius: 2px;
+  box-shadow: var(--sunk);
 }
+
+.chip.good { color: #b8e08f; }
+.chip.bad { color: #ffa48a; }
 
 .empty-icon {
-  color: var(--brass);
-  opacity: 0.4;
+  color: var(--od-hi);
+  opacity: 0.7;
 }
 
-/* Several units selected */
+.empty-name {
+  font: 400 22px 'Quiapo', var(--display);
+  color: var(--cream-dim);
+}
+
+.empty-sub {
+  font: 700 11px var(--type);
+}
+
 .mini {
-  color: #e8dcb8;
-  background: linear-gradient(180deg, #34301f, #1c1910);
-  border: 1px solid var(--brass-lo);
-  border-top-color: var(--brass);
+  color: var(--cream);
+  background: var(--steel-raised);
+  border: 1px solid var(--edge);
+  border-radius: 3px;
+  box-shadow: var(--bevel);
 }
 
-/* Resources: brass-ruled ledger lines */
+/* ─── Resources: stamped metal plates ───────────────── */
 .resources {
-  gap: 3px;
+  gap: 4px;
+  width: 128px;
+  padding: 7px 6px;
 }
 
 .res {
-  background: linear-gradient(90deg, rgba(0, 0, 0, 0.45), rgba(0, 0, 0, 0.2));
-  border: 1px solid #3e3116;
-  border-left: 2px solid var(--brass);
+  grid-template-columns: 24px 1fr auto;
+  padding: 3px 7px 3px 3px;
+  background: var(--steel-raised);
+  border: 1px solid var(--edge);
+  border-radius: 3px;
+  box-shadow: var(--bevel);
+}
+
+.res-icon {
+  display: grid;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  font-size: 15px;
+  background: var(--well);
+  border-radius: 50%;
+  box-shadow: var(--sunk);
 }
 
 .res .val {
-  color: #f1e3b8;
+  font: 700 17px var(--display);
+  color: var(--cream);
+  text-shadow: 0 1px 0 #000;
 }
 
-/* Queue */
+.res .inc {
+  font: 700 11px var(--type);
+  color: var(--amber);
+}
+
+/* ─── Queue ──────────────────────────────────────────── */
 .qslot {
-  color: #e8dcb8;
-  background: rgba(0, 0, 0, 0.45);
-  border: 1px solid #3e3116;
-  box-shadow: inset 0 2px 6px rgba(0, 0, 0, 0.6);
+  color: var(--cream);
+  background: var(--well);
+  border: 1px solid var(--edge);
+  border-radius: 3px;
+  box-shadow: var(--sunk);
 }
 
 .qslot.filled {
-  background: linear-gradient(180deg, #3a3422, #1c1910);
-  border-color: var(--brass);
+  background: var(--steel-raised);
+  border-color: var(--edge);
+  box-shadow: var(--bevel);
 }
 
-/* Orders: iron buttons in brass bezels */
+.qslot-fill {
+  background: linear-gradient(0deg, rgba(216, 168, 76, 0.55), rgba(216, 168, 76, 0.1));
+}
+
+/* ─── Orders: raised mechanical switches in recessed wells ── */
+.cmd-grid {
+  grid-template-columns: repeat(4, 58px);
+  grid-template-rows: repeat(2, 58px);
+  gap: 6px;
+}
+
+.command-card,
+.doctrine-bar {
+  width: calc(4 * 58px + 3 * 6px + 18px);
+}
+
 .cmd-slot {
-  background: rgba(0, 0, 0, 0.42);
-  border: 1px solid #2e240f;
-  border-radius: 3px;
-  box-shadow: inset 0 3px 8px rgba(0, 0, 0, 0.7);
+  background: var(--well);
+  border: 1px solid var(--edge);
+  border-radius: 4px;
+  box-shadow: var(--sunk);
 }
 
 .cmd,
 .cmd-grid.build .cmd {
-  color: #ead9a8;
-  background:
-    radial-gradient(circle at 50% 30%, rgba(255, 240, 200, 0.08), transparent 70%),
-    linear-gradient(180deg, #34312a 0%, #1f1d18 60%, #15130f 100%);
-  border: 2px solid var(--brass);
-  border-top-color: var(--brass-hi);
-  border-bottom-color: var(--brass-lo);
-  border-radius: 3px;
-  box-shadow: 0 0 0 1px #0e0c07, inset 0 1px 0 rgba(255, 240, 200, 0.15), inset 0 -10px 14px rgba(0, 0, 0, 0.35);
+  color: var(--cream);
+  background: var(--grain), radial-gradient(circle at 50% 28%, #62664f 0%, #3f4233 55%, #2a2c21 100%);
+  border: 1px solid var(--edge);
+  border-radius: 4px;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 230, 0.2), inset 0 -4px 0 rgba(0, 0, 0, 0.42), 0 2px 0 var(--edge), 0 3px 6px rgba(0, 0, 0, 0.5);
+}
+
+.cmd-icon {
+  font-size: 28px;
+  filter: drop-shadow(0 1px 0 rgba(0, 0, 0, 0.8));
 }
 
 .cmd .key {
-  color: #1b1608;
-  background: linear-gradient(180deg, var(--brass-hi), var(--brass));
+  right: 3px;
+  bottom: 4px;
+  font: 700 10px/12px var(--type);
+  color: var(--amber-hi);
+  background: rgba(0, 0, 0, 0.6);
   border-radius: 2px;
 }
 
 .cmd:not(:disabled):hover {
-  color: #fff3c9;
-  border-color: var(--brass-hi);
-  background:
-    radial-gradient(circle at 50% 35%, rgba(230, 201, 124, 0.25), transparent 70%),
-    linear-gradient(180deg, #3e3a2c, #22201a);
+  color: var(--amber-hi);
+  background: var(--grain), radial-gradient(circle at 50% 28%, #6d7158 0%, #474a39 55%, #2e3024 100%);
+  border-color: var(--edge);
 }
 
-.cmd.active {
-  color: #1b1608;
-  background: radial-gradient(circle at 50% 40%, #f3dc95, #b8923f 75%);
-  border-color: var(--brass-hi);
-  box-shadow: 0 0 0 1px #0e0c07, 0 0 12px rgba(230, 201, 124, 0.55);
+/* Pressed in: the switch sinks and its icon lights up. */
+.cmd.active,
+.cmd:not(:disabled):active {
+  color: var(--amber-hi);
+  background: var(--grain), radial-gradient(circle at 50% 50%, #4b4e3c 0%, #2b2d22 100%);
+  box-shadow: inset 0 3px 6px rgba(0, 0, 0, 0.7), 0 0 0 1px var(--amber), 0 0 10px rgba(216, 168, 76, 0.35);
 }
 
-/* Top: the score plate and corner buttons */
-.score,
-.corner-btn,
-.roster-card,
-.doctrine-bar {
-  border: 2px solid var(--brass-lo);
-  border-top-color: var(--brass);
-  border-radius: 3px;
-  box-shadow: inset 0 0 0 1px rgba(230, 201, 124, 0.1), 0 3px 10px rgba(0, 0, 0, 0.55);
+.cmd:disabled {
+  opacity: 0.4;
+}
+
+/* ─── Top: score bar, clock, corner buttons ─────────── */
+.hud-top {
+  top: 0;
 }
 
 .score {
-  background: var(--rivets), var(--plate);
-  padding: 5px 18px;
+  padding: 6px 20px;
+  background: var(--steel);
+  border: 1px solid var(--edge);
+  border-top: none;
+  border-radius: 0 0 6px 6px;
+  box-shadow: var(--bevel), 0 4px 14px rgba(0, 0, 0, 0.55);
+}
+
+.tickets .bar {
+  height: 10px;
+  background: var(--od-deep);
+  border: 1px solid var(--edge);
+  box-shadow: var(--sunk);
 }
 
 .clock {
-  color: var(--brass-hi);
-  background: linear-gradient(180deg, #2a2418, #120f09);
-  border: 1px solid var(--brass-lo);
+  padding: 2px 14px;
+  font: 700 14px var(--type);
+  color: var(--amber-hi);
+  background: var(--well);
+  border: 1px solid var(--edge);
+  border-top: none;
+  border-radius: 0 0 4px 4px;
+  box-shadow: var(--sunk);
+}
+
+.corner-btn {
+  font: 400 15px 'Quiapo', var(--display);
+  color: var(--cream);
+  background: var(--steel-raised);
+  border: 1px solid var(--edge);
+  border-radius: 3px;
+  box-shadow: var(--bevel);
+}
+
+.corner-btn:hover {
+  color: var(--amber-hi);
+  border-color: var(--edge);
 }
 
 .roster-card {
-  color: #e8dcb8;
-  background: linear-gradient(180deg, #34301f, #1a170f);
-}
-
-.doctrine-bar {
-  bottom: 162px;
-  background: var(--rivets), var(--plate);
-}
-
-/* The doctrine plaque: brass letters on a riveted iron plate. */
-.doctrine-choose {
-  justify-content: center;
-  padding: 10px 14px;
-  color: #f3dc95;
-  background: var(--rivets), linear-gradient(180deg, #2e2a1f, #15130d);
-  border: 2px solid var(--brass);
-  border-top-color: var(--brass-hi);
+  color: var(--cream);
+  background: var(--steel-raised);
+  border: 1px solid var(--edge);
   border-radius: 3px;
+  box-shadow: var(--bevel), 0 2px 5px rgba(0, 0, 0, 0.5);
+}
+
+.rc-name {
+  color: var(--cream);
+}
+
+/* Orders and reports, typed on a dark plate. */
+.toast {
+  font: 700 13px/1.35 var(--type);
+  color: var(--cream);
+  background: rgba(14, 15, 10, 0.82);
+  border: 1px solid rgba(0, 0, 0, 0.6);
+  border-left: 3px solid var(--cream-dim);
+  box-shadow: 0 3px 10px rgba(0, 0, 0, 0.45);
+}
+
+.tooltip {
+  background: var(--steel);
+  border: 1px solid var(--edge);
+  border-radius: 4px;
+  box-shadow: var(--bevel), 0 6px 18px rgba(0, 0, 0, 0.6);
+}
+
+.tip-title {
+  font: 400 18px 'Quiapo', var(--display);
+  color: var(--cream);
+}
+
+.tip-body {
+  color: #d6ccb0;
+}
+
+/* ─── Doctrine panel and plaque ─────────────────────── */
+.doctrine-bar {
+  bottom: 176px;
+  background: var(--steel);
+  border: 1px solid var(--edge);
+  border-radius: 4px;
+  box-shadow: var(--bevel), 0 4px 14px rgba(0, 0, 0, 0.55);
+}
+
+.doctrine-choose {
+  justify-content: flex-start;
+  padding: 10px 16px;
+  font-size: 22px;
+  color: var(--amber-hi);
+  background: var(--steel-raised);
+  border: 1px solid var(--edge);
+  border-radius: 3px;
+  outline: 1px solid var(--amber);
+  outline-offset: -4px;
+  box-shadow: var(--bevel);
   text-shadow: 0 2px 0 rgba(0, 0, 0, 0.7);
 }
 
 .doctrine-choose:hover {
   color: #fff3c9;
-  background: var(--rivets), linear-gradient(180deg, #3b3526, #1c1910);
 }
 
-.tooltip {
-  border: 2px solid var(--brass-lo);
-  border-top-color: var(--brass);
+.db-name {
+  color: var(--cream);
 }
 
-.toast {
-  background: var(--plate);
-  border: 1px solid var(--brass-lo);
-  border-left: 3px solid var(--brass);
+.db-commander,
+.cp-text {
+  font-family: var(--type);
+  font-weight: 700;
+}
+
+/* The doctrine chooser: a command dossier of five files. */
+.picker-box {
+  background: var(--steel);
+  border: 1px solid var(--edge);
+  border-radius: 6px;
+  box-shadow: var(--bevel), 0 20px 60px rgba(0, 0, 0, 0.7);
+}
+
+.picker-title {
+  color: var(--cream);
+  text-shadow: 0 3px 0 rgba(0, 0, 0, 0.6);
+}
+
+.picker-sub {
+  font-family: var(--type);
+  font-weight: 700;
+  color: var(--cream-dim);
+}
+
+.doctrine-card {
+  color: var(--paper-ink);
+  background:
+    var(--grain),
+    radial-gradient(circle at 80% 10%, rgba(120, 90, 40, 0.18), transparent 50%),
+    linear-gradient(180deg, #e2d6b6, #cbbd97);
+  border: 1px solid #6b5c3c;
   border-radius: 2px;
-  box-shadow: 0 3px 10px rgba(0, 0, 0, 0.5);
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.5);
+}
+
+.doctrine-card:hover {
+  border-color: #3a2e18;
+  box-shadow: 0 0 0 2px var(--amber), 0 8px 18px rgba(0, 0, 0, 0.6);
+}
+
+.dc-name {
+  color: #1f1a10;
+}
+
+.dc-commander {
+  font-family: var(--type);
+  color: #4a3e26;
+}
+
+.dc-style {
+  color: #8a2a1a;
+}
+
+.dc-desc {
+  font-family: var(--type);
+  font-size: 11.5px;
+  color: #3a3222;
+}
+
+.dc-line {
+  font-family: var(--type);
+  font-weight: 700;
+  color: #2a2418;
+}
+
+.dc-line b {
+  color: #8a2a1a;
+}
+
+/* The commander's photograph, clipped to the file. */
+.dc-portrait {
+  border: 4px solid #efe7d2;
+  outline: 1px solid #6b5c3c;
+  filter: sepia(0.35) contrast(1.05);
 }
