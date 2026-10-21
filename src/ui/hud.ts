@@ -1,7 +1,9 @@
 import { ABILITIES } from '../data/abilities';
 import { BUILDABLES, BUILDABLE_IDS } from '../data/buildables';
 import { ECONOMY, LOGISTICS } from '../data/balance';
-import type { Resources, TeamId, UnitDef } from '../data/types';
+import type { CallInDef, DoctrineDef, Resources, TeamId, UnitDef } from '../data/types';
+import { CALL_INS, DOCTRINES, doctrinesOf } from '../data/doctrines';
+import { callInBlock, chooseDoctrine } from '../sim/systems/doctrine';
 import { TERRAIN } from '../data/terrain';
 import { UNITS } from '../data/units';
 import { UPGRADES } from '../data/upgrades';
@@ -17,11 +19,57 @@ import type { World } from '../sim/world';
 import type { Input } from '../input/input';
 import type { UIState } from '../input/uiState';
 import { el, formatTime } from './dom';
+import { portrait } from './portrait';
 import { icon, unitIcon } from './icons';
 import type { Minimap } from './minimap';
 
 /** "Sundalo ng Maharlika · Rifle Squad": the unit's name and what it is. */
 const titleOf = (sq: Squad): string => (sq.def.type ? `${sq.def.name} · ${sq.def.type}` : sq.def.name);
+
+/** A small doctrine banner: its colours and emblem. */
+function banner(d: DoctrineDef): HTMLElement {
+  const flag = el('div', { class: `banner emblem-${d.emblem}` });
+  flag.style.background = `linear-gradient(180deg, ${d.field} 0 70%, ${d.stripe} 70% 100%)`;
+  return flag;
+}
+
+/** Icon for a call-in, by what it does. */
+function callInIcon(c: CallInDef): string {
+  const e = c.effect;
+  if (e.kind === 'barrage') return 'barrage';
+  if (e.kind === 'recon') return 'plane';
+  if (e.kind === 'paradrop') return 'parachute';
+  if (e.kind === 'levy') return 'reinforce';
+  if (e.kind === 'mines') return 'mine';
+  if (e.camo) return 'leaf';
+  if (e.rally) return 'rally';
+  if (e.received) return 'shield';
+  if (e.accuracy) return 'attack';
+  return 'charge';
+}
+
+/** Order of the buttons in the 4 × 2 order grid; the shown ones fill it from the top-left. */
+const ORDER_SLOT: Record<string, number> = {
+  attack: 0, stop: 1, retreat: 2, reinforce: 3, setup: 4, repair: 4, grenade: 4, barrage: 5, build: 5, base: 6, back: 7, rally: 7,
+};
+/** Order of the recruit buttons, by kind of unit (a doctrine's unit comes after them). */
+const UNIT_SLOT: Record<string, number> = { line: 0, engineer: 1, mg: 2, mortar: 3, at: 4, tank: 5 };
+
+function placeInSlot(node: HTMLElement, slot: number): void {
+  node.dataset.slot = String(slot);
+  node.style.gridColumn = String((slot % 4) + 1);
+  node.style.gridRow = String(Math.floor(slot / 4) + 1);
+}
+
+/** Fill a grid's shown buttons from the top-left square, keeping their usual order. */
+function packGrid(grid: HTMLElement): void {
+  const shown = [...grid.querySelectorAll<HTMLElement>('.cmd')].filter((n) => n.style.display !== 'none');
+  shown.sort((a, b) => Number(a.dataset.slot) - Number(b.dataset.slot));
+  shown.forEach((n, i) => {
+    n.style.gridColumn = String((i % 4) + 1);
+    n.style.gridRow = String(Math.floor(i / 4) + 1);
+  });
+}
 
 /** Icon for a unit (its role, or what a structure is). */
 const glyphOf = (def: UnitDef): SVGSVGElement => icon(unitIcon(def));
@@ -68,6 +116,12 @@ export class Hud {
   private readonly orders: GridButton[] = [];
   private readonly builds: { id: string; node: HTMLButtonElement }[] = [];
   private rallyNode: HTMLButtonElement | null = null;
+  private readonly doctrineBar: HTMLElement;
+  private readonly picker: HTMLElement;
+  private doctrineShown: string | null | undefined = undefined;
+  private readonly callInNodes: { id: string; node: HTMLButtonElement }[] = [];
+  private cpFill: HTMLElement | null = null;
+  private cpText: HTMLElement | null = null;
   /** The HQ's production queue: three slots beside the orders. */
   private readonly queueSlots: HTMLElement[] = [];
   private readonly toasts: HTMLElement;
@@ -141,6 +195,14 @@ export class Hud {
     this.unitPanel = el('div', { class: 'unit-panel' });
     this.orderGrid = el('div', { class: 'cmd-grid' });
     this.buildGrid = el('div', { class: 'cmd-grid build' });
+    // The eight squares are always there, so buttons never shift about.
+    for (const grid of [this.orderGrid, this.buildGrid]) {
+      for (let i = 0; i < 8; i++) {
+        const square = el('div', { class: 'cmd-slot' });
+        placeInSlot(square, i);
+        grid.append(square);
+      }
+    }
     this.buildOrders();
     this.buildDefenseButtons();
     this.buildUpgradeButtons();
@@ -166,7 +228,10 @@ export class Hud {
 
     this.toasts = el('div', { class: 'toasts' });
     this.tooltip = el('div', { class: 'tooltip' });
-    this.root = el('div', { class: 'hud' }, top, corner, this.toasts, bottom, this.tooltip);
+    this.doctrineBar = el('div', { class: 'doctrine-bar' });
+    this.picker = el('div', { class: 'doctrine-picker' });
+    this.buildDoctrineUi();
+    this.root = el('div', { class: 'hud' }, top, corner, this.toasts, bottom, this.doctrineBar, this.picker, this.tooltip);
     parent.append(this.root);
     this.update(0, true);
   }
@@ -216,8 +281,9 @@ export class Hud {
   // ─── Command grid ──────────────────────────────────────────────
 
   /** An icon-only command button; its name and details live in the tooltip. */
-  private gridButton(grid: HTMLElement, iconName: string, label: string, key: string, action: () => void): HTMLButtonElement {
+  private gridButton(grid: HTMLElement, iconName: string, label: string, key: string, action: () => void, slot = ORDER_SLOT[iconName] ?? 0): HTMLButtonElement {
     const node = el('button', { class: 'cmd' }, icon(iconName, 'ico cmd-icon'), el('span', { class: 'key', text: key }), el('span', { class: 'cmd-cd' }));
+    placeInSlot(node, slot);
     node.setAttribute('aria-label', label);
     node.addEventListener('click', action);
     grid.append(node);
@@ -304,7 +370,9 @@ export class Hud {
     for (const id of BUILDABLE_IDS) {
       const def = BUILDABLES[id];
       const page = def.page ?? 'defense';
-      const node = this.gridButton(this.orderGrid, page === 'base' ? `tech${id.slice(-1)}` : id, def.name, def.hotkey, () => this.input.buildMode(id));
+      const index = BUILDABLE_IDS.filter((b) => (BUILDABLES[b].page ?? 'defense') === page && (page === 'defense' || b.slice(-1) === id.slice(-1))).indexOf(id);
+      const slot = page === 'base' ? Number(id.slice(-1)) - 1 : index;
+      const node = this.gridButton(this.orderGrid, page === 'base' ? `tech${id.slice(-1)}` : id, def.name, def.hotkey, () => this.input.buildMode(id), slot);
       const how = def.shape === 'line' ? `Click and drag to lay a line of up to ${def.maxLength} tiles. Cost is per tile.` : 'Click to place.';
       this.tip(node, () => ({
         title: def.name,
@@ -327,7 +395,7 @@ export class Hud {
       });
     }
     for (const page of ['defense', 'base'] as const) {
-      const back = this.gridButton(this.orderGrid, 'back', 'Back', 'Esc', () => (this.ui.buildMenu = false));
+      const back = this.gridButton(this.orderGrid, 'back', 'Back', 'Esc', () => (this.ui.buildMenu = false), 7);
       this.tip(back, () => ({ title: 'Back', body: 'Close this menu.', key: 'Esc' }));
       this.orders.push({ buildPage: page, node: back, refresh: () => {} });
     }
@@ -351,7 +419,7 @@ export class Hud {
         }
         return null;
       };
-      const node = this.gridButton(this.orderGrid, 'upgrade', 'Upgrade', hotkey, () => this.input.upgrade(hotkey));
+      const node = this.gridButton(this.orderGrid, 'upgrade', 'Upgrade', hotkey, () => this.input.upgrade(hotkey), hotkey === 'T' ? 6 : 7);
       node.classList.add('upgrade');
       this.tip(node, () => {
         const o = offer(this.input.selectedOwn());
@@ -394,10 +462,17 @@ Buy near headquarters or a supplied friendly point. Arrives in ${o.def.time}s. O
 
   /** HQ: set the rally point where new units go. */
   private rallyButton(): void {
-    const node = this.gridButton(this.buildGrid, 'rally', 'Rally Point', '', () => {
-      if (!this.input.selectedOwn().some((s) => s.def.role === 'hq' || s.def.role === 'tech')) this.input.selectHq();
-      this.input.rallyMode();
-    });
+    const node = this.gridButton(
+      this.buildGrid,
+      'rally',
+      'Rally Point',
+      '',
+      () => {
+        if (!this.input.selectedOwn().some((s) => s.def.role === 'hq' || s.def.role === 'tech')) this.input.selectHq();
+        this.input.rallyMode();
+      },
+      7,
+    );
     this.tip(node, () => ({
       title: 'Rally Point',
       body: 'Click, then click the map: new units walk to the flag once recruited. With the HQ selected you can also right-click the map to move it.',
@@ -407,10 +482,17 @@ Buy near headquarters or a supplied friendly point. Arrives in ${o.def.time}s. O
 
   private buildButton(id: string): void {
     const def = UNITS[id];
-    const node = this.gridButton(this.buildGrid, unitIcon(def), def.name, '', () => {
-      const r = queueProduction(this.world, this.player, id, this.producer());
-      if (!r.ok) this.toast(r.reason ?? 'Cannot build', 'bad');
-    });
+    const node = this.gridButton(
+      this.buildGrid,
+      unitIcon(def),
+      def.name,
+      '',
+      () => {
+        const r = queueProduction(this.world, this.player, id, this.producer());
+        if (!r.ok) this.toast(r.reason ?? 'Cannot build', 'bad');
+      },
+      def.doctrine ? 6 : UNIT_SLOT[def.role] ?? 0,
+    );
     this.tip(node, () => ({
       title: def.type ? `${def.name} · ${def.type}` : def.name,
       body: `${def.description}\n\nPopulation ${def.pop} · Build time ${def.buildTime}s`,
@@ -418,6 +500,85 @@ Buy near headquarters or a supplied friendly point. Arrives in ${o.def.time}s. O
       warn: this.world.hasTech(this.player, def.requires) ? undefined : `Locked: engineers must build the ${UNITS[def.requires!].name} (Base menu, W)`,
     }));
     this.builds.push({ id, node });
+  }
+
+  // ─── Doctrine: the army's way of fighting and its call-ins ─────
+
+  private buildDoctrineUi(): void {
+    const team = this.world.teams[this.player];
+    const cards = doctrinesOf(team.faction.id).map((d) => {
+      const unit = UNITS[d.unit];
+      const pick = el(
+        'button',
+        { class: 'doctrine-card' },
+        el('div', { class: 'dc-top' }, portrait(d.commander, 'cmdr dc-portrait'), banner(d)),
+        el('div', { class: 'dc-commander', text: `${d.commander.title} ${d.commander.name}` }),
+        el('div', { class: 'dc-name', text: d.name }),
+        el('div', { class: 'dc-style', text: d.style }),
+        el('p', { class: 'dc-desc', text: d.description }),
+        el('div', { class: 'dc-line' }, el('b', { text: 'Unit ' }), `${unit.name} · ${unit.type}`),
+        ...d.callIns.map((c) => el('div', { class: 'dc-line' }, el('b', { text: `${c.cp} CP ` }), c.name)),
+      );
+      pick.addEventListener('click', () => {
+        const r = chooseDoctrine(this.world, this.player, d.id);
+        if (!r.ok) this.toast(r.reason, 'bad');
+        this.picker.classList.remove('show');
+      });
+      return pick;
+    });
+    const close = el('button', { class: 'corner-btn', text: 'Later' });
+    close.addEventListener('click', () => this.picker.classList.remove('show'));
+    this.picker.append(
+      el('div', { class: 'picker-box' }, el('div', { class: 'picker-title', text: 'Pumili ng Doktrina' }), el('div', { class: 'picker-sub', text: 'Choose how your army fights this battle. You can only choose once.' }), el('div', { class: 'picker-cards' }, ...cards), close),
+    );
+  }
+
+  /** The doctrine strip above the orders: a chooser at first, then the call-ins and command points. */
+  private renderDoctrine(): void {
+    const team = this.world.teams[this.player];
+    if (this.world.techFree && !team.doctrine) {
+      this.doctrineBar.style.display = 'none';
+      return;
+    }
+    this.doctrineBar.style.display = '';
+    if (this.doctrineShown !== team.doctrine) {
+      this.doctrineShown = team.doctrine;
+      this.callInNodes.length = 0;
+      if (!team.doctrine) {
+        const choose = el('button', { class: 'doctrine-choose' }, icon('doctrine', 'ico'), el('span', { text: 'Pumili ng Doktrina' }));
+        choose.addEventListener('click', () => this.picker.classList.add('show'));
+        this.tip(choose, () => ({ title: 'Doctrine', body: 'Choose how your army fights: each doctrine brings its own special unit and two commander call-ins that unlock as you earn command points in battle.' }));
+        this.doctrineBar.replaceChildren(choose);
+      } else {
+        const d = DOCTRINES[team.doctrine];
+        this.cpFill = el('div', { class: 'fill' });
+        this.cpText = el('span', { class: 'cp-text' });
+        const head = el('div', { class: 'db-head' }, portrait(d.commander, 'cmdr db-portrait'), el('div', { class: 'db-titles' }, el('div', { class: 'db-name', text: d.name }), el('div', { class: 'db-commander', text: `${d.commander.title} ${d.commander.name}` }), el('div', { class: 'db-cp' }, this.cpText, el('div', { class: 'cp-bar' }, this.cpFill))));
+        const buttons = d.callIns.map((c) => {
+          const node = el('button', { class: 'cmd callin' }, icon(callInIcon(c), 'ico cmd-icon'), el('span', { class: 'callin-cp', text: `${c.cp}` }), el('span', { class: 'cmd-cd' }));
+          node.addEventListener('click', () => this.input.callIn(c.id));
+          this.tip(node, () => ({ title: c.name, body: c.description, cost: c.cost, warn: callInBlock(this.world, this.player, c.id) ?? undefined }));
+          this.callInNodes.push({ id: c.id, node });
+          return node;
+        });
+        this.tip(head, () => ({ title: d.name, body: `${d.commander.title} ${d.commander.name} · ${d.style}
+
+${d.description}` }));
+        this.doctrineBar.replaceChildren(head, el('div', { class: 'db-calls' }, ...buttons));
+      }
+    }
+    if (!team.doctrine) return;
+    const whole = Math.floor(team.cp);
+    if (this.cpFill) this.cpFill.style.width = `${Math.round((team.cp - whole) * 100)}%`;
+    if (this.cpText) this.cpText.textContent = `${whole} CP`;
+    for (const { id, node } of this.callInNodes) {
+      const block = callInBlock(this.world, this.player, id);
+      const ready = team.callInReady[id] ?? 0;
+      node.disabled = !!block;
+      node.classList.toggle('locked', team.cp < CALL_INS[id].cp);
+      node.classList.toggle('active', this.ui.mode.kind === 'callIn' && this.ui.mode.callInId === id);
+      (node.querySelector('.cmd-cd') as HTMLElement).textContent = ready > this.world.time ? String(Math.ceil(ready - this.world.time)) : '';
+    }
   }
 
   // ─── Notifications ─────────────────────────────────────────────
@@ -467,7 +628,7 @@ Buy near headquarters or a supplied friendly point. Arrives in ${o.def.time}s. O
     const fort = units.length === 0 ? own.find((s) => s.def.role === 'fort') : undefined;
     const building = units.length === 0 && !fort;
     if (this.ui.buildMenu && !own.some((s) => s.def.builds.length > 0)) this.ui.buildMenu = false;
-    this.orderGrid.style.display = building || fort ? 'none' : '';
+    this.orderGrid.style.display = building ? 'none' : '';
     this.buildGrid.style.display = building ? '' : 'none';
     // One unit type selected (one squad or several of the same kind): its abilities show; a mixed group only gets the common orders.
     const kinds = new Set(own.filter((s) => s.def.kind !== 'structure').map((s) => s.def.id));
@@ -477,16 +638,21 @@ Buy near headquarters or a supplied friendly point. Arrives in ${o.def.time}s. O
       c.refresh(own);
       if (!single && !c.common) c.node.style.display = 'none';
       if ((c.buildPage ?? false) !== this.ui.buildMenu) c.node.style.display = 'none';
+      if (fort) c.node.style.display = 'none';
     }
     const producer = this.producer();
     const tier = producer?.def.role === 'tech' ? producer.def.id : null;
     for (const b of this.builds) {
-      b.node.style.display = tier && UNITS[b.id].requires !== tier ? 'none' : '';
+      const doctrine = UNITS[b.id].doctrine;
+      b.node.style.display = (tier && UNITS[b.id].requires !== tier) || (doctrine && doctrine !== team.doctrine) ? 'none' : '';
       const open = this.world.hasTech(this.player, UNITS[b.id].requires);
       b.node.classList.toggle('locked', !open);
       b.node.disabled = !open || !canAfford(r, UNITS[b.id].cost);
     }
     this.rallyNode?.classList.toggle('active', this.ui.mode.kind === 'rally');
+    packGrid(this.orderGrid);
+    packGrid(this.buildGrid);
+    this.renderDoctrine();
     this.renderQueue();
     this.renderRoster();
     this.renderUnitPanel();
@@ -713,10 +879,9 @@ Buy near headquarters or a supplied friendly point. Arrives in ${o.def.time}s. O
     fill.style.width = `${hp * 100}%`;
     fill.classList.toggle('low', hp < 0.35);
     const group = [...this.ui.groups].find(([, ids]) => ids.includes(sq.id))?.[0];
-    (card.querySelector('.rc-group') as HTMLElement).textContent = group !== undefined ? String(group) : '';
-    (card.querySelector('.rc-count') as HTMLElement).textContent =
-      sq.def.kind !== 'vehicle' && aliveCount(sq) < sq.def.models ? String(aliveCount(sq)) : sq.vet > 0 ? '★'.repeat(sq.vet) : '';
-    (card.querySelector('.rc-state') as HTMLElement).textContent = sq.retreating ? '↩' : sq.suppState === 'pinned' ? '!' : sq.reinforcing ? '+' : sq.upgrading ? '⇪' : '';
+    (card.querySelector('.rc-group') as HTMLElement).textContent = (group !== undefined ? String(group) : '') + (sq.vet > 0 ? ' ' + '★'.repeat(sq.vet) : '');
+    (card.querySelector('.rc-count') as HTMLElement).textContent = sq.def.kind !== 'vehicle' ? `${aliveCount(sq)}/${sq.def.models}` : '';
+    (card.querySelector('.rc-state') as HTMLElement).textContent = '';
     // The squad's own job, shown on its card too: reinforcing first, else the upgrade on its way.
     const job = sq.reinforcing ? reinforceProgress(sq) : sq.upgrading ? 1 - Math.max(0, sq.upgrading.remaining) / UPGRADES[sq.upgrading.id].time : 0;
     (card.querySelector('.rc-job .fill') as HTMLElement).style.width = `${Math.round(job * 100)}%`;
@@ -829,7 +994,14 @@ Buy near headquarters or a supplied friendly point. Arrives in ${o.def.time}s. O
   private miniCard(sq: Squad): HTMLElement {
     const fill = el('div', { class: 'fill' });
     fill.style.width = `${healthFraction(sq) * 100}%`;
-    const card = el('button', { class: `mini t${sq.team}` }, glyphOf(sq.def), el('div', { class: 'hp' }, fill));
+    const soft = sq.def.kind === 'infantry' || sq.def.kind === 'team';
+    const card = el(
+      'button',
+      { class: `mini t${sq.team}` },
+      glyphOf(sq.def),
+      el('span', { class: 'mini-count', text: soft ? `${aliveCount(sq)}/${sq.def.models}` : `${Math.round(healthFraction(sq) * 100)}%` }),
+      el('div', { class: 'hp' }, fill),
+    );
     if (sq.suppState !== 'normal') card.classList.add(sq.suppState);
     card.addEventListener('mousedown', (e) => this.input.select([sq.id], e.shiftKey));
     this.tip(card, () => ({ title: titleOf(sq), body: this.statusLine(sq) }));
@@ -846,8 +1018,10 @@ Buy near headquarters or a supplied friendly point. Arrives in ${o.def.time}s. O
     const hp = healthFraction(sq);
     const soft = sq.def.kind === 'infantry' || sq.def.kind === 'team';
     const chips: [string, string][] = [];
+    if (sq.building !== null) chips.push([`Under construction ${Math.round(sq.building * 100)}%`, 'bad']);
     if (soft && sq.suppState !== 'normal') chips.push([sq.suppState === 'pinned' ? 'Pinned' : 'Suppressed', 'bad']);
     if (sq.retreating) chips.push(['Retreating', 'bad']);
+    if (sq.reinforcePaused && sq.reinforceQueued > 0) chips.push(['Reinforcements paused', '']);
     if (sq.def.kind === 'team') chips.push([{ packed: 'Packed', settingUp: 'Setting up', deployed: 'Set up', tearingDown: 'Packing' }[sq.setup], sq.setup === 'deployed' ? 'good' : '']);
     if (sq.def.armor) chips.push([sq.def.vehicle ? `Armour ${sq.def.armor.front}/${sq.def.armor.rear}` : `Armour ${sq.def.armor.front}`, '']);
     for (const [n, c] of weapons) chips.push([c > 1 ? `${c}× ${n}` : n, 'weapon']);
@@ -856,12 +1030,21 @@ Buy near headquarters or a supplied friendly point. Arrives in ${o.def.time}s. O
     const fill = el('div', { class: `fill ${hp < 0.35 ? 'low' : ''}` });
     fill.style.width = `${hp * 100}%`;
     const alive = sq.models.filter((x) => x.alive);
-    const pips = soft
-      ? el('div', { class: 'pips' }, ...Array.from({ length: sq.def.models }, (_, i) => {
-          const m = alive[i];
-          return el('span', { class: `pip ${m ? (m.hp / m.maxHp < 0.4 ? 'hurt' : '') : 'lost'}` });
-        }))
-      : null;
+    const rows: HTMLElement[] = [el('div', { class: 'stat-row' }, el('span', { class: 'stat-label', text: 'Health' }), el('div', { class: 'hpbar big' }, fill), el('span', { class: 'stat-val', text: `${Math.round(hp * 100)}%` }))];
+    if (soft) {
+      rows.push(
+        el(
+          'div',
+          { class: 'stat-row' },
+          el('span', { class: 'stat-label', text: 'Men' }),
+          el('div', { class: 'pips' }, ...Array.from({ length: sq.def.models }, (_, i) => {
+            const m = alive[i];
+            return el('span', { class: `pip ${m ? (m.hp / m.maxHp < 0.4 ? 'hurt' : '') : 'lost'}` });
+          })),
+          el('span', { class: 'stat-val', text: `${alive.length}/${sq.def.models}` }),
+        ),
+      );
+    }
     const portrait = el('div', { class: 'portrait' }, icon(unitIcon(sq.def), 'ico portrait-icon'), el('span', { class: 'portrait-vet', text: '★'.repeat(sq.vet) }));
     this.tip(portrait, () => ({ title: titleOf(sq), body: sq.def.description }));
     return el(
@@ -871,10 +1054,8 @@ Buy near headquarters or a supplied friendly point. Arrives in ${o.def.time}s. O
       el(
         'div',
         { class: 'portrait-text' },
-        el('div', { class: 'portrait-name', text: sq.def.name }),
-        el('div', { class: 'portrait-type', text: (sq.def.type || this.world.teams[sq.team].faction.name) + (enemy ? ' · enemy' : '') }),
-        el('div', { class: 'hpbar big' }, fill),
-        ...(pips ? [pips] : []),
+        el('div', { class: 'portrait-head' }, el('div', { class: 'portrait-name', text: sq.def.name }), el('div', { class: 'portrait-type', text: (sq.def.type || this.world.teams[sq.team].faction.name) + (enemy ? ' · enemy' : '') })),
+        ...rows,
         el('div', { class: 'chips' }, ...chips.map(([text, tone]) => el('span', { class: `chip ${tone}`, text }))),
       ),
     );
