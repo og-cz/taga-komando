@@ -146,6 +146,15 @@ function hat(l: PortraitLook, id: string): string {
       `<path d="M38 24 Q46 19.5 56 20" stroke="${shade(h.color, 0.35)}" stroke-width="1.4" fill="none" opacity="0.6"/>`
     );
   }
+  if (h.kind === 'pith') {
+    // A pith helmet: rounded cloth dome over a sloping brim, brown band.
+    return (
+      `<path d="M22 44 Q50 36 78 44 Q50 50 22 44 Z" fill="${shade(h.color, -0.15)}" stroke="${shade(h.color, -0.45)}" stroke-width="0.6"/>` +
+      `<path d="M30 42 Q29 15 50 14 Q71 15 70 42 Q50 39 30 42 Z" fill="url(#${id}-hat)" stroke="${shade(h.color, -0.4)}" stroke-width="0.6"/>` +
+      `<path d="M30.5 37 Q50 34 69.5 37 L69.8 41 Q50 38.5 30.2 41 Z" fill="#6b4a2a"/>` +
+      `<path d="M37 22 Q45 17 55 18" stroke="${shade(h.color, 0.4)}" stroke-width="1.5" fill="none" opacity="0.7"/>`
+    );
+  }
   if (h.kind === 'salakot') {
     // A conical salakot with ribs running down from the knob.
     const ribs = Array.from({ length: 9 }, (_, i) => `<path d="M50 14 L${20 + i * 7.5} 43" stroke="${shade(h.color, -0.3)}" stroke-width="0.6" opacity="0.55"/>`).join('');
