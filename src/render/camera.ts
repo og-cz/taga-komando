@@ -7,8 +7,18 @@ export class Camera {
   zoom = 1;
   viewW = 1;
   viewH = 1;
-  readonly minZoom = 0.45;
   readonly maxZoom = 4;
+
+  /**
+   * How far out the camera may pull: never so far that the land beyond the edge
+   * fills the screen. Zoomed right out, the battlefield still fills the view
+   * between the HUD bars.
+   */
+  get minZoom(): number {
+    const fitW = (this.viewW - this.insets.side * 2) / this.worldW;
+    const fitH = (this.viewH - this.insets.top - this.insets.bottom) / this.worldH;
+    return Math.min(this.maxZoom, Math.max(0.6, fitW, fitH));
+  }
 
   constructor(
     private readonly worldW: number,
@@ -18,6 +28,7 @@ export class Camera {
   resize(w: number, h: number): void {
     this.viewW = w;
     this.viewH = h;
+    this.zoom = clamp(this.zoom, this.minZoom, this.maxZoom);
     this.clamp();
   }
 
