@@ -161,6 +161,16 @@ const LIST: WeaponDef[] = [
     range: 270, accuracy: [0.75, 0.55], damage: 170, penetration: [120, 95], cooldown: 4.2, suppression: 0.05,
     moveAccuracy: 0, infantryAccuracy: 0.35, crew: true, arc: 60, prefers: 'vehicle', projectile: 'shell',
   }),
+  weapon('type94_37mm', 'Type 94 37mm Sokushahō', {
+    vs: { infantry: 0.5, team: 0.6, fort: 2 },
+    range: 270, accuracy: [0.75, 0.55], damage: 170, penetration: [120, 95], cooldown: 4.2, suppression: 0.05,
+    moveAccuracy: 0, infantryAccuracy: 0.35, crew: true, arc: 60, prefers: 'vehicle', projectile: 'shell',
+  }),
+  weapon('at_gun_57', 'Kanyong Pangontra 57mm', {
+    vs: { infantry: 0.55, team: 0.65, fort: 2.2 },
+    range: 290, accuracy: [0.76, 0.57], damage: 200, penetration: [145, 115], cooldown: 4.6, suppression: 0.06,
+    moveAccuracy: 0, infantryAccuracy: 0.35, crew: true, arc: 60, prefers: 'vehicle', projectile: 'shell',
+  }),
   weapon('type1_47mm', 'Type 1 47mm Sokushahō', {
     vs: { infantry: 0.5, team: 0.6, fort: 2 },
     range: 270, accuracy: [0.74, 0.55], damage: 175, penetration: [125, 100], cooldown: 4.4, suppression: 0.05,
