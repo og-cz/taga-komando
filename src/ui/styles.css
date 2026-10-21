@@ -333,16 +333,23 @@ button:disabled {
 }
 
 .rc-state {
-  top: 2px;
-  right: 3px;
-  color: #ffd166;
+  display: none;
 }
+
+.rc-group {
+  color: #ffd766;
+}
+
+.roster-card.reinforcing { border-color: #6fa84f; }
+.roster-card.retreating { border-color: #d9a43a; }
+.roster-card.pinned { border-color: #c4302b; }
 
 .roster-card.reinforcing .rc-state { color: #9ad06b; }
 
 .rc-count {
   right: 3px;
-  top: 16px;
+  top: 2px;
+  color: #e6ecf3;
   color: #ffd766;
 }
 
@@ -524,26 +531,57 @@ button:disabled {
 }
 
 .portrait-text {
+  flex: 1;
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 7px;
   min-width: 0;
+  max-width: 520px;
   padding-top: 2px;
   overflow: hidden;
 }
 
+.portrait-head {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+  min-width: 0;
+}
+
+/* Unit names in the game's display font. */
 .portrait-name {
-  font: 700 20px/1 var(--display);
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
+  font: 400 26px/1 'Quiapo', var(--display);
+  letter-spacing: 0.03em;
   color: var(--ink);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
 
+/* Label · bar or pips · value, the same on every card. */
+.stat-row {
+  display: grid;
+  grid-template-columns: 52px 1fr 44px;
+  align-items: center;
+  gap: 8px;
+}
+
+.stat-label {
+  font: 600 11px var(--display);
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--ink-dim);
+}
+
+.stat-val {
+  font: 700 14px var(--display);
+  text-align: right;
+  color: var(--ink);
+  font-variant-numeric: tabular-nums;
+}
+
 .portrait-type {
-  margin-top: -3px;
+  white-space: nowrap;
   font: 600 12px var(--display);
   letter-spacing: 0.1em;
   text-transform: uppercase;
@@ -564,7 +602,6 @@ button:disabled {
 
 .hpbar.big {
   height: 8px;
-  max-width: 360px;
 }
 
 /* One pip per soldier: bright alive, amber hurt, dark lost */
@@ -621,7 +658,13 @@ button:disabled {
 }
 
 .mini .ico {
-  font-size: 24px;
+  font-size: 22px;
+}
+
+.mini-count {
+  font: 700 11px/1 var(--display);
+  color: #e6ecf3;
+  font-variant-numeric: tabular-nums;
 }
 
 .mini.suppressed { border-color: #ffd23a; }
@@ -646,8 +689,15 @@ button:disabled {
 .cmd-grid {
   display: grid;
   grid-template-columns: repeat(4, 56px);
-  grid-auto-rows: 56px;
+  grid-template-rows: repeat(2, 56px);
   gap: 5px;
+}
+
+/* An empty square of the grid: always shown, so the layout never shifts. */
+.cmd-slot {
+  background: rgba(0, 0, 0, 0.28);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  box-shadow: inset 0 2px 6px rgba(0, 0, 0, 0.45);
 }
 
 .cmd {
@@ -1060,4 +1110,273 @@ button:disabled {
 
 .cmd.locked {
   opacity: 0.55;
+}
+
+
+/* ─── Doctrine: chooser, strip and call-ins ───────────── */
+
+.doctrine-bar {
+  position: absolute;
+  right: 5px;
+  bottom: 155px;
+  width: calc(4 * 56px + 3 * 5px + 16px);
+  padding: 7px 8px;
+  background: var(--plate);
+  border: 1px solid var(--plate-edge);
+  border-top-color: var(--plate-hi);
+  box-shadow: 0 -2px 14px rgba(0, 0, 0, 0.4);
+}
+
+.doctrine-choose {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 8px 10px;
+  font: 400 22px 'Quiapo', var(--display);
+  color: #fff3c9;
+  background: linear-gradient(180deg, #5b4a22, #2e2512);
+  border: 1px solid var(--accent);
+  animation: doctrinePulse 2.4s ease-in-out infinite;
+}
+
+.doctrine-choose .ico {
+  font-size: 22px;
+}
+
+@keyframes doctrinePulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(217, 180, 90, 0); }
+  50% { box-shadow: 0 0 14px 2px rgba(217, 180, 90, 0.45); }
+}
+
+.db-head {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  margin-bottom: 7px;
+}
+
+.banner {
+  position: relative;
+  flex: none;
+  width: 30px;
+  height: 22px;
+  border: 1px solid rgba(0, 0, 0, 0.6);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.15);
+}
+
+.banner::after {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  font: 700 12px/1 var(--display);
+  color: #f2d35b;
+  content: '';
+}
+
+.banner.emblem-sun::after { content: '☀'; }
+.banner.emblem-star::after { content: '★'; }
+.banner.emblem-k::after { content: 'K'; color: #fff; }
+.banner.emblem-shield::after { content: '⛨'; }
+.banner.emblem-wings::after { content: '✈'; color: #fff; }
+.banner.emblem-leaf::after { content: '❦'; color: #c9b27a; }
+
+.db-titles {
+  flex: 1;
+  min-width: 0;
+}
+
+.db-name {
+  font: 400 20px/1 'Quiapo', var(--display);
+  color: var(--ink);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.db-cp {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  margin-top: 4px;
+}
+
+.cp-text {
+  font: 700 12px var(--display);
+  color: var(--accent);
+  white-space: nowrap;
+}
+
+.cp-bar {
+  flex: 1;
+  height: 4px;
+  background: rgba(0, 0, 0, 0.55);
+}
+
+.cp-bar .fill {
+  height: 100%;
+  background: var(--accent);
+}
+
+.db-calls {
+  display: grid;
+  grid-template-columns: repeat(4, 56px);
+  gap: 5px;
+}
+
+.cmd.callin {
+  height: 56px;
+  color: #ffe6a8;
+  background: linear-gradient(180deg, #4a3d1f, #241d0f);
+  border-color: #6b5626;
+}
+
+.callin-cp {
+  position: absolute;
+  left: 3px;
+  top: 2px;
+  font: 700 10px var(--display);
+  color: var(--accent);
+}
+
+/* The chooser: five doctrine cards. */
+.doctrine-picker {
+  position: absolute;
+  inset: 0;
+  z-index: 40;
+  display: none;
+  place-items: center;
+  background: rgba(0, 0, 0, 0.72);
+}
+
+.doctrine-picker.show {
+  display: grid;
+}
+
+.picker-box {
+  width: min(1200px, 96vw);
+  padding: 22px 24px;
+  text-align: center;
+  background: var(--plate);
+  border: 1px solid var(--plate-edge);
+  border-top: 2px solid var(--accent);
+}
+
+.picker-title {
+  font: 400 46px/1 'Quiapo', var(--display);
+  color: var(--ink);
+}
+
+.picker-sub {
+  margin: 6px 0 16px;
+  font: 500 13px var(--display);
+  letter-spacing: 0.08em;
+  color: var(--ink-dim);
+}
+
+.picker-cards {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 10px;
+  margin-bottom: 14px;
+}
+
+.doctrine-card {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 6px;
+  padding: 12px;
+  text-align: left;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid var(--plate-edge);
+  transition: border-color 0.15s, transform 0.15s;
+}
+
+.doctrine-card:hover {
+  border-color: var(--accent);
+  transform: translateY(-2px);
+}
+
+.doctrine-card .banner {
+  position: absolute;
+  right: 6px;
+  bottom: 6px;
+  width: 40px;
+  height: 27px;
+}
+
+.dc-top {
+  position: relative;
+  align-self: stretch;
+}
+
+/* Commander portraits: a painted head and shoulders in a gilt frame. */
+.cmdr {
+  overflow: hidden;
+  background: #8f8876;
+  border: 2px solid #6d5a2e;
+  box-shadow: inset 0 0 0 1px rgba(255, 230, 160, 0.35), 0 2px 8px rgba(0, 0, 0, 0.5);
+}
+
+.cmdr svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.dc-portrait {
+  width: 100%;
+  aspect-ratio: 5 / 6;
+}
+
+.db-portrait {
+  flex: none;
+  width: 40px;
+  height: 48px;
+  border-width: 1px;
+}
+
+.dc-commander {
+  font: 600 12px var(--display);
+  letter-spacing: 0.06em;
+  color: #e8dcb8;
+}
+
+.db-commander {
+  margin: 2px 0 3px;
+  font: 600 10.5px var(--display);
+  letter-spacing: 0.05em;
+  color: var(--ink-dim);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.dc-name {
+  font: 400 22px/1.05 'Quiapo', var(--display);
+  color: var(--ink);
+}
+
+.dc-style {
+  font: 600 11px var(--display);
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--accent);
+}
+
+.dc-desc {
+  margin: 0;
+  font: 400 12px/1.4 var(--font);
+  color: #cfc9b6;
+}
+
+.dc-line {
+  font: 500 12px var(--display);
+  color: var(--ink);
+}
+
+.dc-line b {
+  color: var(--accent);
 }
