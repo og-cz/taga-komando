@@ -13,6 +13,12 @@ interface Smoke { pos: Vec2; r: number; life: number; max: number; drift: Vec2 }
 interface Mark { pos: Vec2; life: number; wreck: boolean; heading: number }
 interface Floater { pos: Vec2; text: string; tone: Tone; life: number }
 interface Flash { pos: Vec2; life: number }
+/** A clod of earth or splinter thrown up by a blast, falling back down. */
+interface Debris { x: number; y: number; z: number; vx: number; vy: number; vz: number; life: number; size: number; dark: boolean }
+/** The pressure ring of a blast. */
+interface Ring { pos: Vec2; r: number; max: number; life: number }
+/** Scorched earth and track prints left on the ground. */
+interface Decal { pos: Vec2; life: number; max: number; kind: 'scorch' | 'track'; r: number; heading: number }
 
 const TONE_COLOR: Record<Tone, string> = { info: '#f2f2f2', good: '#8ef58e', bad: '#ffb35c' };
 
@@ -25,6 +31,11 @@ export class Effects {
   private marks: Mark[] = [];
   private floats: Floater[] = [];
   private flashes: Flash[] = [];
+  private debris: Debris[] = [];
+  private rings: Ring[] = [];
+  private decals: Decal[] = [];
+  /** Screen shake from blasts near the camera, in screen pixels; the renderer applies it. */
+  shake = 0;
 
   consume(events: readonly SimEvent[], visible: (p: Vec2) => boolean): void {
     for (const e of events) {
@@ -46,6 +57,7 @@ export class Effects {
           break;
         case 'explosion':
           if (!visible(e.pos)) break;
+          this.blow(e.pos, Math.max(14, e.radius));
           this.blasts.push({ pos: e.pos, radius: Math.max(14, e.radius), life: 0.45 });
           for (let i = 0; i < 4; i++) {
             const a = Math.random() * Math.PI * 2;
@@ -60,7 +72,14 @@ export class Effects {
           break;
         case 'death':
           this.marks.push({ pos: e.pos, life: e.vehicle ? 90 : 25, wreck: e.vehicle, heading: e.heading });
-          if (e.vehicle) this.blasts.push({ pos: e.pos, radius: 34, life: 0.7 });
+          if (e.vehicle) {
+            this.blasts.push({ pos: e.pos, radius: 34, life: 0.7 });
+            this.blow(e.pos, 30);
+            // A burning wreck: smoke keeps rising for a while.
+            for (let i = 0; i < 8; i++) {
+              this.smokes.push({ pos: { x: e.pos.x + (Math.random() - 0.5) * 10, y: e.pos.y + (Math.random() - 0.5) * 10 }, r: 6 + i, life: 4 + i * 0.6, max: 4 + i * 0.6, drift: { x: (Math.random() - 0.5) * 4, y: -6 - Math.random() * 4 } });
+            }
+          }
           break;
         case 'float':
           if (visible(e.pos)) this.floats.push({ pos: { ...e.pos }, text: e.text, tone: e.tone, life: 1.6 });
@@ -71,8 +90,28 @@ export class Effects {
     }
   }
 
+  /** The parts of a blast every explosion shares: ring, flying earth, scorch mark, shake. */
+  private blow(pos: Vec2, radius: number): void {
+    this.rings.push({ pos: { ...pos }, r: radius * 0.3, max: radius * 1.6, life: 0.4 });
+    const n = Math.min(26, 6 + Math.round(radius / 2));
+    for (let i = 0; i < n; i++) {
+      const a = Math.random() * Math.PI * 2;
+      const v = 30 + Math.random() * radius * 3;
+      this.debris.push({ x: pos.x, y: pos.y, z: 0, vx: Math.cos(a) * v, vy: Math.sin(a) * v, vz: 40 + Math.random() * 90, life: 1.6, size: 0.8 + Math.random() * 1.6, dark: Math.random() < 0.7 });
+    }
+    this.decals.push({ pos: { ...pos }, life: 40, max: 40, kind: 'scorch', r: radius * 0.75, heading: Math.random() * Math.PI });
+    this.shake = Math.min(9, this.shake + radius / 9);
+  }
+
+  /** A tank's track prints, left behind as it drives. */
+  track(pos: Vec2, heading: number): void {
+    this.decals.push({ pos: { ...pos }, life: 18, max: 18, kind: 'track', r: 0, heading });
+    if (this.decals.length > 900) this.decals.splice(0, this.decals.length - 900);
+  }
+
   /** A small explosion: flash, then smoke drifting off. */
   private burst(pos: Vec2, radius: number): void {
+    this.blow(pos, radius);
     this.blasts.push({ pos: { ...pos }, radius, life: 0.35 });
     for (let i = 0; i < 3; i++) {
       const a = Math.random() * Math.PI * 2;
@@ -104,6 +143,24 @@ export class Effects {
       s.r += 6 * dt;
     }
     for (const f of this.floats) f.pos.y -= 14 * dt;
+    this.rings = tick(this.rings);
+    this.decals = tick(this.decals);
+    this.debris = tick(this.debris);
+    for (const d of this.debris) {
+      d.x += d.vx * dt;
+      d.y += d.vy * dt;
+      d.z += d.vz * dt;
+      d.vz -= 260 * dt;
+      if (d.z <= 0) {
+        // Landed: it stays put and fades.
+        d.z = 0;
+        d.vx *= 0.2;
+        d.vy *= 0.2;
+        d.vz = 0;
+        d.life = Math.min(d.life, 0.6);
+      }
+    }
+    this.shake = Math.max(0, this.shake - dt * 18);
     this.shells = this.shells.filter((s) => {
       s.t += dt;
       if (s.t < s.flight) return true;
@@ -115,6 +172,27 @@ export class Effects {
 
   /** Ground-level marks drawn beneath units. */
   drawGround(ctx: CanvasRenderingContext2D): void {
+    for (const d of this.decals) {
+      const a = Math.min(1, d.life / (d.max * 0.4));
+      if (d.kind === 'scorch') {
+        ctx.fillStyle = `rgba(22,18,14,${0.45 * a})`;
+        ctx.beginPath();
+        ctx.ellipse(d.pos.x, d.pos.y, d.r, d.r * 0.8, d.heading, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.fillStyle = `rgba(10,8,6,${0.35 * a})`;
+        ctx.beginPath();
+        ctx.ellipse(d.pos.x, d.pos.y, d.r * 0.45, d.r * 0.35, d.heading, 0, Math.PI * 2);
+        ctx.fill();
+      } else {
+        ctx.save();
+        ctx.translate(d.pos.x, d.pos.y);
+        ctx.rotate(d.heading);
+        ctx.fillStyle = `rgba(40,32,22,${0.32 * a})`;
+        ctx.fillRect(-2, -8, 4, 3);
+        ctx.fillRect(-2, 5, 4, 3);
+        ctx.restore();
+      }
+    }
     for (const m of this.marks) {
       const a = Math.min(1, m.life / 5);
       if (m.wreck) {
@@ -166,6 +244,18 @@ export class Effects {
       ctx.beginPath();
       ctx.arc(b.pos.x, b.pos.y, b.radius * (0.4 + k * 0.8), 0, Math.PI * 2);
       ctx.fill();
+    }
+    for (const r of this.rings) {
+      const k = 1 - r.life / 0.4;
+      ctx.strokeStyle = `rgba(255,235,200,${0.45 * (1 - k)})`;
+      ctx.lineWidth = 2 * (1 - k) + 0.5;
+      ctx.beginPath();
+      ctx.arc(r.pos.x, r.pos.y, r.r + (r.max - r.r) * k, 0, Math.PI * 2);
+      ctx.stroke();
+    }
+    for (const d of this.debris) {
+      ctx.fillStyle = d.dark ? `rgba(48,38,26,${Math.min(1, d.life * 2)})` : `rgba(150,120,80,${Math.min(1, d.life * 2)})`;
+      ctx.fillRect(d.x - d.size / 2, d.y - d.z * 0.35 - d.size / 2, d.size, d.size);
     }
     for (const s of this.smokes) {
       ctx.fillStyle = `rgba(70,70,70,${0.35 * (s.life / s.max)})`;
