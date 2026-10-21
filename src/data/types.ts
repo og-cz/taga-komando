@@ -131,7 +131,7 @@ export interface UnitDef {
   /** Hidden from the enemy while it holds still and holds fire (guerrillas). */
   camo?: boolean;
   /** Uniform seen from above, when it differs from the army's own. */
-  look?: { cloth: string; helmet: string; helmetStyle: 'm1' | 'type90' | 'cap' | 'bandana' | 'none' };
+  look?: { cloth: string; helmet: string; helmetStyle: HeadGear };
 }
 
 /** What a commander call-in does. */
@@ -158,13 +158,18 @@ export interface CallInDef {
 }
 
 /** A doctrine: the army's way of fighting, with its own unit, call-ins and colours. */
+/** What a soldier wears on his head. */
+export type HeadGear = 'm1' | 'type90' | 'cap' | 'bandana' | 'none' | 'straw' | 'salakot';
+
 /** How a commander's portrait is drawn. */
 export interface PortraitLook {
   skin: string;
   hair: 'short' | 'slick' | 'peak' | 'shaved' | 'topknot';
   hairColor?: string;
   moustache?: 'thin' | 'brush' | 'handlebar';
-  hat?: { kind: 'peaked' | 'field' | 'm1' | 'type90' | 'bandana'; color: string; band?: string };
+  hat?: { kind: 'peaked' | 'field' | 'm1' | 'type90' | 'bandana' | 'straw' | 'salakot'; color: string; band?: string };
+  /** Rayadillo: fine blue-and-white pinstripes. */
+  stripes?: boolean;
   dress: 'tunic' | 'lapel' | 'camisa' | 'kimono' | 'naval' | 'jacket';
   cloth: string;
   /** Shoulder boards or collar tabs. */
