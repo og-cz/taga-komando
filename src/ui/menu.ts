@@ -12,6 +12,7 @@ export const CONTROLS: [string, string][] = [
   ['G / B', 'Grenade / mortar barrage'],
   ['Q', 'Engineers: open the Build menu (Esc closes it)'],
   ['W', 'Engineers: open the Base menu (tier buildings)'],
+  ['Doctrine panel', 'Choose a doctrine, then click a call-in (click the map to aim it; Esc cancels)'],
   ['Z / X / C / V', 'In the Build menu: sandbags / barbed wire / tank traps / mine (drag to lay a line)'],
   ['Z / X / C in Base', 'Tier 1 support / Tier 2 anti-tank / Tier 3 motor pool'],
   ['B / N / M', 'In the Build menu: MG nest / bunker / aid tent'],
