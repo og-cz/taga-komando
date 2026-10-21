@@ -44,14 +44,14 @@ const LIST: UnitDef[] = [
   unit({
     id: 'us_riflemen', name: 'Sundalo ng Maharlika', short: 'Sundalo', type: 'Rifle Squad', kind: 'infantry', role: 'line',
     description: 'Five riflemen with semi-automatic Kalayaan rifles. Captures territory. Can throw grenades.',
-    models: 5, modelHp: 80, cost: { manpower: 280, munitions: 0, fuel: 0 }, pop: 6, buildTime: 22,
+    models: 5, modelHp: 80, cost: { manpower: 260, munitions: 0, fuel: 0 }, pop: 6, buildTime: 22,
     speed: 22, sight: 210, loadout: [{ weapons: ['m1_garand'], count: 5 }], canCapture: true,
     abilities: ['grenade_us'], upgrades: ['us_bazooka_kit', 'us_bar'],
   }),
   unit({
     id: 'us_engineers', name: 'Inhinyero ng Maharlika', short: 'Inhinyero', type: 'Combat Engineers', kind: 'infantry', role: 'engineer',
     description: 'Four engineers with carbines. Build sandbags, barbed wire, tank traps, mines, MG nests, bunkers and aid tents, and repair tanks and structures.',
-    models: 4, modelHp: 75, cost: { manpower: 200, munitions: 0, fuel: 0 }, pop: 4, buildTime: 18,
+    models: 4, modelHp: 75, cost: { manpower: 190, munitions: 0, fuel: 0 }, pop: 4, buildTime: 18,
     speed: 22, sight: 200, loadout: [{ weapons: ['m1_carbine'], count: 4 }], canCapture: true,
     builds: ['sandbags', 'wire', 'tanktrap', 'mine', 'mg_nest', 'bunker', 'aid_tent', 'us_tech1', 'us_tech2', 'us_tech3'], canRepair: true,
   }),
@@ -79,7 +79,7 @@ const LIST: UnitDef[] = [
   unit({
     id: 'us_stuart', requires: 'us_tech3', name: 'Tangke Tamaraw', short: 'Tamaraw', type: 'Light Tank', kind: 'vehicle', role: 'tank',
     description: 'Fast light tank with a 37mm gun. Keep its thin rear armour away from AT weapons.',
-    modelHp: 480, cost: { manpower: 240, munitions: 0, fuel: 70 }, pop: 10, buildTime: 35,
+    modelHp: 520, cost: { manpower: 240, munitions: 0, fuel: 70 }, pop: 10, buildTime: 35,
     speed: 32, sight: 230, loadout: [{ weapons: ['m6_37mm', 'coax_30cal'], count: 1 }],
     armor: { front: 75, rear: 40 }, radius: 14, vetXp: [800, 2000, 3600],
     vehicle: { turnRate: 1.9, turretRate: 1.6, length: 30, width: 18, reverseFactor: 0.6 },
