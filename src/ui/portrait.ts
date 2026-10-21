@@ -29,6 +29,7 @@ function dress(l: PortraitLook, id: string): string {
     case 'tunic':
       return (
         body +
+        (l.stripes ? Array.from({ length: 26 }, (_, i) => `<path d="M${i * 4 + 1} 82 L${i * 4 + 1} 122" stroke="#eef0f2" stroke-width="0.7" opacity="0.35"/>`).join('') : '') +
         `<path d="M50 86 L50 122" stroke="${dark}" stroke-width="0.8"/>` +
         `<path d="M39 76 L61 76 L63 87 Q50 90 37 87 Z" fill="${shade(c, -0.12)}" stroke="${dark}" stroke-width="0.6"/>` +
         (l.boards ? `<rect x="38.5" y="80" width="5" height="5" fill="${l.boards}"/><rect x="56.5" y="80" width="5" height="5" fill="${l.boards}"/>` : '') +
@@ -131,6 +132,30 @@ function moustache(l: PortraitLook): string {
 function hat(l: PortraitLook, id: string): string {
   const h = l.hat;
   if (!h) return '';
+  if (h.kind === 'straw') {
+    // A Baliwag hat: wide woven brim, round crown, dark band and a little cockade.
+    const weave = Array.from({ length: 9 }, (_, i) => `<path d="M${20 + i * 7.5} 36 L${24 + i * 7.5} 44" stroke="${shade(h.color, -0.25)}" stroke-width="0.6" opacity="0.6"/>`).join('');
+    return (
+      `<ellipse cx="50" cy="40" rx="35" ry="8.5" fill="url(#${id}-hat)" stroke="${h.band ?? shade(h.color, -0.4)}" stroke-width="${h.band ? 1.6 : 0.7}"/>` +
+      weave +
+      `<path d="M33 40 Q33 18 50 17 Q67 18 67 40 Q50 43 33 40 Z" fill="url(#${id}-hat)" stroke="${shade(h.color, -0.4)}" stroke-width="0.6"/>` +
+      `<path d="M33.5 34 Q50 37 66.5 34 L66.8 39.5 Q50 42.5 33.2 39.5 Z" fill="#161512"/>` +
+      // The national cockade: red rosette, blue centre, silver triangle.
+      `<circle cx="60" cy="37" r="3.4" fill="#b3261e"/><circle cx="60" cy="37" r="2" fill="#24306e"/>` +
+      `<path d="M60 35.4 L61.4 38 L58.6 38 Z" fill="#d6d6d0"/>` +
+      `<path d="M38 24 Q46 19.5 56 20" stroke="${shade(h.color, 0.35)}" stroke-width="1.4" fill="none" opacity="0.6"/>`
+    );
+  }
+  if (h.kind === 'salakot') {
+    // A conical salakot with ribs running down from the knob.
+    const ribs = Array.from({ length: 9 }, (_, i) => `<path d="M50 14 L${20 + i * 7.5} 43" stroke="${shade(h.color, -0.3)}" stroke-width="0.6" opacity="0.55"/>`).join('');
+    return (
+      `<path d="M16 43 Q50 6 84 43 Q50 49 16 43 Z" fill="url(#${id}-hat)" stroke="${shade(h.color, -0.45)}" stroke-width="0.7"/>` +
+      ribs +
+      `<path d="M16 43 Q50 49 84 43 Q50 46.5 16 43 Z" fill="${shade(h.color, -0.35)}"/>` +
+      `<circle cx="50" cy="14" r="2" fill="${shade(h.color, -0.45)}"/>`
+    );
+  }
   if (h.kind === 'm1') {
     // A steel helmet: deep dome, rim all round, chin strap.
     return (
