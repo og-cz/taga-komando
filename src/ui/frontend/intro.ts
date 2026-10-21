@@ -13,12 +13,22 @@ export function playIntro(layer: HTMLElement, onDone: () => void): void {
   logo.setAttribute('role', 'img');
   logo.setAttribute('aria-label', 'OGCZ');
   const splash = el('div', { class: 'splash' }, el('div', { class: 'splash-card' }, logo, el('div', { class: 'splash-presents', text: 'presents' })));
-  layer.append(splash);
-  // A deep boom as the studio card comes up.
-  audio.playOnce('intro');
+  // The card and its boom start together: wait (briefly) until the sound is ready.
+  const sting = audio.prepareOnce('intro');
+  let started = false;
+  let timer = 0;
+  const begin = () => {
+    // Skipped already (a key pressed while the sound loaded): straight to the title.
+    if (started || stage !== 0) return;
+    started = true;
+    layer.append(splash);
+    void sting.play().catch(() => {});
+    timer = window.setTimeout(() => showTitle(), 3200);
+  };
+  sting.addEventListener('canplaythrough', begin, { once: true });
+  window.setTimeout(begin, 700);
 
   let stage = 0;
-  let timer = window.setTimeout(() => showTitle(), 3200);
 
   const showTitle = () => {
     if (stage !== 0) return;
