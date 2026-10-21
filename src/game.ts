@@ -226,6 +226,7 @@ export class Game {
     this.sound.dispose();
     this.input.dispose();
     this.minimap.dispose();
+    this.renderer.dispose();
     window.removeEventListener('resize', this.onResize);
     this.showOverlay(null);
     this.hud.root.remove();
