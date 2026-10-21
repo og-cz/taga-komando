@@ -1,8 +1,16 @@
 <img src="docs/logo.svg" alt="Taga Komando" width="420">
 
+### Latest Release <a href="https://github.com/og-cz/taga-komando/releases/latest"><img src="https://img.shields.io/github/v/release/og-cz/taga-komando?style=for-the-badge&color=green" align="top"></a>
+[![Downloads](https://img.shields.io/github/downloads/og-cz/taga-komando/total?label=Downloads&color=6b5b3a)](https://github.com/og-cz/taga-komando/releases) [![Platform](https://img.shields.io/badge/Platform-Windows%2010%20%7C%2011-0078D6)](#system-requirements) [![TypeScript](https://img.shields.io/badge/TypeScript-3178C6?logo=typescript&logoColor=white)](https://www.typescriptlang.org/) [![Electron](https://img.shields.io/badge/Electron-47848F?logo=electron&logoColor=white)](https://www.electronjs.org/) [![Single player](https://img.shields.io/badge/Single%20player-Offline-556b2f)](#game-modes)
+##### **English** | [Tagalog](README.tl.md)
+----
+
 Squad-based real-time tactics game for Windows, set on Luzon.
 
 Version 0.7.0 · Campaign, Theater of War and Skirmish vs. AI · Offline
+
+<picture>![Taga Komando](docs/screenshot.jpg)</picture>
+<sub>Concept of the look the game is heading toward.</sub>
 
 ---
 
