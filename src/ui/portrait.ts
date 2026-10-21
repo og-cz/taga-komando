@@ -91,7 +91,7 @@ function hair(l: PortraitLook, w: number): string {
   const col = l.hairColor ?? '#1b1611';
   const L = 50 - w;
   const R = 50 + w;
-  if (l.hat) {
+  if (l.hat && l.hat.kind !== 'bandana') {
     // Under a cap only the sides show.
     return `<path d="M${L} 50 Q${L - 0.5} 40 ${L + 2} 38 L${L + 3} 50 Z M${R} 50 Q${R + 0.5} 40 ${R - 2} 38 L${R - 3} 50 Z" fill="${col}"/>`;
   }
@@ -131,6 +131,31 @@ function moustache(l: PortraitLook): string {
 function hat(l: PortraitLook, id: string): string {
   const h = l.hat;
   if (!h) return '';
+  if (h.kind === 'm1') {
+    // A steel helmet: deep dome, rim all round, chin strap.
+    return (
+      `<path d="M25 46 Q24 17 50 16 Q76 17 75 46 Q50 41 25 46 Z" fill="url(#${id}-hat)" stroke="${shade(h.color, -0.45)}" stroke-width="0.7"/>` +
+      `<path d="M24 46 Q50 40 76 46 Q50 43 24 46 Z" fill="${shade(h.color, -0.3)}"/>` +
+      `<path d="M36 24 Q44 19 54 20" stroke="${shade(h.color, 0.3)}" stroke-width="1.6" fill="none" opacity="0.6"/>` +
+      `<path d="M31 46 Q33 60 40 68 M69 46 Q67 60 60 68" stroke="#2d2618" stroke-width="1.1" fill="none" opacity="0.8"/>`
+    );
+  }
+  if (h.kind === 'type90') {
+    // A rounder, shallower helmet with a star on the front.
+    return (
+      `<path d="M28 44 Q27 19 50 18 Q73 19 72 44 Q50 39 28 44 Z" fill="url(#${id}-hat)" stroke="${shade(h.color, -0.45)}" stroke-width="0.7"/>` +
+      `<path d="M28 44 Q50 39.5 72 44 Q50 42 28 44 Z" fill="${shade(h.color, -0.32)}"/>` +
+      `<path d="M50 26.5 L51.2 29.4 L54.2 29.5 L51.8 31.3 L52.7 34.2 L50 32.5 L47.3 34.2 L48.2 31.3 L45.8 29.5 L48.8 29.4 Z" fill="#e0c34a"/>` +
+      `<path d="M38 23 Q45 19.5 54 20" stroke="${shade(h.color, 0.3)}" stroke-width="1.4" fill="none" opacity="0.55"/>`
+    );
+  }
+  if (h.kind === 'bandana') {
+    // A cloth band tied round the head, its ends hanging at the side.
+    return (
+      `<path d="M32 37 Q50 31 68 37 L68.5 42 Q50 36.5 31.5 42 Z" fill="${h.color}"/>` +
+      `<path d="M67 39 L76 46 L73 48 Z M67 40 L73 51 L70 52 Z" fill="${shade(h.color, -0.2)}"/>`
+    );
+  }
   if (h.kind === 'peaked') {
     return (
       `<path d="M26 37 Q27 21 50 19 Q73 21 74 37 Q50 41 26 37 Z" fill="url(#${id}-hat)" stroke="${shade(h.color, -0.35)}" stroke-width="0.6"/>` +
