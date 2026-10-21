@@ -20,6 +20,7 @@ import type { Input } from '../input/input';
 import type { UIState } from '../input/uiState';
 import { el, formatTime } from './dom';
 import { portrait } from './portrait';
+import { hash2 } from '../core/rng';
 import { icon, unitIcon } from './icons';
 import type { Minimap } from './minimap';
 
@@ -69,6 +70,38 @@ function packGrid(grid: HTMLElement): void {
     n.style.gridColumn = String((i % 4) + 1);
     n.style.gridRow = String(Math.floor(i / 4) + 1);
   });
+}
+
+/**
+ * A soldier's photograph for the unit card: a man of that unit in its own
+ * uniform and headgear, the same man each time for the same squad.
+ */
+function soldierPhoto(sq: Squad, faction: string): HTMLElement | null {
+  const def = sq.def;
+  if (def.kind !== 'infantry' && def.kind !== 'team') return null;
+  const ija = faction === 'ija';
+  const h = (i: number) => hash2(sq.id, i, 5);
+  const style = def.look?.helmetStyle ?? (ija ? 'type90' : 'm1');
+  const helmet = def.look?.helmet ?? (ija ? '#6d673b' : '#4e5335');
+  const cloth = def.look?.cloth ?? (ija ? '#8c7c47' : '#6f6f47');
+  const skins = ija ? ['#c99a72', '#bf8f69', '#c4946c'] : ['#a8754f', '#9a6a46', '#8f6040'];
+  const hat =
+    style === 'm1' || style === 'type90' ? { kind: style, color: helmet } : style === 'cap' ? { kind: 'field' as const, color: helmet } : style === 'bandana' ? { kind: 'bandana' as const, color: helmet } : undefined;
+  return portrait(
+    {
+      title: '',
+      name: def.name,
+      look: {
+        skin: skins[Math.floor(h(1) * skins.length)],
+        hair: h(2) < 0.5 ? 'short' : 'slick',
+        moustache: h(3) < 0.3 ? 'thin' : undefined,
+        hat,
+        dress: style === 'bandana' && !ija ? 'camisa' : 'tunic',
+        cloth,
+      },
+    },
+    'unit-photo',
+  );
 }
 
 /** Icon for a unit (its role, or what a structure is). */
@@ -1045,7 +1078,8 @@ ${d.description}` }));
         ),
       );
     }
-    const portrait = el('div', { class: 'portrait' }, icon(unitIcon(sq.def), 'ico portrait-icon'), el('span', { class: 'portrait-vet', text: '★'.repeat(sq.vet) }));
+    const photo = soldierPhoto(sq, this.world.teams[sq.team].faction.id);
+    const portrait = el('div', { class: `portrait ${photo ? 'photo' : ''}` }, photo ?? icon(unitIcon(sq.def), 'ico portrait-icon'), el('span', { class: 'portrait-vet', text: '★'.repeat(sq.vet) }));
     this.tip(portrait, () => ({ title: titleOf(sq), body: sq.def.description }));
     return el(
       'div',
