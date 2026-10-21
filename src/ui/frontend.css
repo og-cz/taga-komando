@@ -1680,3 +1680,291 @@ body.cinematic #game {
   border-radius: 3px;
   box-shadow: var(--sunk);
 }
+
+/* ═══ Battle report: a typed report clipped to a board, the battle's ═══
+   recon maps on boards either side, all on a dark steel desk. */
+
+.end-screen.defeat,
+.end-screen.victory {
+  background:
+    radial-gradient(ellipse at center, rgba(0, 0, 0, 0) 40%, rgba(0, 0, 0, 0.7) 100%),
+    var(--steel);
+  box-shadow: inset 0 0 0 10px #1b1c14, inset 0 0 0 12px var(--od-hi), inset 0 0 60px rgba(0, 0, 0, 0.8);
+}
+
+.end-desk {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: min(1120px, 100%);
+  min-height: min(660px, 100%);
+}
+
+/* The recon maps, on hardboard with a steel clip. */
+.end-board {
+  position: absolute;
+  top: 70px;
+  width: min(300px, 26vw);
+  padding: 30px 12px 14px;
+  background: var(--grain), linear-gradient(180deg, #4a3a26, #34281a);
+  border-radius: 6px;
+  box-shadow: 0 14px 34px rgba(0, 0, 0, 0.7), inset 0 1px 0 rgba(255, 230, 190, 0.12);
+  filter: brightness(0.78);
+  animation: fadeIn 1s 0.2s ease both;
+}
+
+.end-board canvas {
+  display: block;
+  width: 100%;
+  height: auto;
+  box-shadow: 0 3px 8px rgba(0, 0, 0, 0.5);
+}
+
+.end-board.left {
+  left: 0;
+  transform: rotate(-5deg);
+}
+
+.end-board.right {
+  right: 0;
+  transform: rotate(4deg);
+}
+
+.end-clip {
+  position: absolute;
+  top: -12px;
+  left: 50%;
+  width: 96px;
+  height: 30px;
+  transform: translateX(-50%);
+  background: var(--steel-raised);
+  border: 1px solid var(--edge);
+  border-radius: 8px 8px 4px 4px;
+  box-shadow: var(--bevel), 0 4px 8px rgba(0, 0, 0, 0.6);
+  z-index: 2;
+}
+
+.end-clip::after {
+  position: absolute;
+  top: 7px;
+  left: 50%;
+  width: 26px;
+  height: 8px;
+  transform: translateX(-50%);
+  background: var(--edge);
+  border-radius: 4px;
+  box-shadow: inset 0 1px 2px #000;
+  content: '';
+}
+
+/* The report itself: typed on stained paper. */
+.end-screen .end-paper {
+  position: relative;
+  z-index: 3;
+  width: min(620px, 94%);
+  margin-top: 16px;
+  padding: 40px 44px 30px;
+  color: var(--paper-ink);
+  background:
+    var(--grain),
+    radial-gradient(circle at 12% 18%, rgba(140, 100, 40, 0.18), transparent 32%),
+    radial-gradient(circle at 88% 82%, rgba(140, 100, 40, 0.16), transparent 30%),
+    radial-gradient(circle at 70% 30%, rgba(255, 250, 235, 0.35), transparent 40%),
+    linear-gradient(180deg, #efe3c2 0%, #e0cfa4 100%);
+  border-radius: 2px;
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.75), inset 0 0 40px rgba(110, 80, 30, 0.25);
+  animation: fadeUp 0.7s ease both;
+}
+
+.end-screen .end-paper .end-kicker {
+  font: 700 15px var(--type);
+  letter-spacing: 0.16em;
+  color: #5a4a2c;
+  animation: none;
+}
+
+/* The verdict, stamped in ink that has not quite taken everywhere. */
+.end-screen .end-paper .end-title {
+  margin: 8px 0 4px;
+  font: 400 clamp(76px, 10vw, 128px) / 1 var(--fe-display);
+  letter-spacing: 0.06em;
+  color: #a3231b;
+  text-shadow: none;
+  -webkit-mask-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='220' height='220'><filter id='d'><feTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' seed='4'/><feComponentTransfer><feFuncA type='discrete' tableValues='1 1 1 1 1 0 1 1 1 1'/></feComponentTransfer></filter><rect width='100%25' height='100%25' filter='url(%23d)'/></svg>");
+  mask-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='220' height='220'><filter id='d'><feTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' seed='4'/><feComponentTransfer><feFuncA type='discrete' tableValues='1 1 1 1 1 0 1 1 1 1'/></feComponentTransfer></filter><rect width='100%25' height='100%25' filter='url(%23d)'/></svg>");
+  animation: stampIn 0.55s 0.25s cubic-bezier(0.2, 0.9, 0.3, 1.2) both;
+}
+
+/* Ink spattered round the stamp. */
+.end-screen .end-paper::before {
+  position: absolute;
+  top: 70px;
+  left: 50%;
+  width: 380px;
+  height: 140px;
+  transform: translateX(-50%);
+  background:
+    radial-gradient(circle at 8% 40%, rgba(163, 35, 27, 0.7) 0 2px, transparent 3px),
+    radial-gradient(circle at 14% 70%, rgba(163, 35, 27, 0.6) 0 1.5px, transparent 2.5px),
+    radial-gradient(circle at 92% 30%, rgba(163, 35, 27, 0.7) 0 2.5px, transparent 3.5px),
+    radial-gradient(circle at 86% 78%, rgba(163, 35, 27, 0.55) 0 1.5px, transparent 2.5px),
+    radial-gradient(circle at 30% 10%, rgba(163, 35, 27, 0.6) 0 1.2px, transparent 2px),
+    radial-gradient(circle at 70% 92%, rgba(163, 35, 27, 0.6) 0 2px, transparent 3px),
+    radial-gradient(circle at 96% 55%, rgba(163, 35, 27, 0.5) 0 1px, transparent 2px),
+    radial-gradient(circle at 4% 15%, rgba(163, 35, 27, 0.5) 0 1px, transparent 2px);
+  content: '';
+  pointer-events: none;
+  animation: fadeIn 0.3s 0.6s ease both;
+}
+
+@keyframes stampIn {
+  from { opacity: 0; transform: scale(1.7) rotate(-6deg); }
+  to { opacity: 1; transform: scale(1) rotate(-2deg); }
+}
+
+.end-screen .end-paper .end-reason {
+  font: 400 30px/1.1 var(--fe-display);
+  letter-spacing: 0.05em;
+  color: #8e1f18;
+  animation: none;
+}
+
+.end-screen .end-paper .end-time {
+  margin-top: 6px;
+  font: 700 13px var(--type);
+  letter-spacing: 0.12em;
+  color: #4a3e26;
+  animation: none;
+}
+
+/* The figures, on a riveted steel plate. */
+.end-screen .end-paper .end-stats {
+  gap: 10px;
+  width: 100%;
+  margin: 24px 0 24px;
+  padding: 16px 22px 18px;
+  background:
+    radial-gradient(circle at 9px 9px, #8b8e74 0 1px, #2c2e22 1.4px 2.2px, transparent 2.5px),
+    radial-gradient(circle at calc(100% - 9px) 9px, #8b8e74 0 1px, #2c2e22 1.4px 2.2px, transparent 2.5px),
+    radial-gradient(circle at 9px calc(100% - 9px), #8b8e74 0 1px, #2c2e22 1.4px 2.2px, transparent 2.5px),
+    radial-gradient(circle at calc(100% - 9px) calc(100% - 9px), #8b8e74 0 1px, #2c2e22 1.4px 2.2px, transparent 2.5px),
+    var(--steel);
+  border: 1px solid var(--edge);
+  border-radius: 4px;
+  box-shadow: var(--bevel), 0 6px 14px rgba(0, 0, 0, 0.55);
+  animation: none;
+}
+
+.end-screen .end-paper .es-side,
+.end-screen .end-paper .es-val {
+  color: var(--cream);
+}
+
+.end-screen .end-paper .es-side {
+  font: 400 18px var(--fe-display);
+  letter-spacing: 0.06em;
+}
+
+.end-screen .end-paper .es-val.them,
+.end-screen .end-paper .es-side.them {
+  color: #e0574c;
+}
+
+.end-screen .end-paper .es-vs,
+.end-screen .end-paper .es-label {
+  font-family: var(--type);
+  font-weight: 700;
+  color: var(--cream-dim);
+}
+
+.end-screen .end-paper .es-bar {
+  height: 7px;
+  padding: 1px;
+  background: var(--od-deep);
+  box-shadow: var(--sunk);
+}
+
+.end-screen .end-paper .es-bar .me {
+  background: linear-gradient(180deg, #ece3c8, #b4aa88);
+}
+
+.end-screen .end-paper .es-bar .them {
+  background: linear-gradient(180deg, #b7362b, #7a1d15);
+}
+
+.end-screen .end-paper .end-actions {
+  animation: none;
+}
+
+.end-screen .end-paper .end-btn {
+  min-width: 210px;
+  font: 400 19px var(--fe-display);
+  letter-spacing: 0.08em;
+  color: var(--cream);
+  background: var(--steel-raised);
+  border: 1px solid var(--edge);
+  border-radius: 4px;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 230, 0.2), inset 0 -3px 0 rgba(0, 0, 0, 0.4), 0 2px 0 var(--edge), 0 4px 10px rgba(0, 0, 0, 0.45);
+}
+
+.end-screen .end-paper .end-btn.primary {
+  color: #fff1d8;
+  background: var(--grain), linear-gradient(180deg, #a0352a 0%, #7a2219 60%, #5a1912 100%);
+}
+
+.end-screen .end-paper .end-btn:hover {
+  filter: brightness(1.12);
+}
+
+/* Postmark and filing stamp. */
+.end-postmark {
+  position: absolute;
+  top: 20px;
+  right: 26px;
+  display: grid;
+  place-items: center;
+  width: 76px;
+  height: 76px;
+  border: 2px solid rgba(70, 50, 30, 0.45);
+  border-radius: 50%;
+  box-shadow: 0 0 0 4px transparent, 0 0 0 5px rgba(70, 50, 30, 0.3);
+  transform: rotate(-14deg);
+}
+
+.end-postmark span {
+  font: 700 10px var(--type);
+  letter-spacing: 0.1em;
+  color: rgba(70, 50, 30, 0.6);
+}
+
+.end-stamp {
+  position: absolute;
+  right: 22px;
+  bottom: 12px;
+  padding: 3px 10px;
+  font: 700 11px var(--type);
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: rgba(110, 30, 20, 0.55);
+  border: 2px solid rgba(110, 30, 20, 0.45);
+  transform: rotate(-5deg);
+}
+
+/* Victory: the same report, stamped in dark blue ink. */
+.end-screen.victory .end-paper .end-title {
+  color: #1f3f6e;
+}
+
+.end-screen.victory .end-paper .end-reason {
+  color: #1f3f6e;
+}
+
+.end-screen.victory .end-paper::before {
+  filter: hue-rotate(205deg) saturate(0.8);
+}
+
+@media (max-width: 900px) {
+  .end-board {
+    display: none;
+  }
+}
