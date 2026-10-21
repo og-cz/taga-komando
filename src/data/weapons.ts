@@ -84,7 +84,7 @@ const LIST: WeaponDef[] = [
   }),
   weapon('type97_mortar', 'Type 97 81mm Mortar', {
     vs: { infantry: 0.75, team: 1.8, structure: 1.5, fort: 2 },
-    range: 480, minRange: 130, damage: 70, penetration: [8, 8], cooldown: 5.6, suppression: 0.28,
+    range: 450, minRange: 130, damage: 70, penetration: [8, 8], cooldown: 5.6, suppression: 0.28,
     moveAccuracy: 0, aoe: 30, indirect: true, scatter: 50, craterChance: 0.4, crew: true, projectile: 'mortar',
   }),
 
@@ -109,7 +109,7 @@ const LIST: WeaponDef[] = [
   weapon('type97_57mm', 'Type 97 57mm Gun', {
     vs: { team: 1.3, vehicle: 0.9, fort: 2.5 },
     range: 205, accuracy: [0.62, 0.42], damage: 45, penetration: [62, 48], cooldown: 3.8, suppression: 0.2,
-    moveAccuracy: 0.6, aoe: 18, craterChance: 0.15, turret: true, prefers: 'infantry', projectile: 'shell',
+    moveAccuracy: 0.6, aoe: 15, craterChance: 0.15, turret: true, prefers: 'infantry', projectile: 'shell',
   }),
   weapon('coax_30cal', 'Kasamang Ametralyadora', {
     vs: { team: 0.9 },
