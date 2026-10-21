@@ -112,10 +112,13 @@ void document.fonts.load("400 48px 'Quiapo'").catch(() => {});
 // first unit of that type, &zoom=<n> zooms in on them, &edge=1 zooms out to the map corner,
 // &end=win|lose ends the battle at once (to see the result screen), &focus=hq|enemy centres
 // the camera on our or the enemy headquarters, &reveal=1 lifts the fog of war,
-// &menu=defense|base opens an engineers' submenu.
+// &menu=defense|base opens an engineers' submenu, &doctrine=<id> chooses a doctrine (with &cp=<n>
+// command points), &picker=1 opens the doctrine chooser, &frame=1 leaves spawned structures half built,
+// &faction=ija plays the Imperial side.
 const devBattle = import.meta.env.DEV ? new URLSearchParams(location.search).get('battle') : null;
 if (devBattle) {
-  play({ faction: 'usaffe', enemyFaction: 'ija', map: devBattle, difficulty: 'normal', win: 'points' }, { kind: 'skirmish' });
+  const side = new URLSearchParams(location.search).get('faction') === 'ija' ? 'ija' : 'usaffe';
+  play({ faction: side, enemyFaction: side === 'ija' ? 'usaffe' : 'ija', map: devBattle, difficulty: 'normal', win: 'points' }, { kind: 'skirmish' });
   devSetup();
 } else {
   cinematic(true);
@@ -127,6 +130,7 @@ interface DevGame {
   input: { select(ids: number[]): void };
   renderer: { spectator: boolean };
   ui: { buildMenu: false | 'defense' | 'base' };
+  hud: { root: HTMLElement };
   camera: { zoom: number; minZoom: number; maxZoom: number; centerOn(p: { x: number; y: number }): void };
 }
 
@@ -146,6 +150,11 @@ function devSetup(): void {
   const sq = pick ? game.world.squads.find((s) => s.team === 0 && s.def.id === pick) : undefined;
   if (sq) game.input.select([sq.id]);
   if (params.get('reveal')) game.renderer.spectator = true;
+  const doctrine = params.get('doctrine');
+  if (doctrine) game.world.teams[0].doctrine = doctrine;
+  if (params.get('cp')) game.world.teams[0].cp = Number(params.get('cp'));
+  if (params.get('picker')) game.hud.root.querySelector('.doctrine-picker')?.classList.add('show');
+  if (params.get('frame')) for (const s of game.world.squads) if (s.team === 0 && (s.def.role === 'fort' || s.def.role === 'tech')) s.building = 0.45;
   const menu = params.get('menu');
   if (menu === 'defense' || menu === 'base') game.ui.buildMenu = menu;
   const focus = params.get('focus');
