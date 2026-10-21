@@ -2,6 +2,13 @@
 
 [Back to the README](../README.md)
 
+**Unreleased**
+- **A 3D battlefield.** The battle is now drawn with Three.js: an elevated, tilted tactical camera over textured ground; buildings with real walls, doors and windows and roofs of clay tile, nipa or rusted iron, some broken open by shellfire and smouldering; palms, broadleaf trees, banana plants and hedgerow bushes; stone walls, sandbag lines, wire, tank traps, rubble and timber; headquarters, tier buildings, MG nests, bunkers and aid tents as solid buildings that rise while they are built. A low evening sun casts real shadows, tree crowns stand over the troops, and fog of war lies over everything.
+- **Fire and smoke.** Blasts flash, throw sparks and dirt and leave scorch marks; big ones start fires. Knocked-out tanks and fallen emplacements burn. Fires flicker with hot cores and embers, light the ground and walls around them orange, and pour out smoke that drifts with the wind. Without WebGL the game falls back to the flat 2D battlefield.
+- **Real anti-tank guns.** The anti-tank unit on both sides is now a towed 37mm gun and its crew (set it up, then it stops tanks); the bazooka and the anti-tank rifle stay as rifle-squad upgrades. The Tanggulang Bayan doctrine brings a heavy 57mm gun.
+- **Engineers in the pith helmet.** Maharlika headgear keeps to the army's own: the straw Baliwag hat, the peaked cap, the pith helmet and the kepi.
+- **Upgrades you can see.** A squad taking a weapon upgrade shows a gold badge that fills as it completes, and the job column beside the unit card only appears while something is being recruited, reinforced or upgraded.
+
 **0.7.0**
 - **Doctrines.** Five per army, each led by a commander with a painted portrait and its own banner, special unit and two commander call-ins: charges, accuracy and defence orders, artillery barrages, spotter planes, paradrops, free militia squads, ambushes and minefields. Command points are earned in combat and over time. The enemy commander chooses a doctrine and uses its call-ins too.
 - **Building like a real engineer company.** Structures go up as a frame straight away and take up their whole footprint. How far along a frame is is how much punishment it can take; any engineer can carry on an unfinished job (right-click it, or use Repair on it), and the enemy can knock it down. MG nests, bunkers and aid stations go up only on ground your army holds, at most 4, 3 and 2 at a time; sandbags, wire, tank traps and mines can be laid anywhere.
