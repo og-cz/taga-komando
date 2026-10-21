@@ -91,10 +91,12 @@ body.cinematic #game {
   animation: splashCard 3.2s ease both;
 }
 
+/* The logo lands with the boom: in at once with a small kick, holds, fades. */
 @keyframes splashCard {
-  0% { opacity: 0; transform: scale(0.97); }
-  25% { opacity: 1; }
-  75% { opacity: 1; }
+  0% { opacity: 0; transform: scale(1.08); }
+  4% { opacity: 1; transform: scale(0.98); }
+  10% { transform: scale(1); }
+  78% { opacity: 1; }
   100% { opacity: 0; transform: scale(1.02); }
 }
 
@@ -892,9 +894,8 @@ body.cinematic #game {
 }
 
 .obj-title {
-  font: 700 17px var(--fe-font);
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
+  font: 400 24px/1.1 var(--fe-display);
+  letter-spacing: 0.05em;
   color: var(--fe-ink);
 }
 
