@@ -170,6 +170,8 @@ export class Renderer {
     for (const sq of visible) if (sq.def.kind === 'infantry' || sq.def.kind === 'team') this.drawInfantry(sq, ui);
 
     this.drawProjectiles();
+    // Tree crowns stand over the soldiers beneath them.
+    this.terrain.drawCanopy(ctx);
     this.effects.drawAir(ctx);
     if (!this.spectator) this.drawFog();
     this.drawOrders(ui);
@@ -178,6 +180,7 @@ export class Renderer {
     this.drawCursorPreview(ui);
 
     ctx.setTransform(this.dpr, 0, 0, this.dpr, 0, 0);
+    this.drawGrade();
     for (const sq of visible) this.drawSquadHud(sq, ui);
     this.drawPointLabels();
     this.effects.drawText(ctx, camera);
@@ -191,6 +194,31 @@ export class Renderer {
       ctx.strokeRect(Math.min(x0, x1) + 0.5, Math.min(y0, y1) + 0.5, Math.abs(x1 - x0), Math.abs(y1 - y0));
     }
   }
+
+  /** Late-afternoon light over the whole view: warm in the middle, darkening to the edges. */
+  private drawGrade(): void {
+    const { ctx, camera } = this;
+    const w = camera.viewW;
+    const h = camera.viewH;
+    if (!this.gradeCache || this.gradeCache.w !== w || this.gradeCache.h !== h) {
+      const vignette = ctx.createRadialGradient(w / 2, h * 0.45, Math.min(w, h) * 0.35, w / 2, h * 0.45, Math.max(w, h) * 0.75);
+      vignette.addColorStop(0, 'rgba(0,0,0,0)');
+      vignette.addColorStop(1, 'rgba(4,6,3,0.68)');
+      this.gradeCache = { w, h, vignette };
+    }
+    ctx.save();
+    ctx.globalCompositeOperation = 'soft-light';
+    ctx.fillStyle = 'rgba(255,190,110,0.2)';
+    ctx.fillRect(0, 0, w, h);
+    ctx.globalCompositeOperation = 'source-over';
+    ctx.fillStyle = 'rgba(14,12,6,0.16)';
+    ctx.fillRect(0, 0, w, h);
+    ctx.fillStyle = this.gradeCache.vignette;
+    ctx.fillRect(0, 0, w, h);
+    ctx.restore();
+  }
+
+  private gradeCache: { w: number; h: number; vignette: CanvasGradient } | null = null;
 
   // ─── Map layers ───────────────────────────────────────────────
 
@@ -231,13 +259,13 @@ export class Renderer {
         img.data[i * 4] = rgb[owner][0];
         img.data[i * 4 + 1] = rgb[owner][1];
         img.data[i * 4 + 2] = rgb[owner][2];
-        img.data[i * 4 + 3] = supplied ? 34 : 14;
+        img.data[i * 4 + 3] = supplied ? 22 : 9;
       }
       tctx.putImageData(img, 0, 0);
     }
-    ctx.imageSmoothingEnabled = false;
-    ctx.drawImage(this.territoryCanvas, 0, 0, world.map.pixelWidth, world.map.pixelHeight);
+    // A soft wash of the owner's colour, blended across tile edges.
     ctx.imageSmoothingEnabled = true;
+    ctx.drawImage(this.territoryCanvas, 0, 0, world.map.pixelWidth, world.map.pixelHeight);
     ctx.strokeStyle = 'rgba(255,255,255,0.16)';
     ctx.lineWidth = 1.5 / this.camera.zoom;
     ctx.setLineDash([6, 6]);
@@ -354,10 +382,10 @@ export class Renderer {
       const vis = v.visible[this.player];
       const d = this.fogData.data;
       for (let i = 0; i < vis.length; i++) {
-        d[i * 4] = 8;
-        d[i * 4 + 1] = 12;
-        d[i * 4 + 2] = 18;
-        d[i * 4 + 3] = vis[i] ? 0 : 150;
+        d[i * 4] = 6;
+        d[i * 4 + 1] = 9;
+        d[i * 4 + 2] = 8;
+        d[i * 4 + 3] = vis[i] ? 0 : 165;
       }
       this.fogCtx.putImageData(this.fogData, 0, 0);
     }
@@ -510,11 +538,12 @@ export class Renderer {
     const kit = { cloth: sq.def.look?.cloth ?? army.cloth, helmet: sq.def.look?.helmet ?? army.helmet, style: sq.def.look?.helmetStyle ?? army.helmetStyle, pack: army.pack };
     ctx.save();
     ctx.translate(p.x, p.y);
-    ctx.rotate(facing);
-    ctx.fillStyle = 'rgba(0,0,0,0.28)';
+    // His shadow falls to the bottom-right, like everything else's.
+    ctx.fillStyle = 'rgba(8,12,6,0.34)';
     ctx.beginPath();
-    ctx.ellipse(0.8, 1.1, prone ? 5.6 : 4.2, prone ? 3 : 3.8, 0, 0, Math.PI * 2);
+    ctx.ellipse(prone ? 1.6 : 2.6, prone ? 1.6 : 2.6, prone ? 5.4 : 4, prone ? 3.4 : 3.4, facing, 0, Math.PI * 2);
     ctx.fill();
+    ctx.rotate(facing);
 
     const bodyX = prone ? -2.2 : 0;
     // Legs stepping out from under the body while he walks.
