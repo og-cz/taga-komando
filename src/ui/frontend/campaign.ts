@@ -75,9 +75,14 @@ export function showCampaign(layer: HTMLElement, onStart: (setup: MatchSetup, sp
       ...(unlocked
         ? [
             parts,
-            el('h3', { class: 'detail-sub', text: `Part ${part + 1}: ${s.name}` }),
-            ...s.briefing.map((p) => el('p', { class: 'detail-text', text: p })),
-            el('ul', { class: 'briefing-obj' }, ...objectiveLines(s).map((t) => el('li', { text: t }))),
+            // The part's orders, typed on a sheet of paper.
+            el(
+              'div',
+              { class: 'briefing-paper' },
+              el('h3', { class: 'detail-sub', text: `Part ${part + 1}: ${s.name}` }),
+              ...s.briefing.map((p) => el('p', { class: 'detail-text', text: p })),
+              el('ul', { class: 'briefing-obj' }, ...objectiveLines(s).map((t) => el('li', { text: t }))),
+            ),
           ]
         : [el('p', { class: 'detail-text locked-note', text: `Complete “${CAMPAIGN[mission - 1].name}” to unlock this mission.` })]),
       el('div', { class: 'row' }, el('h3', { text: 'Difficulty' }), difficultyPicker(difficulty, (d) => (difficulty = d)), begin),
