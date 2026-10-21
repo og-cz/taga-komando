@@ -10,9 +10,9 @@ import { explode, scatterPoint } from './combat';
 import { canAfford, pay } from './economy';
 
 /** Experience dealt for one command point. */
-const CP_XP = 450;
+const CP_XP = 1000;
 /** Seconds of battle for one command point, earned anyway. */
-const CP_PASSIVE = 120;
+const CP_PASSIVE = 150;
 
 /** A doctrine buff on a whole army, for a while. */
 export interface Buff {
