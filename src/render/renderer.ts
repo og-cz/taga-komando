@@ -5,6 +5,7 @@ import type { DoctrineDef, TeamId, WeaponDef, HeadGear } from '../data/types';
 import { UNITS } from '../data/units';
 import { CALL_INS, DOCTRINES } from '../data/doctrines';
 import { WEAPONS } from '../data/weapons';
+import { UPGRADES } from '../data/upgrades';
 import { add, angleTo, fromAngle, rotate, type Vec2 } from '../core/vec';
 import { aliveCount, formationOffset, healthFraction, maxRange, type Squad } from '../sim/entities';
 import { coverAt, findCoverSpots } from '../sim/systems/cover';
@@ -715,6 +716,25 @@ export class Renderer {
         ctx.beginPath();
         ctx.arc(hx - 0.2, -0.2, 1.5, 0, Math.PI * 2);
         ctx.fill();
+        break;
+      }
+      case 'pith': {
+        // A pith helmet: pale cloth dome, a narrow brim all round, a brown band.
+        const r = prone ? 2.9 : 3.3;
+        const g = ctx.createRadialGradient(hx - 0.9, -0.9, 0.3, hx, 0, r);
+        g.addColorStop(0, '#fbf6ea');
+        g.addColorStop(1, kit.helmet);
+        ctx.fillStyle = g;
+        ctx.beginPath();
+        ctx.arc(hx, 0, r, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.strokeStyle = 'rgba(80,70,50,0.6)';
+        ctx.stroke();
+        ctx.strokeStyle = '#6b4a2a';
+        ctx.lineWidth = 0.6;
+        ctx.beginPath();
+        ctx.arc(hx, 0, r * 0.66, 0, Math.PI * 2);
+        ctx.stroke();
         break;
       }
       case 'salakot': {
@@ -2039,6 +2059,22 @@ export class Renderer {
     ctx.stroke();
     ctx.strokeStyle = '#10151c';
     drawIcon(ctx, unitIcon(sq.def), x, y - 12, 13, 'rgba(16,21,28,0.5)');
+    if (sq.upgrading) {
+      // Taking a weapon upgrade: a gold chevron badge that fills as it completes.
+      const total = UPGRADES[sq.upgrading.id]?.time ?? 1;
+      const done = 1 - Math.max(0, sq.upgrading.remaining) / total;
+      const ux = x - bw / 2 - 11;
+      ctx.fillStyle = 'rgba(10,10,8,0.85)';
+      ctx.beginPath();
+      ctx.arc(ux, y - 12, 7, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.strokeStyle = '#f2cf7e';
+      ctx.lineWidth = 1.6;
+      ctx.beginPath();
+      ctx.arc(ux, y - 12, 7, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * done);
+      ctx.stroke();
+      drawIcon(ctx, 'upgrade', ux, y - 12, 10);
+    }
     if (sq.vet > 0) {
       ctx.font = 'bold 9px "Segoe UI", system-ui, sans-serif';
       ctx.fillStyle = '#ffd766';
