@@ -54,6 +54,7 @@ const LIST: UnitDef[] = [
     models: 4, modelHp: 75, cost: { manpower: 190, munitions: 0, fuel: 0 }, pop: 4, buildTime: 18,
     speed: 22, sight: 200, loadout: [{ weapons: ['m1_carbine'], count: 4 }], canCapture: true,
     builds: ['sandbags', 'wire', 'tanktrap', 'mine', 'mg_nest', 'bunker', 'aid_tent', 'us_tech1', 'us_tech2', 'us_tech3'], canRepair: true,
+    look: { cloth: '#cfc5aa', helmet: '#b8995a', helmetStyle: 'salakot' },
   }),
   unit({
     id: 'us_hmg', requires: 'us_tech1', name: 'Ametralyadora ng Maharlika', short: 'Ametralyadora', type: 'Heavy Machine Gun Team', kind: 'team', role: 'mg',
