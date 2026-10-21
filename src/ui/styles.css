@@ -2010,3 +2010,159 @@ button:disabled {
   font-size: 18px;
   white-space: nowrap;
 }
+
+/* ═══ Screen layout ═══════════════════════════════════════════════════
+   Bottom left the map with its round buttons; above the information panel
+   the doctrine's command points and call-ins (left) and the resources
+   (right); the information panel holds the unit, its upgrades and the
+   production queue; bottom right the order grid under its building tabs. */
+
+.toasts {
+  top: auto;
+  bottom: 210px;
+  left: 12px;
+  flex-direction: column-reverse;
+}
+
+/* Round buttons on the map's frame. */
+.minimap-panel {
+  position: relative;
+}
+
+.map-btn {
+  position: absolute;
+  z-index: 2;
+  display: grid;
+  place-items: center;
+  width: 26px;
+  height: 26px;
+  padding: 0;
+  font: 400 13px 'Quiapo', var(--display);
+  color: var(--cream);
+  background: var(--steel-raised);
+  border: 1px solid var(--edge);
+  border-radius: 50%;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 230, 0.2), inset 0 -2px 0 rgba(0, 0, 0, 0.4), 0 2px 4px rgba(0, 0, 0, 0.6);
+}
+
+.map-btn .ico {
+  font-size: 15px;
+}
+
+.map-btn:hover {
+  color: var(--amber-hi);
+}
+
+.map-btn.idle-inf { top: -10px; right: -10px; }
+.map-btn.idle-veh { top: 22px; right: -12px; }
+.map-btn.help { bottom: -8px; right: -10px; }
+.map-btn.menu { bottom: -8px; left: -8px; width: 34px; height: 26px; border-radius: 13px; font-size: 11px; }
+
+/* The information panel: unit, upgrades, queue. */
+.unit-card {
+  display: flex;
+  gap: 10px;
+  min-width: 0;
+}
+
+.unit-panel {
+  flex: 1;
+  min-width: 0;
+}
+
+.unit-card .upgrade-panel {
+  width: 56px;
+  padding: 0 0 0 8px;
+  border-left: 1px solid rgba(0, 0, 0, 0.5);
+  box-shadow: -1px 0 0 rgba(255, 255, 230, 0.06);
+}
+
+.unit-card .queue-panel {
+  width: 50px;
+  padding: 0 0 0 8px;
+  border-left: 1px solid rgba(0, 0, 0, 0.5);
+  box-shadow: -1px 0 0 rgba(255, 255, 230, 0.06);
+}
+
+.portrait-desc {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  font: 400 12px/1.35 var(--type);
+  color: #cfc5a6;
+}
+
+.portrait-text {
+  gap: 5px;
+}
+
+/* Resources along the top edge of the information panel, by the orders. */
+.res-strip {
+  position: absolute;
+  top: -34px;
+  right: 252px;
+  z-index: 2;
+  display: flex;
+  flex-direction: row;
+  gap: 5px;
+  width: auto;
+  padding: 0;
+}
+
+.res-strip .res {
+  min-width: 98px;
+}
+
+/* The doctrine above the information panel, at its left: commander, command points, call-ins. */
+.doctrine-bar {
+  left: 248px;
+  right: auto;
+  bottom: 174px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: auto;
+  padding: 5px 8px;
+}
+
+.doctrine-bar .db-head {
+  margin-bottom: 0;
+}
+
+.doctrine-bar .db-titles {
+  min-width: 120px;
+}
+
+.doctrine-bar .db-calls {
+  display: flex;
+  gap: 5px;
+}
+
+.doctrine-bar .callin {
+  width: 42px;
+  height: 42px;
+}
+
+.doctrine-choose {
+  width: auto;
+}
+
+/* Fit name, bars, kit and two lines of description in the panel. */
+.unit-card .portrait-text {
+  gap: 3px;
+  padding-top: 0;
+}
+
+.unit-card .portrait-name {
+  font-size: 24px;
+}
+
+.unit-card .portrait-desc {
+  font-size: 11px;
+  line-height: 1.3;
+}
+
+.unit-card .stat-row {
+  gap: 6px;
+}
