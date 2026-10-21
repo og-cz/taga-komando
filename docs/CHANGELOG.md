@@ -7,6 +7,8 @@
 - **Fire and smoke.** Blasts flash, throw sparks and dirt and leave scorch marks; big ones start fires. Knocked-out tanks and fallen emplacements burn. Fires flicker with hot cores and embers, light the ground and walls around them orange, and pour out smoke that drifts with the wind. Without WebGL the game falls back to the flat 2D battlefield.
 - **Real anti-tank guns.** The anti-tank unit on both sides is now a towed 37mm gun and its crew (set it up, then it stops tanks); the bazooka and the anti-tank rifle stay as rifle-squad upgrades. The Tanggulang Bayan doctrine brings a heavy 57mm gun.
 - **Engineers in the pith helmet.** Maharlika headgear keeps to the army's own: the straw Baliwag hat, the peaked cap, the pith helmet and the kepi.
+- **Order grid in fixed rows.** Every unit's orders sit in the same three rows: attack-move, stop, reinforce and retreat on top, the engineers' Base and Build menus in the middle, the unit's own abilities (repair, grenade, set up, barrage) at the bottom. Tabs over the grid jump straight to the headquarters or any tier building you have built, to recruit there.
+- **Upgrade slots.** A unit's weapon upgrades have their own slots beside its card, shown only when it has something to upgrade.
 - **Upgrades you can see.** A squad taking a weapon upgrade shows a gold badge that fills as it completes, and the job column beside the unit card only appears while something is being recruited, reinforced or upgraded.
 
 **0.7.0**
