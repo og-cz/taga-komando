@@ -87,7 +87,7 @@ function soldierPhoto(sq: Squad, faction: string): HTMLElement | null {
   const skins = ija ? ['#c99a72', '#bf8f69', '#c4946c'] : ['#a8754f', '#9a6a46', '#8f6040'];
   const hat =
     style === 'straw' ? { kind: style, color: helmet, band: h(4) < 0.35 ? '#a3241c' : undefined } :
-    style === 'm1' || style === 'type90' || style === 'salakot' ? { kind: style, color: helmet } : style === 'cap' ? { kind: 'field' as const, color: helmet } : style === 'bandana' ? { kind: 'bandana' as const, color: helmet } : undefined;
+    style === 'm1' || style === 'type90' || style === 'salakot' || style === 'pith' ? { kind: style, color: helmet } : style === 'cap' ? { kind: 'field' as const, color: helmet } : style === 'bandana' ? { kind: 'bandana' as const, color: helmet } : undefined;
   return portrait(
     {
       title: '',
@@ -844,6 +844,9 @@ ${d.description}` }));
 
   private renderQueue(): void {
     const jobs = this.queueJobs();
+    // Shown only while something is being recruited, reinforced or upgraded.
+    const panel = this.queueSlots[0]?.parentElement;
+    if (panel) panel.style.display = jobs.length ? '' : 'none';
     this.queueSlots.forEach((slot, i) => {
       const job = jobs[i];
       slot.classList.toggle('filled', !!job);
