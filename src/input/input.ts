@@ -1,3 +1,5 @@
+import { CALL_INS } from '../data/doctrines';
+import { useCallIn } from '../sim/systems/doctrine';
 import { ABILITIES } from '../data/abilities';
 import { TILE } from '../data/balance';
 import { BUILDABLES } from '../data/buildables';
@@ -22,7 +24,7 @@ import {
 } from '../sim/commands';
 import type { Squad } from '../sim/entities';
 import { defenseAt } from '../sim/systems/defenses';
-import { constructionAt } from '../sim/systems/engineering';
+import { constructionAt, frameJob } from '../sim/systems/engineering';
 import type { World } from '../sim/world';
 import type { Camera } from '../render/camera';
 import type { Inspect, UIState } from './uiState';
@@ -136,6 +138,11 @@ export class Input {
   }
 
   private pick(p: Vec2): Squad | undefined {
+    // A click anywhere on a building's footprint picks the building.
+    const tx = Math.floor(p.x / TILE);
+    const ty = Math.floor(p.y / TILE);
+    const built = this.world.squads.find((s) => !s.dead && s.footprint.some((f) => f.tx === tx && f.ty === ty) && this.world.canSee(this.player, s));
+    if (built) return built;
     let best: Squad | undefined;
     let bestD = Infinity;
     for (const sq of this.world.squads) {
@@ -251,6 +258,17 @@ export class Input {
   }
 
   /** HQ selected: click the map to set where new units go. */
+  /** Use a commander call-in: at once, or after clicking where it should land. */
+  callIn(id: string): void {
+    const c = CALL_INS[id];
+    if (!c) return;
+    if (c.targeted) {
+      this.ui.mode = { kind: 'callIn', callInId: id };
+      return;
+    }
+    this.report([useCallIn(this.world, this.player, id)], 'order');
+  }
+
   rallyMode(): void {
     if (this.selectedOwn().some((s) => s.def.role === 'hq' || s.def.role === 'tech')) this.ui.mode = { kind: 'rally' };
   }
@@ -288,6 +306,12 @@ export class Input {
   private repairAt(p: Vec2): void {
     const repairers = this.selectedOwn().filter((s) => s.def.canRepair);
     const target = this.pick(p);
+    // A building still going up: repairing it means building it.
+    const job = target && target.team === this.player ? frameJob(this.world, target) : undefined;
+    if (job) {
+      this.report(repairers.map((s) => issueHelpBuild(this.world, s, job.id)));
+      return;
+    }
     if (target) {
       this.report(repairers.map((s) => issueRepair(this.world, s, target)));
       return;
@@ -357,7 +381,7 @@ export class Input {
       return;
     }
     // Right-click one of our unfinished constructions: engineers join the work.
-    const job = target ? undefined : constructionAt(this.world, this.player, p);
+    const job = (target?.team === this.player ? frameJob(this.world, target) : undefined) ?? constructionAt(this.world, this.player, p);
     const helpers = job ? own.filter((s) => s.def.builds.includes(job.buildId)) : [];
     if (job && helpers.length > 0) {
       this.report(helpers.map((s) => issueHelpBuild(this.world, s, job.id)));
@@ -426,6 +450,11 @@ export class Input {
     }
     if (mode.kind === 'build') {
       this.ui.buildFrom = p;
+      return;
+    }
+    if (mode.kind === 'callIn') {
+      this.report([useCallIn(this.world, this.player, mode.callInId, p)], 'order');
+      this.ui.mode = { kind: 'none' };
       return;
     }
     if (mode.kind === 'rally') {
