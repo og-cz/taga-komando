@@ -32,6 +32,7 @@ export class MenuBattle {
 
   dispose(): void {
     this.running = false;
+    this.renderer?.dispose();
     window.removeEventListener('resize', this.onResize);
   }
 
@@ -43,6 +44,7 @@ export class MenuBattle {
     for (let t = 0; t < 70; t += SIM_DT) this.step();
     this.camera = new Camera(this.world.map.pixelWidth, this.world.map.pixelHeight);
     this.camera.insets = { top: 0, bottom: 0, side: 0 };
+    this.renderer?.dispose();
     this.renderer = new Renderer(this.canvas, this.world, this.camera, 0, true);
     this.renderer.resize(window.innerWidth, window.innerHeight);
     this.camera.zoom = 1.35;
