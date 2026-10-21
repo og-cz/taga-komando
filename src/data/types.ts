@@ -159,7 +159,7 @@ export interface CallInDef {
 
 /** A doctrine: the army's way of fighting, with its own unit, call-ins and colours. */
 /** What a soldier wears on his head. */
-export type HeadGear = 'm1' | 'type90' | 'cap' | 'bandana' | 'none' | 'straw' | 'salakot';
+export type HeadGear = 'm1' | 'type90' | 'cap' | 'bandana' | 'none' | 'straw' | 'salakot' | 'pith';
 
 /** How a commander's portrait is drawn. */
 export interface PortraitLook {
@@ -167,7 +167,7 @@ export interface PortraitLook {
   hair: 'short' | 'slick' | 'peak' | 'shaved' | 'topknot';
   hairColor?: string;
   moustache?: 'thin' | 'brush' | 'handlebar';
-  hat?: { kind: 'peaked' | 'field' | 'm1' | 'type90' | 'bandana' | 'straw' | 'salakot'; color: string; band?: string };
+  hat?: { kind: 'peaked' | 'field' | 'm1' | 'type90' | 'bandana' | 'straw' | 'salakot' | 'pith'; color: string; band?: string };
   /** Rayadillo: fine blue-and-white pinstripes. */
   stripes?: boolean;
   dress: 'tunic' | 'lapel' | 'camisa' | 'kimono' | 'naval' | 'jacket';
