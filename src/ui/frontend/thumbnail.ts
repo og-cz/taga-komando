@@ -1,6 +1,6 @@
 import type { MapDef } from '../../data/types';
 import { GameMap } from '../../sim/grid';
-import { NEUTRAL, TEAM, TERRAIN_BASE } from '../../render/palette';
+import { drawReconMap, INK } from '../recon';
 
 const cache = new Map<string, HTMLCanvasElement>();
 
@@ -16,23 +16,19 @@ export function mapThumbnail(def: MapDef, owners?: Readonly<Record<number, numbe
   c.width = def.width * scale;
   c.height = def.height * scale;
   const ctx = c.getContext('2d')!;
-  for (let ty = 0; ty < map.h; ty++) {
-    for (let tx = 0; tx < map.w; tx++) {
-      ctx.fillStyle = TERRAIN_BASE[map.get(tx, ty)] ?? '#5f7b3c';
-      ctx.fillRect(tx * scale, ty * scale, scale, scale);
-    }
-  }
+  drawReconMap(ctx, map, c.width, c.height);
+  // Bases as inked squares, points as rings: blue ours, red theirs.
   def.bases.forEach((b, i) => {
-    ctx.fillStyle = TEAM[i].main;
-    ctx.strokeStyle = '#000';
+    ctx.fillStyle = i === 0 ? INK.blue : INK.red;
+    ctx.strokeStyle = INK.line;
     ctx.lineWidth = 2;
     ctx.fillRect(b.x * scale - 8, b.y * scale - 8, 16, 16);
     ctx.strokeRect(b.x * scale - 8, b.y * scale - 8, 16, 16);
   });
   def.points.forEach((p, i) => {
     const owner = owners?.[i];
-    ctx.fillStyle = owner === 0 || owner === 1 ? TEAM[owner].main : NEUTRAL;
-    ctx.strokeStyle = '#000';
+    ctx.fillStyle = owner === 0 ? INK.blue : owner === 1 ? INK.red : INK.neutral;
+    ctx.strokeStyle = INK.line;
     ctx.lineWidth = 2;
     ctx.beginPath();
     ctx.arc(p.x * scale, p.y * scale, p.kind === 'victory' ? 8 : 6, 0, Math.PI * 2);
