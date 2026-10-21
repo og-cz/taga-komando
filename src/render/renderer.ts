@@ -16,6 +16,7 @@ import type { Camera } from './camera';
 import { Effects } from './effects';
 import { COVER_COLOR, NEUTRAL, TEAM } from './palette';
 import { TerrainLayer } from './terrainLayer';
+import { Battlefield3D, webglAvailable } from '../render3d/battlefield3d';
 import { drawIcon, unitIcon } from '../ui/icons';
 
 const POINT_GLYPH: Record<string, string> = { victory: 'V', munitions: 'M', fuel: 'F', manpower: 'P' };
@@ -90,8 +91,15 @@ const LOOK: Record<string, FactionLook> = {
 /** Draws the world from the player's point of view. Reads the simulation, never writes it. */
 export class Renderer {
   readonly effects = new Effects();
-  private readonly ctx: CanvasRenderingContext2D;
-  private readonly terrain: TerrainLayer;
+  /** Where world drawing currently goes: the screen, or (in 3D) the canvas laid on the 3D ground. */
+  private ctx: CanvasRenderingContext2D;
+  private readonly screenCtx: CanvasRenderingContext2D;
+  /** 2D terrain (only when the 3D battlefield is unavailable). */
+  private readonly terrain: TerrainLayer | null;
+  /** The 3D battlefield, when WebGL is available. */
+  readonly world3d: Battlefield3D | null = null;
+  /** Units, markers and 2D effects for the 3D battlefield to lay on its ground. */
+  private readonly worldCanvas: HTMLCanvasElement | null = null;
   private readonly fog: HTMLCanvasElement;
   private readonly fogCtx: CanvasRenderingContext2D;
   private readonly fogData: ImageData;
@@ -110,15 +118,32 @@ export class Renderer {
     private readonly player: TeamId,
     /** Spectator view (menu background): no fog, everything visible. */
     private readonly spectator = false,
+    use3d = true,
   ) {
-    this.ctx = canvas.getContext('2d')!;
-    this.terrain = new TerrainLayer(world.map);
+    this.screenCtx = canvas.getContext('2d')!;
+    this.ctx = this.screenCtx;
     const { w, h } = world.map;
     this.fog = document.createElement('canvas');
     this.fog.width = w;
     this.fog.height = h;
     this.fogCtx = this.fog.getContext('2d', { willReadFrequently: true })!;
     this.fogData = this.fogCtx.createImageData(w, h);
+    this.fogSoft.width = w * 4;
+    this.fogSoft.height = h * 4;
+    // The 3D battlefield sits behind this canvas; fall back to flat 2D without WebGL.
+    if (use3d && webglAvailable() && canvas.parentElement) {
+      try {
+        this.worldCanvas = document.createElement('canvas');
+        this.world3d = new Battlefield3D(world, this.worldCanvas, this.fogSoft);
+        canvas.parentElement.insertBefore(this.world3d.canvas, canvas);
+        camera.tilted = true;
+      } catch (err) {
+        console.warn('3D battlefield unavailable, drawing in 2D', err);
+        this.world3d = null;
+        this.worldCanvas = null;
+      }
+    }
+    this.terrain = this.world3d ? null : new TerrainLayer(world.map);
     this.territoryCanvas = document.createElement('canvas');
     this.territoryCanvas.width = w;
     this.territoryCanvas.height = h;
@@ -131,7 +156,20 @@ export class Renderer {
     this.canvas.height = Math.round(h * this.dpr);
     this.canvas.style.width = `${w}px`;
     this.canvas.style.height = `${h}px`;
+    if (this.worldCanvas && this.world3d) {
+      // The ground overlay matches the 3D view's own resolution.
+      const k = Battlefield3D.pixelRatio(this.dpr);
+      this.worldCanvas.width = Math.round(w * k);
+      this.worldCanvas.height = Math.round(h * k);
+      this.world3d.setSize(w, h, this.dpr);
+    }
     this.camera.resize(w, h);
+  }
+
+  /** Free the 3D battlefield (GPU memory) when this view goes away. */
+  dispose(): void {
+    this.world3d?.dispose();
+    this.camera.tilted = false;
   }
 
   /** Where each tank last left track prints. */
@@ -142,26 +180,38 @@ export class Renderer {
   visibleToPlayer = (p: Vec2): boolean => this.spectator || this.world.vision.isVisible(this.player, p);
 
   draw(ui: UIState, dt: number): void {
-    const { ctx, world, camera } = this;
+    const { world, camera } = this;
     this.effects.consume(world.events, this.visibleToPlayer);
     this.effects.update(dt);
+    this.world3d?.consume(world.events, this.visibleToPlayer);
 
+    // World drawing goes to the screen, or in 3D to the canvas laid on the 3D ground.
+    const ctx = (this.ctx = this.worldCanvas ? this.worldCanvas.getContext('2d')! : this.screenCtx);
     ctx.setTransform(1, 0, 0, 1, 0, 0);
-    ctx.fillStyle = '#10140f';
-    ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
-    camera.apply(ctx, this.dpr);
+    if (this.world3d) ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
+    else {
+      ctx.fillStyle = '#10140f';
+      ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
+    }
+    const worldDpr = this.world3d ? Battlefield3D.pixelRatio(this.dpr) : this.dpr;
+    camera.apply(ctx, worldDpr);
     // Blasts near the camera shake the view a little.
+    let shakeX = 0;
+    let shakeY = 0;
     if (this.effects.shake > 0.2) {
-      const s = this.effects.shake * this.dpr;
+      shakeX = (Math.random() - 0.5) * this.effects.shake;
+      shakeY = (Math.random() - 0.5) * this.effects.shake;
       const m = ctx.getTransform();
-      ctx.setTransform(m.a, m.b, m.c, m.d, m.e + (Math.random() - 0.5) * s, m.f + (Math.random() - 0.5) * s);
+      ctx.setTransform(m.a, m.b, m.c, m.d, m.e + shakeX * worldDpr, m.f + shakeY * worldDpr);
     }
 
-    this.terrain.sync();
-    const topLeft = camera.screenToWorld(0, 0);
-    const bottomRight = camera.screenToWorld(camera.viewW, camera.viewH);
-    this.terrain.drawSurround(ctx, topLeft.x - 32, topLeft.y - 32, bottomRight.x + 32, bottomRight.y + 32);
-    this.terrain.draw(ctx);
+    if (this.terrain) {
+      this.terrain.sync();
+      const topLeft = camera.screenToWorld(0, 0);
+      const bottomRight = camera.screenToWorld(camera.viewW, camera.viewH);
+      this.terrain.drawSurround(ctx, topLeft.x - 32, topLeft.y - 32, bottomRight.x + 32, bottomRight.y + 32);
+      this.terrain.draw(ctx);
+    }
     this.drawTerritory();
     this.drawPoints();
     this.effects.drawGround(ctx);
@@ -174,27 +224,40 @@ export class Renderer {
 
     this.drawProjectiles();
     // Tree crowns stand over the soldiers beneath them.
-    this.terrain.drawCanopy(ctx);
+    this.terrain?.drawCanopy(ctx);
     this.effects.drawAir(ctx);
-    if (!this.spectator) this.drawFog();
+    if (!this.spectator) {
+      this.updateFog();
+      // In 3D the fog lies over the whole scene, buildings and trees too.
+      if (!this.world3d) this.drawFog();
+    }
     this.drawOrders(ui);
     this.drawFaceDrag(ui);
     this.drawEngineering(ui);
     this.drawCursorPreview(ui);
 
-    ctx.setTransform(this.dpr, 0, 0, this.dpr, 0, 0);
+    if (this.world3d) {
+      this.world3d.syncStructures(visible.filter((s) => s.def.kind === 'structure'));
+      this.world3d.render(camera, dt, this.fogVersion, shakeX, shakeY);
+      // Screen-space markers go on the screen canvas, over the 3D view.
+      this.ctx = this.screenCtx;
+      this.screenCtx.setTransform(1, 0, 0, 1, 0, 0);
+      this.screenCtx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+    }
+    this.ctx.setTransform(this.dpr, 0, 0, this.dpr, 0, 0);
     this.drawGrade();
     for (const sq of visible) this.drawSquadHud(sq, ui);
     this.drawPointLabels();
-    this.effects.drawText(ctx, camera);
+    this.effects.drawText(this.ctx, camera);
     this.drawBuildCost(ui);
     if (ui.drag) {
       const { x0, y0, x1, y1 } = ui.drag;
-      ctx.strokeStyle = 'rgba(160,255,160,0.9)';
-      ctx.fillStyle = 'rgba(160,255,160,0.08)';
-      ctx.lineWidth = 1;
-      ctx.fillRect(Math.min(x0, x1), Math.min(y0, y1), Math.abs(x1 - x0), Math.abs(y1 - y0));
-      ctx.strokeRect(Math.min(x0, x1) + 0.5, Math.min(y0, y1) + 0.5, Math.abs(x1 - x0), Math.abs(y1 - y0));
+      const s = this.ctx;
+      s.strokeStyle = 'rgba(160,255,160,0.9)';
+      s.fillStyle = 'rgba(160,255,160,0.08)';
+      s.lineWidth = 1;
+      s.fillRect(Math.min(x0, x1), Math.min(y0, y1), Math.abs(x1 - x0), Math.abs(y1 - y0));
+      s.strokeRect(Math.min(x0, x1) + 0.5, Math.min(y0, y1) + 0.5, Math.abs(x1 - x0), Math.abs(y1 - y0));
     }
   }
 
@@ -377,8 +440,9 @@ export class Renderer {
     }
   }
 
-  private drawFog(): void {
-    const { world, ctx } = this;
+  /** Recompute the soft fog picture when what we can see has changed. */
+  private updateFog(): void {
+    const { world } = this;
     const v = world.vision;
     if (v.version !== this.fogVersion) {
       this.fogVersion = v.version;
@@ -392,13 +456,16 @@ export class Renderer {
       }
       this.fogCtx.putImageData(this.fogData, 0, 0);
       const soft = this.fogSoft;
-      soft.width = world.map.w * 4;
-      soft.height = world.map.h * 4;
       const sctx = soft.getContext('2d')!;
+      sctx.clearRect(0, 0, soft.width, soft.height);
       sctx.imageSmoothingEnabled = true;
       sctx.filter = 'blur(3px)';
       sctx.drawImage(this.fog, 0, 0, soft.width, soft.height);
     }
+  }
+
+  private drawFog(): void {
+    const { world, ctx } = this;
     ctx.imageSmoothingEnabled = true;
     ctx.drawImage(this.fogSoft, 0, 0, world.map.pixelWidth, world.map.pixelHeight);
   }
@@ -897,7 +964,8 @@ export class Renderer {
   }
 
   private drawStructure(sq: Squad, ui: UIState): void {
-    this.drawStructureShadow(sq);
+    // In 3D the building itself casts its shadow.
+    if (!this.world3d) this.drawStructureShadow(sq);
     if (sq.building === null) {
       this.drawStructureBody(sq, ui);
       return;
