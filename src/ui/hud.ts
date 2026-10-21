@@ -49,10 +49,18 @@ function callInIcon(c: CallInDef): string {
   return 'charge';
 }
 
-/** Order of the buttons in the 4 × 2 order grid; the shown ones fill it from the top-left. */
+/**
+ * Squares of the 4 × 3 order grid, the same for every unit: the top row is the
+ * orders every squad has, the middle row the engineers' build menus, the
+ * bottom row the unit's own abilities.
+ */
 const ORDER_SLOT: Record<string, number> = {
-  attack: 0, stop: 1, retreat: 2, reinforce: 3, setup: 4, repair: 4, grenade: 4, barrage: 5, build: 5, base: 6, back: 7, rally: 7,
+  attack: 0, stop: 1, reinforce: 2, retreat: 3,
+  base: 4, build: 5,
+  repair: 8, setup: 8, grenade: 9, barrage: 10, back: 11, rally: 11,
 };
+/** Squares in the order grid. */
+const GRID_SQUARES = 12;
 /** Order of the recruit buttons, by kind of unit (a doctrine's unit comes after them). */
 const UNIT_SLOT: Record<string, number> = { line: 0, engineer: 1, mg: 2, mortar: 3, at: 4, tank: 5 };
 
@@ -62,7 +70,7 @@ function placeInSlot(node: HTMLElement, slot: number): void {
   node.style.gridRow = String(Math.floor(slot / 4) + 1);
 }
 
-/** Fill a grid's shown buttons from the top-left square, keeping their usual order. */
+/** Fill a grid's shown buttons from the top-left square, keeping their usual order (the recruit menu). */
 function packGrid(grid: HTMLElement): void {
   const shown = [...grid.querySelectorAll<HTMLElement>('.cmd')].filter((n) => n.style.display !== 'none');
   shown.sort((a, b) => Number(a.dataset.slot) - Number(b.dataset.slot));
@@ -159,6 +167,11 @@ export class Hud {
   private cpText: HTMLElement | null = null;
   /** The HQ's production queue: three slots beside the orders. */
   private readonly queueSlots: HTMLElement[] = [];
+  /** Upgrades for the selected unit, beside its card. */
+  private readonly upgradePanel = el('div', { class: 'panel upgrade-panel' });
+  /** Headquarters and tier buildings, as tabs over the order grid. */
+  private readonly buildingTabs = el('div', { class: 'building-tabs' });
+  private readonly buildingTabNodes: { node: HTMLButtonElement; find: () => Squad | undefined }[] = [];
   private readonly toasts: HTMLElement;
   private readonly tooltip: HTMLElement;
   private tipSource: { node: HTMLElement; get: () => Tip } | null = null;
@@ -230,9 +243,9 @@ export class Hud {
     this.unitPanel = el('div', { class: 'unit-panel' });
     this.orderGrid = el('div', { class: 'cmd-grid' });
     this.buildGrid = el('div', { class: 'cmd-grid build' });
-    // The eight squares are always there, so buttons never shift about.
+    // The squares are always there, so buttons never shift about.
     for (const grid of [this.orderGrid, this.buildGrid]) {
-      for (let i = 0; i < 8; i++) {
+      for (let i = 0; i < GRID_SQUARES; i++) {
         const square = el('div', { class: 'cmd-slot' });
         placeInSlot(square, i);
         grid.append(square);
@@ -245,17 +258,20 @@ export class Hud {
     this.rallyButton();
     const queue = el('div', { class: 'panel queue-panel' });
     for (let i = 0; i < ECONOMY.maxQueue; i++) queue.append(this.queueSlot(i));
+    this.buildBuildingTabs();
 
     const bottom = el(
       'div',
       { class: 'bottombar' },
       el('div', { class: 'panel minimap-panel' }, minimap.canvas),
       el('div', { class: 'panel unit-card' }, this.unitPanel),
+      this.upgradePanel,
       queue,
       el('div', { class: 'panel resources' }, mpBox, muBox, fuBox, popBox),
       el(
         'div',
         { class: 'panel command-card' },
+        this.buildingTabs,
         this.orderGrid,
         this.buildGrid,
       ),
@@ -430,7 +446,7 @@ export class Hud {
       });
     }
     for (const page of ['defense', 'base'] as const) {
-      const back = this.gridButton(this.orderGrid, 'back', 'Back', 'Esc', () => (this.ui.buildMenu = false), 7);
+      const back = this.gridButton(this.orderGrid, 'back', 'Back', 'Esc', () => (this.ui.buildMenu = false), 11);
       this.tip(back, () => ({ title: 'Back', body: 'Close this menu.', key: 'Esc' }));
       this.orders.push({ buildPage: page, node: back, refresh: () => {} });
     }
@@ -454,7 +470,7 @@ export class Hud {
         }
         return null;
       };
-      const node = this.gridButton(this.orderGrid, 'upgrade', 'Upgrade', hotkey, () => this.input.upgrade(hotkey), hotkey === 'T' ? 6 : 7);
+      const node = this.gridButton(this.upgradePanel, 'upgrade', 'Upgrade', hotkey, () => this.input.upgrade(hotkey), 0);
       node.classList.add('upgrade');
       this.tip(node, () => {
         const o = offer(this.input.selectedOwn());
@@ -492,6 +508,45 @@ Buy near headquarters or a supplied friendly point. Arrives in ${o.def.time}s. O
           node.disabled = !open || !unlocked || !canAfford(this.world.teams[this.player].resources, o.def.cost);
         },
       });
+    }
+  }
+
+  /** Tabs over the order grid for the headquarters and each tier building: click to select it and recruit there. */
+  private buildBuildingTabs(): void {
+    const team = this.world.teams[this.player];
+    const prefix = team.faction.id === 'ija' ? 'ija_' : 'us_';
+    const ids = [`${prefix}hq`, ...Object.keys(UNITS).filter((u) => UNITS[u].role === 'tech' && u.startsWith(prefix)).sort()];
+    for (const id of ids) {
+      const def = UNITS[id];
+      const glyph = def.role === 'hq' ? 'hq' : `tech${id.slice(-1)}`;
+      const node = el('button', { class: 'btab' }, icon(glyph, 'ico'));
+      const find = () =>
+        def.role === 'hq'
+          ? this.world.hqOf(this.player)
+          : this.world.squads.find((s) => !s.dead && s.team === this.player && s.def.id === id && s.building === null);
+      node.addEventListener('click', () => {
+        const sq = find();
+        if (sq) this.input.select([sq.id]);
+      });
+      node.addEventListener('dblclick', () => this.input.centerOnSelection());
+      this.tip(node, () => {
+        const sq = find();
+        return sq
+          ? { title: def.name, body: 'Click to select it and recruit its units; double-click to go there.' }
+          : { title: def.name, warn: 'Not built yet: engineers raise it from the Base menu (W).' };
+      });
+      this.buildingTabNodes.push({ node, find });
+      this.buildingTabs.append(node);
+    }
+  }
+
+  private renderBuildingTabs(): void {
+    const selected = new Set(this.input.selectedOwn().map((s) => s.id));
+    for (const { node, find } of this.buildingTabNodes) {
+      const sq = find();
+      node.classList.toggle('built', !!sq);
+      node.classList.toggle('active', !!sq && selected.has(sq.id));
+      node.disabled = !sq;
     }
   }
 
@@ -685,8 +740,11 @@ ${d.description}` }));
       b.node.disabled = !open || !canAfford(r, UNITS[b.id].cost);
     }
     this.rallyNode?.classList.toggle('active', this.ui.mode.kind === 'rally');
-    packGrid(this.orderGrid);
+    // The order grid keeps its fixed squares; the recruit menu fills from the top-left.
     packGrid(this.buildGrid);
+    // The upgrade column only when the selection has something to upgrade.
+    this.upgradePanel.style.display = [...this.upgradePanel.querySelectorAll<HTMLElement>('.cmd')].some((n) => n.style.display !== 'none') ? '' : 'none';
+    this.renderBuildingTabs();
     this.renderDoctrine();
     this.renderQueue();
     this.renderRoster();
