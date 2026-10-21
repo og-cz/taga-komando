@@ -158,6 +158,32 @@ export interface CallInDef {
 }
 
 /** A doctrine: the army's way of fighting, with its own unit, call-ins and colours. */
+/** How a commander's portrait is drawn. */
+export interface PortraitLook {
+  skin: string;
+  hair: 'short' | 'slick' | 'peak' | 'shaved' | 'topknot';
+  hairColor?: string;
+  moustache?: 'thin' | 'brush' | 'handlebar';
+  hat?: { kind: 'peaked' | 'field'; color: string; band?: string };
+  dress: 'tunic' | 'lapel' | 'camisa' | 'kimono' | 'naval' | 'jacket';
+  cloth: string;
+  /** Shoulder boards or collar tabs. */
+  boards?: string;
+  scarf?: string;
+  medals?: boolean;
+  sash?: boolean;
+  /** A broad, heavy face. */
+  heavy?: boolean;
+}
+
+/** The commander a doctrine is named after or led by. */
+export interface CommanderDef {
+  /** Rank or title, e.g. "Heneral", "Taishō". */
+  title: string;
+  name: string;
+  look: PortraitLook;
+}
+
 export interface DoctrineDef {
   id: string;
   faction: string;
@@ -171,6 +197,7 @@ export interface DoctrineDef {
   emblem: 'sun' | 'star' | 'k' | 'shield' | 'wings' | 'leaf';
   /** The special unit the doctrine adds. */
   unit: string;
+  commander: CommanderDef;
   callIns: readonly CallInDef[];
 }
 
