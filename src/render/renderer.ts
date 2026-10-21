@@ -94,6 +94,8 @@ export class Renderer {
   private readonly fog: HTMLCanvasElement;
   private readonly fogCtx: CanvasRenderingContext2D;
   private readonly fogData: ImageData;
+  /** The fog, enlarged and blurred once per change so its edge is soft. */
+  private readonly fogSoft = document.createElement('canvas');
   private fogVersion = -1;
   private readonly territoryCanvas: HTMLCanvasElement;
   private territoryVersion = -1;
@@ -388,9 +390,16 @@ export class Renderer {
         d[i * 4 + 3] = vis[i] ? 0 : 165;
       }
       this.fogCtx.putImageData(this.fogData, 0, 0);
+      const soft = this.fogSoft;
+      soft.width = world.map.w * 4;
+      soft.height = world.map.h * 4;
+      const sctx = soft.getContext('2d')!;
+      sctx.imageSmoothingEnabled = true;
+      sctx.filter = 'blur(3px)';
+      sctx.drawImage(this.fog, 0, 0, soft.width, soft.height);
     }
     ctx.imageSmoothingEnabled = true;
-    ctx.drawImage(this.fog, 0, 0, world.map.pixelWidth, world.map.pixelHeight);
+    ctx.drawImage(this.fogSoft, 0, 0, world.map.pixelWidth, world.map.pixelHeight);
   }
 
   // ─── Units ────────────────────────────────────────────────────
@@ -672,9 +681,16 @@ export class Renderer {
       ctx.ellipse(0, 0, L * 0.7, L * 0.55, sq.heading, 0, Math.PI * 2);
       ctx.stroke();
     }
+    // The hull's shadow falls to the bottom-right, whichever way it faces.
+    ctx.save();
+    ctx.translate(5, 5);
     ctx.rotate(sq.heading);
-    ctx.fillStyle = 'rgba(0,0,0,0.3)';
-    ctx.fillRect(-L / 2 + 2, -W / 2 + 2, L, W);
+    ctx.fillStyle = 'rgba(8,10,5,0.38)';
+    ctx.beginPath();
+    ctx.roundRect(-L / 2 - 1, -W / 2 - 1, L + 2, W + 2, 3);
+    ctx.fill();
+    ctx.restore();
+    ctx.rotate(sq.heading);
     // Track prints every few paces while it drives.
     const lastTrack = this.tracks.get(sq.id);
     if (!lastTrack || Math.hypot(sq.pos.x - lastTrack.x, sq.pos.y - lastTrack.y) > 7) {
@@ -826,6 +842,7 @@ export class Renderer {
   }
 
   private drawStructure(sq: Squad, ui: UIState): void {
+    this.drawStructureShadow(sq);
     if (sq.building === null) {
       this.drawStructureBody(sq, ui);
       return;
@@ -835,6 +852,35 @@ export class Renderer {
     this.drawStructureBody(sq, ui);
     this.ctx.globalAlpha = 1;
     this.drawScaffold(sq);
+  }
+
+  /** A building's shadow on the ground, to the bottom-right, in two soft layers. */
+  private drawStructureShadow(sq: Squad): void {
+    const { ctx } = this;
+    let x0: number;
+    let y0: number;
+    let w: number;
+    let h: number;
+    if (sq.footprint.length) {
+      x0 = Math.min(...sq.footprint.map((f) => f.tx)) * TILE;
+      y0 = Math.min(...sq.footprint.map((f) => f.ty)) * TILE;
+      w = (Math.max(...sq.footprint.map((f) => f.tx)) + 1) * TILE - x0;
+      h = (Math.max(...sq.footprint.map((f) => f.ty)) + 1) * TILE - y0;
+    } else {
+      const r = sq.def.role === 'hq' ? sq.def.radius * 1.15 : sq.def.radius;
+      x0 = sq.pos.x - r;
+      y0 = sq.pos.y - r;
+      w = h = r * 2;
+    }
+    const lift = (sq.building === null ? 1 : 0.4) * (sq.def.role === 'hq' || sq.def.role === 'tech' ? 9 : 5);
+    ctx.fillStyle = 'rgba(8,10,5,0.2)';
+    ctx.beginPath();
+    ctx.roundRect(x0 + lift - 1, y0 + lift - 1, w + 2, h + 2, 4);
+    ctx.fill();
+    ctx.fillStyle = 'rgba(8,10,5,0.25)';
+    ctx.beginPath();
+    ctx.roundRect(x0 + lift + 1, y0 + lift + 1, w - 2, h - 2, 3);
+    ctx.fill();
   }
 
   /** Poles and braces round a building that is still going up, and how far along it is. */
