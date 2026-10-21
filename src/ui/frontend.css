@@ -1334,3 +1334,349 @@ body.cinematic #game {
   text-transform: uppercase;
   color: var(--fe-ink);
 }
+
+/* ═══ Field gear for the menus ═══════════════════════════════════════
+   The same materials as the battle HUD (tokens in styles.css): olive steel
+   plates and switches, paper for maps, orders and dossiers. */
+
+/* Main menu: Quiapo for the big choices, a steel plate for the details. */
+.menu-item.major .menu-item-label {
+  font: 400 40px/1.05 var(--fe-display);
+  letter-spacing: 0.04em;
+  color: var(--cream-dim);
+  text-shadow: 0 3px 0 rgba(0, 0, 0, 0.65);
+}
+
+.menu-item.minor .menu-item-label {
+  font: 700 15px var(--type);
+  letter-spacing: 0.12em;
+  color: var(--cream-dim);
+}
+
+.menu-item.active .menu-item-label,
+.menu-item:hover .menu-item-label {
+  color: var(--cream);
+}
+
+.menu-item::before {
+  background: var(--amber);
+}
+
+.menu-info {
+  background: var(--steel);
+  border: 1px solid var(--edge);
+  border-left: 3px solid var(--amber);
+  border-radius: 4px;
+  box-shadow: var(--bevel), 0 10px 30px rgba(0, 0, 0, 0.6);
+}
+
+.menu-info-title {
+  font: 400 26px var(--fe-display);
+  color: var(--amber-hi);
+}
+
+.menu-info-text {
+  font: 700 13px/1.5 var(--type);
+  color: var(--cream);
+}
+
+.menu-version {
+  font-family: var(--type);
+}
+
+/* Screen headers: a steel bar, a steel back switch. */
+.screen-head {
+  background: var(--steel);
+  border-bottom: 1px solid var(--edge);
+  box-shadow: inset 0 -1px 0 var(--od-hi), 0 6px 20px rgba(0, 0, 0, 0.5);
+}
+
+.screen-sub {
+  font-family: var(--type);
+  font-weight: 700;
+  color: var(--cream-dim);
+}
+
+.back-btn,
+.secondary {
+  font: 400 17px var(--fe-display);
+  letter-spacing: 0.06em;
+  color: var(--cream);
+  background: var(--steel-raised);
+  border: 1px solid var(--edge);
+  border-radius: 4px;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 230, 0.2), inset 0 -3px 0 rgba(0, 0, 0, 0.4), 0 2px 0 var(--edge);
+}
+
+.back-btn:hover,
+.secondary:hover {
+  color: var(--amber-hi);
+  border-color: var(--edge);
+}
+
+.panel-glass {
+  background: var(--steel);
+  border: 1px solid var(--edge);
+  border-top: 1px solid var(--edge);
+  border-radius: 4px;
+  box-shadow: var(--bevel), 0 10px 30px rgba(0, 0, 0, 0.55);
+}
+
+.panel-glass h2,
+.detail-pane .row h3 {
+  font-family: var(--fe-display);
+  font-weight: 400;
+  letter-spacing: 0.06em;
+  color: var(--cream);
+}
+
+/* The big go button: red-painted steel. */
+.deploy {
+  font: 400 22px var(--fe-display);
+  letter-spacing: 0.08em;
+  color: #fff1d8;
+  background: var(--grain), linear-gradient(180deg, #a0352a 0%, #7a2219 60%, #5a1912 100%);
+  border: 1px solid var(--edge);
+  border-radius: 4px;
+  box-shadow: inset 0 1px 0 rgba(255, 220, 200, 0.3), inset 0 -3px 0 rgba(0, 0, 0, 0.4), 0 2px 0 var(--edge), 0 4px 12px rgba(0, 0, 0, 0.5);
+  text-shadow: 0 2px 0 rgba(0, 0, 0, 0.5);
+}
+
+.deploy:not(:disabled):hover {
+  background: var(--grain), linear-gradient(180deg, #b8402f 0%, #8a281d 60%, #651c14 100%);
+}
+
+.pill {
+  font-family: var(--type);
+  font-weight: 700;
+  color: var(--cream);
+  background: var(--steel-raised);
+  border: 1px solid var(--edge);
+  border-radius: 3px;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 230, 0.16), inset 0 -2px 0 rgba(0, 0, 0, 0.4);
+}
+
+.pill.picked {
+  color: var(--amber-hi);
+  background: var(--grain), radial-gradient(circle, #4b4e3c, #2b2d22);
+  border-color: var(--edge);
+  box-shadow: inset 0 3px 6px rgba(0, 0, 0, 0.7), 0 0 0 1px var(--amber);
+}
+
+/* Campaign: each mission a riveted steel plate. */
+.tl-chapter {
+  font-family: var(--type);
+  font-weight: 700;
+  color: var(--amber);
+}
+
+.tl-item {
+  background:
+    radial-gradient(circle at 8px 8px, #8b8e74 0 1px, #2c2e22 1.4px 2.2px, transparent 2.5px),
+    radial-gradient(circle at calc(100% - 8px) 8px, #8b8e74 0 1px, #2c2e22 1.4px 2.2px, transparent 2.5px),
+    var(--steel-raised);
+  border: 1px solid var(--edge);
+  border-radius: 4px;
+  box-shadow: var(--bevel), 0 3px 8px rgba(0, 0, 0, 0.5);
+}
+
+.tl-item:hover {
+  background:
+    radial-gradient(circle at 8px 8px, #8b8e74 0 1px, #2c2e22 1.4px 2.2px, transparent 2.5px),
+    radial-gradient(circle at calc(100% - 8px) 8px, #8b8e74 0 1px, #2c2e22 1.4px 2.2px, transparent 2.5px),
+    var(--grain), linear-gradient(180deg, #666a53, #45483a 55%, #303226);
+}
+
+.tl-item.picked,
+.tl-item.selected,
+.tl-item[aria-current='true'] {
+  outline: 2px solid var(--amber);
+  outline-offset: -1px;
+}
+
+.tl-date {
+  font-family: var(--type);
+  font-weight: 700;
+  color: var(--amber);
+}
+
+.tl-name {
+  font-family: var(--fe-display);
+  font-weight: 400;
+  letter-spacing: 0.04em;
+  color: var(--cream);
+}
+
+.tl-tag {
+  font-family: var(--type);
+  color: var(--cream-dim);
+}
+
+/* Map previews: a recon print with a white border, a little lifted. */
+.thumb {
+  border: 5px solid #e6dcc2;
+  box-shadow: 0 0 0 1px var(--edge), 0 6px 16px rgba(0, 0, 0, 0.6);
+}
+
+.detail-loc,
+.detail-meta {
+  font-family: var(--type);
+  font-weight: 700;
+}
+
+.detail-title {
+  font-family: var(--fe-display) !important;
+  font-weight: 400 !important;
+  letter-spacing: 0.04em;
+  color: var(--cream);
+  text-shadow: 0 3px 0 rgba(0, 0, 0, 0.6);
+}
+
+.mission-parts > * {
+  background: var(--well);
+  border: 1px solid var(--edge);
+  border-radius: 3px;
+  box-shadow: var(--sunk);
+}
+
+.mp-no,
+.mp-tag,
+.mp-state {
+  font-family: var(--type);
+  font-weight: 700;
+}
+
+/* Orders typed on a sheet of paper. */
+.briefing-paper {
+  margin: 12px 0;
+  padding: 14px 18px 12px;
+  color: var(--paper-ink);
+  background:
+    var(--grain),
+    radial-gradient(circle at 90% 20%, rgba(140, 100, 40, 0.18), transparent 45%),
+    radial-gradient(circle at 10% 90%, rgba(140, 100, 40, 0.14), transparent 40%),
+    linear-gradient(180deg, #e8ddc1, #d3c59f);
+  border-radius: 2px;
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.55);
+  transform: rotate(-0.25deg);
+}
+
+.briefing-paper .detail-sub {
+  margin: 0 0 6px;
+  font: 700 15px var(--type);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: #1f1a10;
+}
+
+.briefing-paper .detail-text {
+  font: 700 13px/1.5 var(--type);
+  color: #2e2717;
+}
+
+.briefing-paper .briefing-obj li {
+  font: 700 13px var(--type);
+  color: #1f1a10;
+}
+
+.briefing-paper .briefing-obj li::before {
+  border-color: #1f1a10;
+}
+
+/* The pre-battle briefing: a typed order on paper. */
+.briefing-box {
+  padding: 30px 36px;
+  color: var(--paper-ink);
+  background:
+    var(--grain),
+    radial-gradient(circle at 85% 15%, rgba(140, 100, 40, 0.2), transparent 45%),
+    linear-gradient(180deg, #e8ddc1, #d0c19a);
+  border-radius: 2px;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.7);
+}
+
+.briefing-kicker,
+.briefing-obj-title {
+  font-family: var(--type);
+  font-weight: 700;
+  color: #7a2a1a;
+}
+
+.briefing-title {
+  color: #1f1a10;
+  text-shadow: none;
+}
+
+.briefing-text,
+.briefing-box .briefing-obj li {
+  font: 700 14px/1.55 var(--type);
+  color: #2e2717;
+}
+
+/* Theater of war and skirmish cards: steel plates. */
+.tow-card,
+.map-tile,
+.map-card {
+  background: var(--steel-raised);
+  border: 1px solid var(--edge);
+  border-radius: 4px;
+  box-shadow: var(--bevel), 0 3px 8px rgba(0, 0, 0, 0.5);
+}
+
+.tow-card.picked,
+.map-tile.picked {
+  outline: 2px solid var(--amber);
+  outline-offset: -1px;
+}
+
+.tow-desc,
+.map-info {
+  font-family: var(--type);
+}
+
+/* End of battle and pause: steel plates. */
+.end-box,
+.menu-box {
+  background: var(--steel);
+  border: 1px solid var(--edge);
+  border-radius: 6px;
+  box-shadow: var(--bevel), 0 20px 60px rgba(0, 0, 0, 0.7);
+}
+
+.end-btn {
+  font: 400 18px var(--fe-display);
+  color: var(--cream);
+  background: var(--steel-raised);
+  border: 1px solid var(--edge);
+  border-radius: 4px;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 230, 0.2), inset 0 -3px 0 rgba(0, 0, 0, 0.4), 0 2px 0 var(--edge);
+}
+
+.end-btn:hover {
+  color: var(--amber-hi);
+}
+
+.end-reason,
+.end-time,
+.es-label {
+  font-family: var(--type);
+  font-weight: 700;
+}
+
+.objective-panel {
+  background: var(--steel);
+  border: 1px solid var(--edge);
+  border-radius: 0 0 6px 6px;
+  box-shadow: var(--bevel), 0 4px 14px rgba(0, 0, 0, 0.55);
+}
+
+.obj-detail {
+  font-family: var(--type);
+  font-weight: 700;
+}
+
+.detail-thumb {
+  background: var(--well);
+  border-radius: 3px;
+  box-shadow: var(--sunk);
+}
