@@ -121,8 +121,14 @@ if (devBattle) {
   play({ faction: side, enemyFaction: side === 'ija' ? 'usaffe' : 'ija', map: devBattle, difficulty: 'normal', win: 'points' }, { kind: 'skirmish' });
   devSetup();
 } else {
+  // Development only: ?screen=menu|campaign|skirmish|theater skips the intro.
+  const screen = import.meta.env.DEV ? new URLSearchParams(location.search).get('screen') : null;
   cinematic(true);
-  playIntro(layer, mainMenu);
+  if (screen === 'campaign') campaign();
+  else if (screen === 'theater') theater();
+  else if (screen === 'skirmish') showSkirmish(layer, (setup) => play(setup, { kind: 'skirmish' }), mainMenu);
+  else if (screen === 'menu') mainMenu();
+  else playIntro(layer, mainMenu);
 }
 
 interface DevGame {
