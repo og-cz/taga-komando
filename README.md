@@ -107,7 +107,7 @@ How the mission types work:
 - Every battle starts with **one engineer squad**. Headquarters recruits **riflemen and engineers** from the start.
 - Engineers raise **tier buildings** from the **Base** menu (**W**), one of each:
   - **Tier 1 · Support Command** (150 MP, 15 FU): machine gun and mortar teams, BAR / light MG upgrade.
-  - **Tier 2 · Anti-Tank Command** (180 MP, 40 FU, needs Tier 1): bazooka / AT rifle teams, anti-tank rifle upgrade.
+  - **Tier 2 · Anti-Tank Command** (180 MP, 40 FU, needs Tier 1): towed anti-tank guns, bazooka and anti-tank rifle upgrades.
   - **Tier 3 · Motor Pool** (200 MP, 80 FU, needs Tier 2): tanks.
 - Select a tier building to recruit its units right there (they come out of its door); headquarters can recruit anything unlocked. Lose a tier building and its units can't be recruited until it is rebuilt. Defense and assault missions start with everything unlocked.
 - Squads reinforce only **close to a base**: headquarters, a tier building or a bunker. The new soldiers walk out of that base to join them.
@@ -161,7 +161,7 @@ How the mission types work:
 | Engineers | Inhinyero ng Maharlika | Teikoku Kōhei |
 | Machine gun | Ametralyadora ng Maharlika | Teikoku Kikanjū-han |
 | Mortar | Mortero ng Maharlika | Teikoku Hakugeki-han |
-| Anti-tank | Pangontra-Tangke ng Maharlika | Teikoku Taisensha-han |
+| Anti-tank gun | Pangontra-Tangke ng Maharlika: towed 37mm gun | Teikoku Taisensha-han: Type 94 37mm gun |
 | Tank | Tangke Tamaraw | Teikoku Sensha Chi-Ha |
 
 ### Doctrines
@@ -172,7 +172,7 @@ Each army chooses one doctrine per battle. It adds a special unit and two comman
 | --- | --- | --- | --- |
 | Hukbo ni Heneral Luna (Heneral Antonio Luna) | Kirikomi Butai (Homma Masaharu) | Lightning assault | Shock infantry with submachine guns |
 | Katipunan (Andrés Bonifacio) | Kokumin Giyūtai (Saigō Takamori) | People’s army | 10-man militia with blades and old rifles |
-| Tanggulang Bayan (Vicente Lim) | Bōgyo Jinchi (Yamashita Tomoyuki) | Defence in depth | Anti-tank gun team |
+| Tanggulang Bayan (Vicente Lim) | Bōgyo Jinchi (Yamashita Tomoyuki) | Defence in depth | Heavy 57mm anti-tank gun |
 | Hukbong Himpapawid (Jesús Villamor) | Teishin Shūdan (Yamamoto Isoroku) | Airborne | Paratroopers (also dropped by call-in) |
 | Gerilya (Miguel Malvar) | Yūgeki-tai (Sakamoto Ryōma) | Guerrilla war | Camouflaged infiltrators |
 
