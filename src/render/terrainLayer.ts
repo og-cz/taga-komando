@@ -76,7 +76,7 @@ const ROOFS: { base: RGB; wall: RGB }[] = [
   { base: [112, 100, 88], wall: [92, 76, 58] },
 ];
 
-interface Tree {
+export interface Tree {
   x: number;
   y: number;
   r: number;
@@ -99,16 +99,32 @@ export class TerrainLayer {
   readonly canopy: HTMLCanvasElement;
   private readonly cctx: CanvasRenderingContext2D;
   private surround: HTMLCanvasElement | null = null;
+  /** How far past the map edge the surround reaches (world units). */
+  static readonly SURROUND_MARGIN = SURROUND_MARGIN;
+
+  /** The land beyond the battlefield, built on first use. */
+  surroundCanvas(): HTMLCanvasElement {
+    this.surround ??= this.buildSurround();
+    return this.surround;
+  }
   private roofLabel = new Int32Array(0);
 
-  constructor(private readonly map: GameMap) {
+  /**
+   * `flat3d`: paint only what lies flat on the ground (soil, roads, paddies,
+   * craters) plus roofing colour, for the 3D battlefield to lay over its terrain
+   * and roofs; walls, props, trees, shadows and light come from the 3D scene.
+   */
+  constructor(
+    private readonly map: GameMap,
+    readonly flat3d = false,
+  ) {
     this.canvas = document.createElement('canvas');
     this.canvas.width = map.w * PX;
     this.canvas.height = map.h * PX;
     this.ctx = this.canvas.getContext('2d')!;
     this.canopy = document.createElement('canvas');
-    this.canopy.width = map.w * PX;
-    this.canopy.height = map.h * PX;
+    this.canopy.width = flat3d ? 1 : map.w * PX;
+    this.canopy.height = flat3d ? 1 : map.h * PX;
     this.cctx = this.canopy.getContext('2d')!;
     this.paint(0, 0, map.w - 1, map.h - 1);
   }
@@ -231,11 +247,15 @@ export class TerrainLayer {
     const ax1 = Math.min(this.map.w - 1, tx1 + 1);
     const ay1 = Math.min(this.map.h - 1, ty1 + 1);
     for (let ty = ay0; ty <= ay1; ty++) for (let tx = ax0; tx <= ax1; tx++) this.groundDetail(tx, ty);
-    this.paintShadows(ax0, ay0, ax1, ay1);
-    for (let ty = ay0; ty <= ay1; ty++) for (let tx = ax0; tx <= ax1; tx++) this.lowObject(tx, ty);
+    if (this.flat3d) this.paintContact(ax0, ay0, ax1, ay1);
+    else {
+      this.paintShadows(ax0, ay0, ax1, ay1);
+      for (let ty = ay0; ty <= ay1; ty++) for (let tx = ax0; tx <= ax1; tx++) this.lowObject(tx, ty);
+    }
     this.paintRoofs(tx0, ty0, tx1, ty1);
     c.restore();
 
+    if (this.flat3d) return;
     const cc = this.cctx;
     cc.save();
     cc.clearRect(x, y, w, h);
@@ -647,6 +667,33 @@ export class TerrainLayer {
     }
   }
 
+  /** Soft contact shading where walls, sandbags and buildings meet the ground (3D mode). */
+  private paintContact(tx0: number, ty0: number, tx1: number, ty1: number): void {
+    const c = this.ctx;
+    const path = new Path2D();
+    for (let ty = ty0; ty <= ty1; ty++) {
+      for (let tx = tx0; tx <= tx1; tx++) {
+        const t = this.map.get(tx, ty);
+        if (t === T.Building || t === T.Rampart) path.rect(tx * PX - 3, ty * PX - 3, PX + 6, PX + 6);
+        else if (t === T.Wall || t === T.Sandbag) path.rect(tx * PX + 4, ty * PX + 4, PX - 8, PX - 8);
+        for (const tree of this.treesOf(tx, ty)) {
+          path.moveTo(tree.x + tree.r * 0.45, tree.y);
+          path.arc(tree.x, tree.y, tree.r * 0.45, 0, Math.PI * 2);
+        }
+      }
+    }
+    c.save();
+    c.filter = 'blur(5px)';
+    c.fillStyle = 'rgba(10,12,6,0.42)';
+    c.fill(path);
+    c.restore();
+  }
+
+  /** Which roofing a building tile has: 0 clay tile, 1 nipa thatch, 2 corrugated iron. */
+  roofMaterial(tx: number, ty: number): number {
+    return Math.floor(hash2(this.roofLabel[ty * this.map.w + tx], 7) * ROOFS.length);
+  }
+
   /** Each building gets one roofing, chosen by its lowest tile so it never flickers when repainted. */
   private labelRoofs(): void {
     const { map } = this;
@@ -705,7 +752,7 @@ export class TerrainLayer {
         for (let py = 0; py < PX; py++) {
           for (let px = 0; px < PX; px++) {
             const i = (ty * PX + py - oy) * PW + (tx * PX + px - ox);
-            kind[i] = below && py >= PX - WALL ? 1 : right && px >= PX - 3 ? 2 : 0;
+            kind[i] = this.flat3d ? 0 : below && py >= PX - WALL ? 1 : right && px >= PX - 3 ? 2 : 0;
             dist[i] = kind[i] === 0 ? 1e9 : 0;
           }
         }
@@ -776,13 +823,15 @@ export class TerrainLayer {
           // Downhill direction: which way this bit of roof faces.
           const nx = len > 0 ? -gxd / len : 0;
           const ny = len > 0 ? -gyd / len : 0;
-          if (h >= CAP - 0.5) k = 0.96;
+          // In 3D the scene lights the slopes itself; only the roofing pattern is painted.
+          if (this.flat3d) k = mat === 2 ? 0.85 : 0.78;
+          else if (h >= CAP - 0.5) k = 0.96;
           else {
             const lit = (nx + ny) * -0.7071;
             k = 0.88 + lit * 0.38;
             if (len < 1.2) k *= 0.8;
           }
-          if (h < 2.2) k *= 0.7;
+          if (h < 2.2 && !this.flat3d) k *= 0.7;
           const along = gx * nx + gy * ny;
           const across = -gx * ny + gy * nx;
           const n = noise(gx / 3, gy / 3, 8);
@@ -820,7 +869,7 @@ export class TerrainLayer {
   // ─── Trees ─────────────────────────────────────────────────────
 
   /** The trees growing on a tile: thick in the jungle, a few palms and banana plants elsewhere. */
-  private treesOf(tx: number, ty: number): Tree[] {
+  treesOf(tx: number, ty: number): Tree[] {
     const t = this.map.get(tx, ty);
     const h = (i: number) => hash2(tx, ty, 100 + i);
     const out: Tree[] = [];
