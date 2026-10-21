@@ -188,7 +188,7 @@ button:disabled {
   flex-direction: column;
   align-items: flex-end;
   gap: 6px;
-  max-height: calc(100vh - 175px);
+  max-height: calc(100vh - 181px);
   pointer-events: none !important;
 }
 
@@ -1379,4 +1379,276 @@ button:disabled {
 
 .dc-line b {
   color: var(--accent);
+}
+
+/* ─── Field-desk skin ─────────────────────────────── */
+/* Blackened iron plates edged in worn brass and studded with rivets; the
+   map on parchment, the selected unit in a framed plate. Layout above is
+   unchanged; this only dresses it. */
+
+:root {
+  --brass: #a8873f;
+  --brass-hi: #e6c97c;
+  --brass-lo: #4f3d1a;
+  --iron: #1b1a15;
+  --iron-hi: #2c2a22;
+  --plate: linear-gradient(180deg, #2a2820 0%, #1a1914 55%, #121109 100%);
+  --plate-edge: #5a4720;
+  --plate-hi: #c9a75a;
+  /* Four rivets, one per corner. */
+  --rivets:
+    radial-gradient(circle at 6px 6px, #e6c97c 0 1.4px, #6b5424 1.6px 2.6px, transparent 2.8px),
+    radial-gradient(circle at calc(100% - 6px) 6px, #e6c97c 0 1.4px, #6b5424 1.6px 2.6px, transparent 2.8px),
+    radial-gradient(circle at 6px calc(100% - 6px), #e6c97c 0 1.4px, #6b5424 1.6px 2.6px, transparent 2.8px),
+    radial-gradient(circle at calc(100% - 6px) calc(100% - 6px), #e6c97c 0 1.4px, #6b5424 1.6px 2.6px, transparent 2.8px);
+}
+
+/* One continuous desk along the bottom, brass rail on top. */
+.bottombar {
+  height: 156px;
+  gap: 6px;
+  padding: 9px 8px 7px;
+  pointer-events: auto !important;
+  background:
+    repeating-linear-gradient(90deg, rgba(255, 255, 255, 0.012) 0 2px, transparent 2px 5px),
+    linear-gradient(180deg, #2b2519 0%, #1c1810 40%, #100d08 100%);
+  border-top: 3px solid var(--brass);
+  box-shadow: 0 -1px 0 var(--brass-hi), 0 -1px 0 4px rgba(0, 0, 0, 0.55), 0 -10px 30px rgba(0, 0, 0, 0.55), inset 0 2px 0 var(--brass-lo);
+}
+
+.panel {
+  position: relative;
+  padding: 8px;
+  background: var(--rivets), var(--plate);
+  border: 2px solid var(--brass-lo);
+  border-top-color: var(--brass);
+  border-bottom-color: #2e240f;
+  border-radius: 3px;
+  box-shadow: inset 0 0 0 1px rgba(230, 201, 124, 0.12), inset 0 10px 22px rgba(0, 0, 0, 0.4), 0 2px 6px rgba(0, 0, 0, 0.6);
+}
+
+/* The map, inked on old parchment, with its tab. */
+.minimap-panel {
+  padding: 18px 6px 6px;
+  background: var(--rivets), linear-gradient(180deg, #3a3021, #211a10);
+}
+
+.minimap-panel::before {
+  position: absolute;
+  top: 2px;
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 0 14px;
+  font: 400 13px/14px 'Quiapo', var(--display);
+  letter-spacing: 0.12em;
+  color: var(--brass-hi);
+  content: 'MAPA';
+}
+
+.minimap {
+  max-height: 126px;
+  filter: sepia(0.55) saturate(0.85) contrast(1.05) brightness(0.95);
+  border: 2px solid #8a7146;
+  box-shadow: 0 0 0 1px #2a2010, inset 0 0 18px rgba(60, 40, 10, 0.6);
+}
+
+/* The selected unit: a stamped insignia in a brass frame. */
+.portrait {
+  width: 118px;
+  color: #2d2414;
+  background:
+    radial-gradient(circle at 50% 42%, rgba(255, 246, 214, 0.55), transparent 60%),
+    linear-gradient(180deg, #cdb98a, #9c8658);
+  border: 3px solid var(--brass);
+  outline: 1px solid #1a140a;
+  box-shadow: inset 0 0 0 2px rgba(60, 44, 16, 0.6), inset 0 0 22px rgba(70, 48, 14, 0.55);
+}
+
+.portrait-card.t1 .portrait {
+  color: #3a120d;
+  background:
+    radial-gradient(circle at 50% 42%, rgba(255, 228, 214, 0.5), transparent 60%),
+    linear-gradient(180deg, #c9a08a, #93644f);
+}
+
+.portrait-icon {
+  filter: drop-shadow(0 1px 0 rgba(255, 240, 200, 0.6)) drop-shadow(0 -1px 0 rgba(0, 0, 0, 0.35));
+}
+
+.portrait-vet {
+  color: #6b1d12;
+  text-shadow: 0 1px 0 rgba(255, 240, 200, 0.6);
+}
+
+.portrait-name {
+  color: #f1e3b8;
+  text-shadow: 0 2px 0 rgba(0, 0, 0, 0.6);
+}
+
+.portrait-type,
+.stat-label {
+  color: #b9a477;
+}
+
+.hpbar {
+  height: 7px;
+  background: #0b0a07;
+  border: 1px solid #4a3a18;
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.8);
+}
+
+.hpbar .fill {
+  background: linear-gradient(180deg, #a3d07a, #5f8f3e);
+}
+
+.chip {
+  color: #e2d4ac;
+  background: linear-gradient(180deg, #2c281d, #1a170f);
+  border: 1px solid #5a4720;
+  border-radius: 2px;
+}
+
+.empty-icon {
+  color: var(--brass);
+  opacity: 0.4;
+}
+
+/* Several units selected */
+.mini {
+  color: #e8dcb8;
+  background: linear-gradient(180deg, #34301f, #1c1910);
+  border: 1px solid var(--brass-lo);
+  border-top-color: var(--brass);
+}
+
+/* Resources: brass-ruled ledger lines */
+.resources {
+  gap: 3px;
+}
+
+.res {
+  background: linear-gradient(90deg, rgba(0, 0, 0, 0.45), rgba(0, 0, 0, 0.2));
+  border: 1px solid #3e3116;
+  border-left: 2px solid var(--brass);
+}
+
+.res .val {
+  color: #f1e3b8;
+}
+
+/* Queue */
+.qslot {
+  color: #e8dcb8;
+  background: rgba(0, 0, 0, 0.45);
+  border: 1px solid #3e3116;
+  box-shadow: inset 0 2px 6px rgba(0, 0, 0, 0.6);
+}
+
+.qslot.filled {
+  background: linear-gradient(180deg, #3a3422, #1c1910);
+  border-color: var(--brass);
+}
+
+/* Orders: iron buttons in brass bezels */
+.cmd-slot {
+  background: rgba(0, 0, 0, 0.42);
+  border: 1px solid #2e240f;
+  border-radius: 3px;
+  box-shadow: inset 0 3px 8px rgba(0, 0, 0, 0.7);
+}
+
+.cmd,
+.cmd-grid.build .cmd {
+  color: #ead9a8;
+  background:
+    radial-gradient(circle at 50% 30%, rgba(255, 240, 200, 0.08), transparent 70%),
+    linear-gradient(180deg, #34312a 0%, #1f1d18 60%, #15130f 100%);
+  border: 2px solid var(--brass);
+  border-top-color: var(--brass-hi);
+  border-bottom-color: var(--brass-lo);
+  border-radius: 3px;
+  box-shadow: 0 0 0 1px #0e0c07, inset 0 1px 0 rgba(255, 240, 200, 0.15), inset 0 -10px 14px rgba(0, 0, 0, 0.35);
+}
+
+.cmd .key {
+  color: #1b1608;
+  background: linear-gradient(180deg, var(--brass-hi), var(--brass));
+  border-radius: 2px;
+}
+
+.cmd:not(:disabled):hover {
+  color: #fff3c9;
+  border-color: var(--brass-hi);
+  background:
+    radial-gradient(circle at 50% 35%, rgba(230, 201, 124, 0.25), transparent 70%),
+    linear-gradient(180deg, #3e3a2c, #22201a);
+}
+
+.cmd.active {
+  color: #1b1608;
+  background: radial-gradient(circle at 50% 40%, #f3dc95, #b8923f 75%);
+  border-color: var(--brass-hi);
+  box-shadow: 0 0 0 1px #0e0c07, 0 0 12px rgba(230, 201, 124, 0.55);
+}
+
+/* Top: the score plate and corner buttons */
+.score,
+.corner-btn,
+.roster-card,
+.doctrine-bar {
+  border: 2px solid var(--brass-lo);
+  border-top-color: var(--brass);
+  border-radius: 3px;
+  box-shadow: inset 0 0 0 1px rgba(230, 201, 124, 0.1), 0 3px 10px rgba(0, 0, 0, 0.55);
+}
+
+.score {
+  background: var(--rivets), var(--plate);
+  padding: 5px 18px;
+}
+
+.clock {
+  color: var(--brass-hi);
+  background: linear-gradient(180deg, #2a2418, #120f09);
+  border: 1px solid var(--brass-lo);
+}
+
+.roster-card {
+  color: #e8dcb8;
+  background: linear-gradient(180deg, #34301f, #1a170f);
+}
+
+.doctrine-bar {
+  bottom: 162px;
+  background: var(--rivets), var(--plate);
+}
+
+/* The doctrine plaque: brass letters on a riveted iron plate. */
+.doctrine-choose {
+  justify-content: center;
+  padding: 10px 14px;
+  color: #f3dc95;
+  background: var(--rivets), linear-gradient(180deg, #2e2a1f, #15130d);
+  border: 2px solid var(--brass);
+  border-top-color: var(--brass-hi);
+  border-radius: 3px;
+  text-shadow: 0 2px 0 rgba(0, 0, 0, 0.7);
+}
+
+.doctrine-choose:hover {
+  color: #fff3c9;
+  background: var(--rivets), linear-gradient(180deg, #3b3526, #1c1910);
+}
+
+.tooltip {
+  border: 2px solid var(--brass-lo);
+  border-top-color: var(--brass);
+}
+
+.toast {
+  background: var(--plate);
+  border: 1px solid var(--brass-lo);
+  border-left: 3px solid var(--brass);
+  border-radius: 2px;
+  box-shadow: 0 3px 10px rgba(0, 0, 0, 0.5);
 }
