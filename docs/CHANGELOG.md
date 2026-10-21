@@ -8,6 +8,7 @@
 - **Real anti-tank guns.** The anti-tank unit on both sides is now a towed 37mm gun and its crew (set it up, then it stops tanks); the bazooka and the anti-tank rifle stay as rifle-squad upgrades. The Tanggulang Bayan doctrine brings a heavy 57mm gun.
 - **Engineers in the pith helmet.** Maharlika headgear keeps to the army's own: the straw Baliwag hat, the peaked cap, the pith helmet and the kepi.
 - **Order grid in fixed rows.** Every unit's orders sit in the same three rows: attack-move, stop, reinforce and retreat on top, the engineers' Base and Build menus in the middle, the unit's own abilities (repair, grenade, set up, barrage) at the bottom. Tabs over the grid jump straight to the headquarters or any tier building you have built, to recruit there.
+- **Screen layout.** The map sits bottom left with round buttons on its frame (next idle infantry, next idle vehicle, help, menu). The information panel holds the unit's portrait, health, men, kit and description, then its upgrade slots and, at its right end, the production queue. Above the panel sit the doctrine's command points and call-ins (left) and the resources (right). Orders sit bottom right under the building tabs, and messages appear above the map.
 - **Upgrade slots.** A unit's weapon upgrades have their own slots beside its card, shown only when it has something to upgrade.
 - **Upgrades you can see.** A squad taking a weapon upgrade shows a gold badge that fills as it completes, and the job column beside the unit card only appears while something is being recruited, reinforced or upgraded.
 
