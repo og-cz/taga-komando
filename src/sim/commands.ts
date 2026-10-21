@@ -155,7 +155,7 @@ export function issueBuild(world: World, sq: Squad, buildId: string, from: Vec2,
   const tiles = plan.tiles.filter((t) => t.valid);
   if (tiles.length === 0) {
     const anyOwn = plan.tiles.some((t) => world.map.inBounds(t.tx, t.ty) && ownGround(world, sq.team, t.tx, t.ty));
-    return fail(anyOwn ? 'Cannot build there' : 'Only on ground you hold');
+    return fail(anyOwn || def.shape !== 'structure' ? 'Cannot build there' : 'Emplacements only on ground you hold');
   }
   if (!canAfford(world.teams[sq.team].resources, plan.cost)) {
     return fail(plan.cost.munitions > world.teams[sq.team].resources.munitions ? 'Not enough munitions' : 'Not enough manpower');
