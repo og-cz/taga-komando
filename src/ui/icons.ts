@@ -37,6 +37,14 @@ const ICONS: Record<string, IconDef> = {
   tech3: { stroke: ['M2 20V10h20v10', 'M5 20v-6h14v6', 'M2 10l3-4h14l3 4', 'M8 17h8'] },
   base: { stroke: ['M3 20V11l9-5 9 5v9z', 'M9 20v-6h6v6', 'M3 11h18'] },
 
+  // ─── Commander call-ins ───
+  charge: { stroke: ['M3 12h13', 'M11 6l6 6-6 6', 'M18 6v12'] },
+  shield: { stroke: ['M12 3l8 3v6c0 5-3.5 8-8 9-4.5-1-8-4-8-9V6z', 'M12 8v8'], fill: ['M12 3l8 3v6c0 5-3.5 8-8 9-4.5-1-8-4-8-9V6z'] },
+  plane: { stroke: ['M2 13l20-6-6 13-3-6z', 'M13 14l-4 4', 'M9 18l-2-3'] },
+  parachute: { stroke: ['M3 10a9 7 0 0 1 18 0z', 'M3 10l9 9 9-9', 'M12 10v9', 'M10.5 19h3v3h-3z'] },
+  leaf: { stroke: ['M5 19c0-9 6-14 15-14 0 9-5 15-15 15', 'M5 19l8-8'] },
+  doctrine: { stroke: ['M5 21V3', 'M5 4h13l-3 4 3 4H5', 'M9 8h2'] },
+
   // ─── Orders ───
   attack: { stroke: ['M12 5a7 7 0 1 0 .01 0', 'M12 2v6', 'M12 16v6', 'M2 12h6', 'M16 12h6'] },
   stop: { stroke: ['M6 6h12v12H6z'], fill: ['M6 6h12v12H6z'] },
