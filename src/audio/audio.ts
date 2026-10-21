@@ -154,9 +154,15 @@ class AudioSystem {
    * before the first click).
    */
   playOnce(file: string, gain = 1): void {
+    void this.prepareOnce(file, gain).play().catch(() => {});
+  }
+
+  /** Load a one-off piece ready to play in sync with something on screen. */
+  prepareOnce(file: string, gain = 1): HTMLAudioElement {
     const el = new Audio(`audio/${file}.ogg`);
+    el.preload = 'auto';
     el.volume = Math.min(1, Math.max(0, this.volume.master * this.volume.effects * gain));
-    void el.play().catch(() => {});
+    return el;
   }
 
   /** A looping clip whose loudness, pan and pitch can be changed while it plays. */
