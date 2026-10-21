@@ -36,6 +36,14 @@ body {
   cursor: crosshair;
 }
 
+/* The 3D battlefield, behind the canvas that takes the mouse and draws markers. */
+#game3d {
+  position: fixed;
+  inset: 0;
+  display: block;
+  pointer-events: none;
+}
+
 #ui {
   position: fixed;
   inset: 0;
