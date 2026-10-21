@@ -114,7 +114,7 @@ void document.fonts.load("400 48px 'Quiapo'").catch(() => {});
 // the camera on our or the enemy headquarters, &reveal=1 lifts the fog of war,
 // &menu=defense|base opens an engineers' submenu, &doctrine=<id> chooses a doctrine (with &cp=<n>
 // command points), &picker=1 opens the doctrine chooser, &frame=1 leaves spawned structures half built,
-// &faction=ija plays the Imperial side.
+// &faction=ija plays the Imperial side, &fire=1 lights fires and a blast by the spawned units (3D).
 const devBattle = import.meta.env.DEV ? new URLSearchParams(location.search).get('battle') : null;
 if (devBattle) {
   const side = new URLSearchParams(location.search).get('faction') === 'ija' ? 'ija' : 'usaffe';
@@ -134,7 +134,7 @@ if (devBattle) {
 interface DevGame {
   world: import('./sim/world').World;
   input: { select(ids: number[]): void };
-  renderer: { spectator: boolean };
+  renderer: { spectator: boolean; draw(ui: unknown, dt: number): void; world3d: { fx: { addFire(x: number, y: number, s: number, t: number): void; explosion(x: number, y: number, r: number): void } } | null };
   ui: { buildMenu: false | 'defense' | 'base' };
   hud: { root: HTMLElement };
   camera: { zoom: number; minZoom: number; maxZoom: number; centerOn(p: { x: number; y: number }): void };
@@ -156,6 +156,15 @@ function devSetup(): void {
   const sq = pick ? game.world.squads.find((s) => s.team === 0 && s.def.id === pick) : undefined;
   if (sq) game.input.select([sq.id]);
   if (params.get('reveal')) game.renderer.spectator = true;
+  const fx = params.get('fire') ? game.renderer.world3d?.fx : undefined;
+  if (fx) {
+    fx.addFire(near.x + 60, near.y + 50, 1.3, 120);
+    fx.addFire(near.x + 150, near.y - 20, 0.8, 120);
+    // Let the fires take hold before the first look (effects only; the battle does not advance).
+    for (let i = 0; i < 180; i++) game.renderer.draw(game.ui, 1 / 60);
+    fx.explosion(near.x + 110, near.y + 10, 30);
+    for (let i = 0; i < 6; i++) game.renderer.draw(game.ui, 1 / 60);
+  }
   const doctrine = params.get('doctrine');
   if (doctrine) game.world.teams[0].doctrine = doctrine;
   if (params.get('cp')) game.world.teams[0].cp = Number(params.get('cp'));
