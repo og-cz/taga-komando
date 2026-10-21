@@ -164,7 +164,7 @@ export interface PortraitLook {
   hair: 'short' | 'slick' | 'peak' | 'shaved' | 'topknot';
   hairColor?: string;
   moustache?: 'thin' | 'brush' | 'handlebar';
-  hat?: { kind: 'peaked' | 'field'; color: string; band?: string };
+  hat?: { kind: 'peaked' | 'field' | 'm1' | 'type90' | 'bandana'; color: string; band?: string };
   dress: 'tunic' | 'lapel' | 'camisa' | 'kimono' | 'naval' | 'jacket';
   cloth: string;
   /** Shoulder boards or collar tabs. */
