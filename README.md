@@ -1,8 +1,8 @@
 <img src="docs/logo.svg" alt="Taga Komando" width="420">
 
-Squad-based real-time tactics game for Windows. Luzon, 1941–45.
+Squad-based real-time tactics game for Windows, set on Luzon.
 
-Version 0.6.16 · Campaign, Theater of War and Skirmish vs. AI · Offline
+Version 0.7.0 · Campaign, Theater of War and Skirmish vs. AI · Offline
 
 ---
 
@@ -149,18 +149,43 @@ How the mission types work:
 
 | Role | Hukbong Maharlika | Imperial Army |
 | --- | --- | --- |
-| Rifle squad | Sundalo ng Maharlika: 5 men, grenades; upgrade Bazooka or BAR | Hohei: 6 men, grenades; upgrade Type 99 LMG or AT rifle |
-| Engineers | Inhinyero ng Maharlika | Kohei |
-| Machine gun | Ametralyadora M1917 | Kikanjū Type 92 |
-| Mortar | Mortero 60mm | Hakugekihō Type 97 (81mm) |
-| Anti-tank | Pangontra-Tangke (bazooka squad) | Taisensha-hei (AT rifle team) |
-| Tank | M3 Stuart | Type 97 Chi-Ha |
+| Rifle squad | Sundalo ng Maharlika: 5 men, grenades; upgrade Kanyong Balikat or Ripleng Awtomatiko | Teikoku Hohei: 6 men, grenades; upgrade Type 99 LMG or AT rifle |
+| Engineers | Inhinyero ng Maharlika | Teikoku Kōhei |
+| Machine gun | Ametralyadora ng Maharlika | Teikoku Kikanjū-han |
+| Mortar | Mortero ng Maharlika | Teikoku Hakugeki-han |
+| Anti-tank | Pangontra-Tangke ng Maharlika | Teikoku Taisensha-han |
+| Tank | Tangke Tamaraw | Teikoku Sensha Chi-Ha |
+
+### Doctrines
+
+Each army chooses one doctrine per battle. It adds a special unit and two commander call-ins that unlock with command points (earned in combat).
+
+| Hukbong Maharlika | Imperial Army | Style | Special unit |
+| --- | --- | --- | --- |
+| Hukbo ni Heneral Luna (Heneral Antonio Luna) | Kirikomi Butai (Homma Masaharu) | Lightning assault | Shock infantry with submachine guns |
+| Katipunan (Andrés Bonifacio) | Kokumin Giyūtai (Saigō Takamori) | People’s army | 10-man militia with blades and old rifles |
+| Tanggulang Bayan (Vicente Lim) | Bōgyo Jinchi (Yamashita Tomoyuki) | Defence in depth | Anti-tank gun team |
+| Hukbong Himpapawid (Jesús Villamor) | Teishin Shūdan (Yamamoto Isoroku) | Airborne | Paratroopers (also dropped by call-in) |
+| Gerilya (Miguel Malvar) | Yūgeki-tai (Sakamoto Ryōma) | Guerrilla war | Camouflaged infiltrators |
 
 **Maps:**
 - Skirmish: Bataan Crossroads, Barrio San Roque, and thirteen Luzon towns: Calumpit, Plaridel, Pilar, Orani, Porac, Abucay, San Fernando, Dinalupihan, Hermosa, Guagua, Lingayen, Baliuag and Lubao (river towns, coast, jungle and open farmland).
 - Missions: Intramuros (a walled city on the bay), Mount Samat, Route 3 and Layac Junction, plus Calumpit and San Fernando for the open battles.
 
 ## Changelog
+
+**0.7.0**
+- **Doctrines.** Five per army, each led by a commander with a painted portrait and its own banner, special unit and two commander call-ins: charges, accuracy and defence orders, artillery barrages, spotter planes, paradrops, free militia squads, ambushes and minefields. Command points are earned in combat and over time. The enemy commander chooses a doctrine and uses its call-ins too.
+- **Building like a real engineer company.** Structures go up as a frame straight away and take up their whole footprint. How far along a frame is is how much punishment it can take; any engineer can carry on an unfinished job (right-click it, or use Repair on it), and the enemy can knock it down. MG nests, bunkers and aid stations go up only on ground your army holds, at most 4, 3 and 2 at a time; sandbags, wire, tank traps and mines can be laid anywhere.
+- **A smarter enemy.** It flanks MG nests and bunkers outside their arc and grenades them instead of walking into the gun, sends tanks and anti-tank teams against them, shells them with mortars and artillery, recruits at its tier buildings and builds only on its own ground.
+- **Fair maps.** Every generated skirmish map is now mirrored: both bases, both sets of resources and the flanking victory points are exact mirror images, and the central victory point sits in the very middle.
+- **Reinforcements pause** when a squad is too far from a base (or retreating) instead of being cancelled, and carry on when it is back.
+- **Retreating troops** run without looking back, cannot be pinned and take only about half the damage.
+- **Filipino arms and names.** The Maharlika carry the Riple Kalayaan, Karabina Kalayaan, Ripleng Awtomatiko, Kanyong Balikat and the Tangke Tamaraw; the Imperial Army's units all follow one naming style (Teikoku Hohei, Teikoku Kōhei…). The Strong vs / Weak vs lists are gone: find out what works on the battlefield.
+- **Looks and feel.** Doctrine uniforms (rayadillo, camisa with bandana, paratrooper green), walking soldiers, tank track prints, explosions with flying earth, pressure rings, scorch marks and a little screen shake, scaffolding on buildings under construction, doctrine banners on the tier buildings and a busier headquarters compound.
+- **Interface.** Orders always appear in the same order, filling the grid from the top-left (empty squares stay visible); clicking anywhere on a building selects or targets it, the unit card has one layout for everything with men shown as 5/6, several selected units show their men too, roster badges no longer overlap, and unit names, titles and the doctrine panel use the game's display font.
+- The camera no longer zooms out past the battlefield, and the land beyond the edge is darker.
+- The studio card's boom now lands together with the logo.
 
 **0.6.16**
 - The order panel keeps the same size whatever is selected.
