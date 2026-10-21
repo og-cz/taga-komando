@@ -81,12 +81,13 @@ function soldierPhoto(sq: Squad, faction: string): HTMLElement | null {
   if (def.kind !== 'infantry' && def.kind !== 'team') return null;
   const ija = faction === 'ija';
   const h = (i: number) => hash2(sq.id, i, 5);
-  const style = def.look?.helmetStyle ?? (ija ? 'type90' : 'm1');
-  const helmet = def.look?.helmet ?? (ija ? '#6d673b' : '#4e5335');
-  const cloth = def.look?.cloth ?? (ija ? '#8c7c47' : '#6f6f47');
+  const style = def.look?.helmetStyle ?? (ija ? 'type90' : 'straw');
+  const helmet = def.look?.helmet ?? (ija ? '#6d673b' : '#c4a866');
+  const cloth = def.look?.cloth ?? (ija ? '#8c7c47' : '#8b98a5');
   const skins = ija ? ['#c99a72', '#bf8f69', '#c4946c'] : ['#a8754f', '#9a6a46', '#8f6040'];
   const hat =
-    style === 'm1' || style === 'type90' ? { kind: style, color: helmet } : style === 'cap' ? { kind: 'field' as const, color: helmet } : style === 'bandana' ? { kind: 'bandana' as const, color: helmet } : undefined;
+    style === 'straw' ? { kind: style, color: helmet, band: h(4) < 0.35 ? '#a3241c' : undefined } :
+    style === 'm1' || style === 'type90' || style === 'salakot' ? { kind: style, color: helmet } : style === 'cap' ? { kind: 'field' as const, color: helmet } : style === 'bandana' ? { kind: 'bandana' as const, color: helmet } : undefined;
   return portrait(
     {
       title: '',
@@ -98,6 +99,7 @@ function soldierPhoto(sq: Squad, faction: string): HTMLElement | null {
         hat,
         dress: style === 'bandana' && !ija ? 'camisa' : 'tunic',
         cloth,
+        stripes: !ija && style === 'straw',
       },
     },
     'unit-photo',
