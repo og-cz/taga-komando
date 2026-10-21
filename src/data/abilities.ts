@@ -22,7 +22,7 @@ const LIST: AbilityDef[] = [
   {
     id: 'barrage_ija', name: 'Hakugeki Hōgeki', hotkey: 'B',
     description: 'Fire five heavy rounds on a target area. Does not need vision of the target.',
-    cost: { manpower: 0, munitions: 30, fuel: 0 }, cooldown: 45, range: 480, weapon: 'type97_mortar',
+    cost: { manpower: 0, munitions: 30, fuel: 0 }, cooldown: 45, range: 450, weapon: 'type97_mortar',
     shots: 5, interval: 1.3, windup: 0.5, requiresSetup: true,
   },
 ];
