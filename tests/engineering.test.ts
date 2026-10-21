@@ -7,7 +7,7 @@ import { issueBuild, issueHelpBuild, issueMove, issueReinforce, issueRepair, iss
 import { SCENARIOS } from '../src/data/scenarios';
 import { explode } from '../src/sim/systems/combat';
 import { defenseAt } from '../src/sim/systems/defenses';
-import { planBuild } from '../src/sim/systems/engineering';
+import { ownGround, planBuild } from '../src/sim/systems/engineering';
 import { canReinforceHere } from '../src/sim/systems/logistics';
 import { World } from '../src/sim/world';
 import { AICommander } from '../src/ai/commander';
@@ -39,6 +39,24 @@ describe('engineers', () => {
     expect(plan.tiles).toHaveLength(8);
     expect(plan.tiles.every((t) => t.valid)).toBe(true);
     expect(plan.cost.manpower).toBe(80);
+  });
+
+  it('lays wire anywhere but raises emplacements only on ground it holds', () => {
+    const w = battle();
+    for (const p of w.points) p.owner = 1;
+    // Find open ground we do not hold.
+    let spot: { tx: number; ty: number } | undefined;
+    for (let ty = 2; ty < w.map.h - 4 && !spot; ty++) {
+      for (let tx = 2; tx < w.map.w - 4 && !spot; tx++) {
+        if (!ownGround(w, 0, tx, ty) && !ownGround(w, 0, tx + 3, ty + 1)) spot = { tx, ty };
+      }
+    }
+    expect(spot).toBeDefined();
+    const { tx, ty } = spot!;
+    for (let x = tx; x <= tx + 3; x++) for (let y = ty; y <= ty + 1; y++) w.map.set(x, y, T.Open);
+    expect(planBuild(w, 'mg_nest', at(tx, ty), at(tx, ty), 0).tiles.some((t) => t.valid)).toBe(false);
+    expect(planBuild(w, 'wire', at(tx, ty), at(tx + 3, ty), 0).tiles.every((t) => t.valid)).toBe(true);
+    expect(planBuild(w, 'mine', at(tx, ty + 1), at(tx, ty + 1), 0).tiles.every((t) => t.valid)).toBe(true);
   });
 
   it('will not build on buildings or water', () => {
