@@ -122,11 +122,22 @@ export function endOverlay(world: World, player: TeamId, title: string, actions:
   }
 
   // The battle's recon maps, clipped to boards either side of the report.
+  // Each board holds a tall page cut from the battle's recon map: the west half on the left, the east on the right.
   const sideMap = (side: string) => {
+    const full = document.createElement('canvas');
+    full.width = 1600;
+    full.height = Math.round((1600 * world.map.h) / world.map.w);
+    drawReconMap(full.getContext('2d')!, world.map, full.width, full.height);
     const c = document.createElement('canvas');
-    c.width = 440;
-    c.height = Math.round((440 * world.map.h) / world.map.w);
-    drawReconMap(c.getContext('2d')!, world.map, c.width, c.height);
+    c.width = 520;
+    c.height = 720;
+    const x = c.getContext('2d')!;
+    x.fillStyle = '#d6c7a0';
+    x.fillRect(0, 0, c.width, c.height);
+    const scale = c.height / full.height;
+    const sw = c.width / scale;
+    const sx = side === 'left' ? 0 : full.width - sw;
+    x.drawImage(full, sx, 0, sw, full.height, 0, 0, c.width, c.height);
     return el('div', { class: `end-board ${side}` }, el('div', { class: 'end-clip' }), c);
   };
 
@@ -144,6 +155,8 @@ export function endOverlay(world: World, player: TeamId, title: string, actions:
         { class: 'end-box end-paper' },
         el('div', { class: 'end-clip' }),
         el('div', { class: 'end-postmark' }, el('span', { text: 'HQ LUZON' })),
+        el('div', { class: 'end-postage' }, el('span', { text: '₱0.20' })),
+        el('div', { class: 'end-filed', text: 'Natanggap · HQ' }),
         el('div', { class: 'end-kicker', text: title }),
         el('h1', { class: 'end-title', text: won ? 'Victory' : 'Defeat' }),
         el('div', { class: 'end-reason', text: world.endReason || (won ? 'The enemy has been defeated' : 'Your forces have been defeated') }),
@@ -153,5 +166,6 @@ export function endOverlay(world: World, player: TeamId, title: string, actions:
         el('div', { class: 'end-stamp', text: 'Ulat ng Labanan' }),
       ),
     ),
+    el('div', { class: 'end-version', text: `v${__APP_VERSION__}` }),
   );
 }
