@@ -268,14 +268,21 @@ export class Hud {
     for (let i = 0; i < ECONOMY.maxQueue; i++) queue.append(this.queueSlot(i));
     this.buildBuildingTabs();
 
+    this.doctrineBar = el('div', { class: 'doctrine-bar' });
     const bottom = el(
       'div',
       { class: 'bottombar' },
       el('div', { class: 'panel minimap-panel' }, minimap.canvas, idleInf, idleVeh, help, menu),
       // The information panel: the unit, its upgrades, then the production queue at its right end.
-      el('div', { class: 'panel unit-card' }, this.unitPanel, this.upgradePanel, queue),
-      // Resources sit along the top edge of the panel, by the orders.
-      el('div', { class: 'resources res-strip' }, mpBox, muBox, fuBox, popBox),
+      // Along its top edge, one strip: the doctrine on the left, the resources on the right.
+      el(
+        'div',
+        { class: 'panel unit-card' },
+        el('div', { class: 'info-strip' }, this.doctrineBar, el('div', { class: 'resources res-strip' }, mpBox, muBox, fuBox, popBox)),
+        this.unitPanel,
+        this.upgradePanel,
+        queue,
+      ),
       el(
         'div',
         { class: 'panel command-card' },
@@ -287,10 +294,9 @@ export class Hud {
 
     this.toasts = el('div', { class: 'toasts' });
     this.tooltip = el('div', { class: 'tooltip' });
-    this.doctrineBar = el('div', { class: 'doctrine-bar' });
     this.picker = el('div', { class: 'doctrine-picker' });
     this.buildDoctrineUi();
-    this.root = el('div', { class: 'hud' }, top, corner, this.toasts, bottom, this.doctrineBar, this.picker, this.tooltip);
+    this.root = el('div', { class: 'hud' }, top, corner, this.toasts, bottom, this.picker, this.tooltip);
     parent.append(this.root);
     this.update(0, true);
   }
