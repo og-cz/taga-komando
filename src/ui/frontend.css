@@ -1969,3 +1969,162 @@ body.cinematic #game3d {
     display: none;
   }
 }
+
+/* ═══ Battle report, final layout ═══════════════════════════════════
+   Two tall map boards fill the desk behind the report; the report itself
+   is warm, stained paper; stamps and a postage stamp in the margins. */
+
+.end-screen.defeat,
+.end-screen.victory {
+  padding: 18px;
+  overflow: hidden;
+}
+
+.end-desk {
+  width: min(1240px, 100%);
+  height: min(900px, calc(100vh - 36px));
+  min-height: 0;
+}
+
+.end-board {
+  top: 2%;
+  bottom: 2%;
+  width: 44%;
+  padding: 34px 14px 14px;
+  filter: brightness(0.85) saturate(0.9);
+  box-shadow: 0 18px 40px rgba(0, 0, 0, 0.75), inset 0 1px 0 rgba(255, 230, 190, 0.12);
+}
+
+.end-board.left {
+  left: 0;
+  transform: rotate(-3deg);
+}
+
+.end-board.right {
+  right: 0;
+  transform: rotate(2.5deg);
+}
+
+.end-board canvas {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: 2px;
+}
+
+.end-board .end-clip {
+  width: 120px;
+  height: 34px;
+  top: -14px;
+}
+
+/* The report: warm paper, darker at the edges, coffee rings and creases. */
+.end-screen .end-paper {
+  width: min(600px, 52%);
+  max-height: 100%;
+  margin-top: 0;
+  padding: 44px 46px 34px;
+  overflow: visible;
+  background:
+    radial-gradient(circle at 12% 90%, rgba(120, 80, 30, 0.16) 0 6%, transparent 6.6%),
+    radial-gradient(circle at 12% 90%, rgba(250, 240, 215, 0.45) 0 5.2%, transparent 5.4%),
+    radial-gradient(ellipse at 85% 88%, rgba(110, 70, 25, 0.2), transparent 32%),
+    radial-gradient(ellipse at 10% 95%, rgba(110, 70, 25, 0.18), transparent 28%),
+    linear-gradient(90deg, transparent 49.6%, rgba(90, 60, 25, 0.12) 50%, transparent 50.4%),
+    linear-gradient(180deg, #f1e6c8 0%, #e6d6ad 60%, #d9c597 100%);
+  box-shadow: 0 30px 70px rgba(0, 0, 0, 0.8), inset 0 0 60px rgba(120, 80, 30, 0.35), inset 0 0 0 1px rgba(90, 60, 25, 0.25);
+}
+
+.end-screen .end-paper .end-title {
+  font-size: clamp(84px, 9vw, 132px);
+  color: #9e1f17;
+}
+
+.end-screen .end-paper .end-reason {
+  font-size: clamp(24px, 2.4vw, 32px);
+  color: #8e1c15;
+}
+
+.end-screen .end-paper .end-kicker {
+  color: #4a3a20;
+}
+
+.end-screen .end-paper .end-btn {
+  min-width: 0;
+  flex: 1;
+  padding: 14px 18px;
+  font-size: 20px;
+}
+
+.end-screen .end-paper .end-actions {
+  gap: 16px;
+}
+
+/* Postage stamp, receiving stamp and the filing stamp in the margins. */
+.end-postmark {
+  top: 22px;
+  right: 104px;
+  width: 70px;
+  height: 70px;
+}
+
+.end-postage {
+  position: absolute;
+  top: 20px;
+  right: 24px;
+  display: grid;
+  place-items: center;
+  width: 62px;
+  height: 74px;
+  background:
+    radial-gradient(circle, transparent 2px, #f1e6c8 2.5px) -3px -3px / 7px 7px,
+    #b03a2a;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+  transform: rotate(4deg);
+}
+
+.end-postage span {
+  display: grid;
+  place-items: center;
+  width: 48px;
+  height: 60px;
+  font: 700 12px var(--type);
+  color: #f6ead0;
+  background: #b03a2a;
+  border: 1px solid rgba(255, 240, 210, 0.5);
+}
+
+.end-filed {
+  position: absolute;
+  top: 150px;
+  right: 22px;
+  padding: 3px 8px;
+  font: 700 10px var(--type);
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: rgba(60, 50, 40, 0.5);
+  border: 2px solid rgba(60, 50, 40, 0.4);
+  transform: rotate(6deg);
+}
+
+.end-version {
+  position: absolute;
+  left: 18px;
+  bottom: 12px;
+  font: 700 11px var(--type);
+  color: var(--cream-dim);
+  opacity: 0.7;
+}
+
+@media (max-width: 900px) {
+  .end-screen .end-paper {
+    width: 100%;
+  }
+}
+
+/* The verdict: solid ink with only a little wear. */
+.end-screen .end-paper .end-title {
+  -webkit-mask-image: none;
+  mask-image: none;
+  text-shadow: 1px 1px 0 rgba(120, 20, 15, 0.35), -1px 0 0 rgba(158, 31, 23, 0.25);
+}
