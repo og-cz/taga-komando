@@ -30,6 +30,7 @@ Version 0.8.5 · Campaign, Theater of War and Skirmish vs. AI · Offline
 - 4 GB RAM
 - 400 MB disk space
 - Screen 1280×720 or larger
+- Graphics with WebGL 2 for the 3D battlefield (any card or integrated graphics from the last ten years; without it the game draws the flat battlefield)
 - Mouse with right button (middle button optional)
 
 ## Install
@@ -115,12 +116,12 @@ How the mission types work:
 
 **Tips**
 
-- Machine guns pin infantry inside their firing cone. Flank them or throw a grenade.
+- Machine guns pin infantry inside their firing cone. Once set up, a machine gun or anti-tank gun keeps the direction you gave it and fires on its own at anything in its cone: flank it, or throw a grenade.
 - Mortars need a friendly unit to see the target.
 - Tanks have thin rear armour. Hit them from behind.
 - Retreat (**R**) damaged squads before they're wiped out, then reinforce (**E**) at the HQ. A retreat can't be cancelled: the squad takes no other orders until it gets home. Tanks can't retreat: drive them back and have engineers repair them.
-- Engineers fortify ground from the **Build** menu (**Q**): sandbags give heavy cover, barbed wire stops infantry (tanks crush it), tank traps stop tanks, mines wreck whatever steps on them, MG nests fire all round, bunkers hold a machine gun and let squads reinforce, and aid tents heal soldiers nearby. Engineers also repair tanks, structures and the HQ.
-- Give a rifle squad one weapon upgrade (**T / Y**) near the HQ: a bazooka or AT rifle against tanks, a BAR or light MG against infantry.
+- Engineers fortify ground from the **Build** menu (**Q**): sandbags give heavy cover, barbed wire stops infantry (tanks crush it), tank traps stop tanks, mines wreck whatever steps on them, MG nests cover the arc they face, bunkers hold a machine gun and let squads reinforce, and aid tents heal soldiers nearby. Engineers also repair tanks, structures and the HQ.
+- Give a rifle squad one weapon upgrade (**T / Y**, or the upgrade slots beside its card) near the HQ: a bazooka or AT rifle against tanks, a BAR or light MG against infantry.
 
 ## Controls
 
