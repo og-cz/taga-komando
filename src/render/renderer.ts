@@ -92,6 +92,8 @@ const LOOK: Record<string, FactionLook> = {
 /** Draws the world from the player's point of view. Reads the simulation, never writes it. */
 export class Renderer {
   readonly effects = new Effects();
+  /** Drawn as scenery behind the menus: the battle without markers or badges. */
+  private readonly scenery: boolean;
   /** Where world drawing currently goes: the screen, or (in 3D) the canvas laid on the 3D ground. */
   private ctx: CanvasRenderingContext2D;
   private readonly screenCtx: CanvasRenderingContext2D;
@@ -121,6 +123,7 @@ export class Renderer {
     private readonly spectator = false,
     use3d = true,
   ) {
+    this.scenery = spectator;
     this.screenCtx = canvas.getContext('2d')!;
     this.ctx = this.screenCtx;
     const { w, h } = world.map;
@@ -213,8 +216,11 @@ export class Renderer {
       this.terrain.drawSurround(ctx, topLeft.x - 32, topLeft.y - 32, bottomRight.x + 32, bottomRight.y + 32);
       this.terrain.draw(ctx);
     }
-    this.drawTerritory();
-    this.drawPoints();
+    // The battle behind the menus is scenery: no markers, labels or unit badges.
+    if (!this.scenery) {
+      this.drawTerritory();
+      this.drawPoints();
+    }
     this.effects.drawGround(ctx);
     this.drawSelectionUnderlays(ui);
 
@@ -247,9 +253,11 @@ export class Renderer {
     }
     this.ctx.setTransform(this.dpr, 0, 0, this.dpr, 0, 0);
     this.drawGrade();
-    for (const sq of visible) this.drawSquadHud(sq, ui);
-    this.drawPointLabels();
-    this.effects.drawText(this.ctx, camera);
+    if (!this.scenery) {
+      for (const sq of visible) this.drawSquadHud(sq, ui);
+      this.drawPointLabels();
+      this.effects.drawText(this.ctx, camera);
+    }
     this.drawBuildCost(ui);
     if (ui.drag) {
       const { x0, y0, x1, y1 } = ui.drag;
