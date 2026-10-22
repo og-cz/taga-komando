@@ -21,16 +21,38 @@ export function volumeControls(): HTMLElement {
   return el('div', { class: 'volume' }, el('h2', { text: 'Sound' }), row('master', 'Master'), row('music', 'Music'), row('effects', 'Effects'));
 }
 
+/** The pause menu: a short list of buttons over the frozen battle; controls and sound open in their own page. */
 export function pauseOverlay(onResume: () => void, onQuit: () => void): HTMLElement {
-  const resume = el('button', { class: 'deploy', text: 'Resume' });
-  const quit = el('button', { class: 'secondary', text: 'Surrender' });
-  resume.addEventListener('click', onResume);
-  quit.addEventListener('click', onQuit);
-  return el(
-    'div',
-    { class: 'overlay dim' },
-    el('div', { class: 'menu-box small' }, el('h1', { text: 'Paused' }), volumeControls(), controlsTable(), el('div', { class: 'row' }, quit, resume)),
-  );
+  const panel = el('div', { class: 'pause-panel' });
+  const button = (text: string, fn: () => void, cls = '') => {
+    const b = el('button', { class: `pause-btn ${cls}`, text });
+    b.addEventListener('click', fn);
+    return b;
+  };
+  const page = (title: string, body: HTMLElement) => {
+    panel.replaceChildren(el('div', { class: 'pause-title', text: title }), el('div', { class: 'pause-page' }, body), button('Back', list));
+  };
+  const list = () => {
+    let confirm = false;
+    const quit = button('Surrender', () => {
+      if (!confirm) {
+        confirm = true;
+        quit.textContent = 'Surrender? Click again';
+        quit.classList.add('warn');
+        return;
+      }
+      onQuit();
+    });
+    panel.replaceChildren(
+      el('div', { class: 'pause-title', text: 'Paused' }),
+      button('Resume', onResume, 'primary'),
+      button('Controls', () => page('Controls', controlsTable())),
+      button('Sound', () => page('Sound', volumeControls())),
+      quit,
+    );
+  };
+  list();
+  return el('div', { class: 'overlay pause-screen' }, panel);
 }
 
 export function helpOverlay(onClose: () => void): HTMLElement {
