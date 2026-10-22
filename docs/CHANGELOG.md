@@ -2,19 +2,30 @@
 
 [Back to the README](../README.md)
 
-**Unreleased**
-- **A 3D battlefield.** The battle is now drawn with Three.js: an elevated, tilted tactical camera over textured ground; buildings with real walls, doors and windows and roofs of clay tile, nipa or rusted iron, some broken open by shellfire and smouldering; palms, broadleaf trees, banana plants and hedgerow bushes; stone walls, sandbag lines, wire, tank traps, rubble and timber; headquarters, tier buildings, MG nests, bunkers and aid tents as solid buildings that rise while they are built. A low evening sun casts real shadows, tree crowns stand over the troops, and fog of war lies over everything.
-- **Fire and smoke.** Blasts flash, throw sparks and dirt and leave scorch marks; big ones start fires. Knocked-out tanks and fallen emplacements burn. Fires flicker with hot cores and embers, light the ground and walls around them orange, and pour out smoke that drifts with the wind. Without WebGL the game falls back to the flat 2D battlefield.
-- **Real anti-tank guns.** The anti-tank unit on both sides is now a towed 37mm gun and its crew (set it up, then it stops tanks); the bazooka and the anti-tank rifle stay as rifle-squad upgrades. The Tanggulang Bayan doctrine brings a heavy 57mm gun.
-- **Engineers in the pith helmet.** Maharlika headgear keeps to the army's own: the straw Baliwag hat, the peaked cap, the pith helmet and the kepi.
-- **Order grid in fixed rows.** Every unit's orders sit in the same three rows: attack-move, stop, reinforce and retreat on top, the engineers' Base and Build menus in the middle, the unit's own abilities (repair, grenade, set up, barrage) at the bottom. Tabs over the grid jump straight to the headquarters or any tier building you have built, to recruit there.
-- **Screen layout.** The map sits bottom left with round buttons on its frame (next idle infantry, next idle vehicle, help, menu). The information panel holds the unit's portrait, health, men, kit and description, then its upgrade slots and, at its right end, the production queue. Above the panel sit the doctrine's command points and call-ins (left) and the resources (right). Orders sit bottom right under the building tabs, and messages appear above the map.
-- **Pause menu** is a short list (Resume, Controls, Sound, Surrender) over the greyed-out battle; controls and sound open on their own page, and surrendering asks once more. Scrollbars match the steel interface.
-- **Fixes:** markers, point circles and unit badges no longer drift off the 3D map after the window is resized; the battle behind the main menu no longer shows battle markers and labels; the resources bar no longer covers the pause menu or the doctrine panel on narrow windows.
+**0.8.5**
+- **Battle report.** The result screen now matches the rest of the game: two tall boards with the battle's recon map fill the desk behind a typed report on warm, stained paper, with the verdict stamped in solid ink, a postage stamp and filing stamps in the margins, the figures on a steel plate, and the game's version in the corner.
+
+**0.8.4**
 - **Guns that fight on their own.** Units only pick targets they can actually hit: in range, in sight and with a clear line of fire, never someone behind a house; they go for whoever is shooting at them, stay on a target unless another is clearly better, and let go of one that slips behind cover. A machine gun or anti-tank gun keeps the direction it was set up in and fires at anything that enters its cone; if it is still packed when the enemy appears, it sets up facing them and stays that way.
 - **Tidier towns.** Houses traced from the town plans no longer come out as staircases: each block is rebuilt as clean rectangles with streets between them, on every town map.
+
+**0.8.3**
+- **Pause menu** is a short list (Resume, Controls, Sound, Surrender) over the greyed-out battle; controls and sound open on their own page, and surrendering asks once more. Scrollbars match the steel interface.
+- **Fixes:** markers, point circles and unit badges no longer drift off the 3D map after the window is resized; the battle behind the main menu no longer shows battle markers and labels; the resources bar no longer covers the pause menu or the doctrine panel on narrow windows.
+
+**0.8.2**
+- **Order grid in fixed rows.** Every unit's orders sit in the same three rows: attack-move, stop, reinforce and retreat on top, the engineers' Base and Build menus in the middle, the unit's own abilities (repair, grenade, set up, barrage) at the bottom. Tabs over the grid jump straight to the headquarters or any tier building you have built, to recruit there.
+- **Screen layout.** The map sits bottom left with round buttons on its frame (next idle infantry, next idle vehicle, help, menu). The information panel holds the unit's portrait, health, men, kit and description, then its upgrade slots and, at its right end, the production queue. Above the panel sit the doctrine's command points and call-ins (left) and the resources (right). Orders sit bottom right under the building tabs, and messages appear above the map.
 - **Upgrade slots.** A unit's weapon upgrades have their own slots beside its card, shown only when it has something to upgrade.
+
+**0.8.1**
+- **Real anti-tank guns.** The anti-tank unit on both sides is now a towed 37mm gun and its crew (set it up, then it stops tanks); the bazooka and the anti-tank rifle stay as rifle-squad upgrades. The Tanggulang Bayan doctrine brings a heavy 57mm gun.
+- **Engineers in the pith helmet.** Maharlika headgear keeps to the army's own: the straw Baliwag hat, the peaked cap, the pith helmet and the kepi.
 - **Upgrades you can see.** A squad taking a weapon upgrade shows a gold badge that fills as it completes, and the job column beside the unit card only appears while something is being recruited, reinforced or upgraded.
+
+**0.8.0**
+- **A 3D battlefield.** The battle is now drawn with Three.js: an elevated, tilted tactical camera over textured ground; buildings with real walls, doors and windows and roofs of clay tile, nipa or rusted iron, some broken open by shellfire and smouldering; palms, broadleaf trees, banana plants and hedgerow bushes; stone walls, sandbag lines, wire, tank traps, rubble and timber; headquarters, tier buildings, MG nests, bunkers and aid tents as solid buildings that rise while they are built. A low evening sun casts real shadows, tree crowns stand over the troops, and fog of war lies over everything.
+- **Fire and smoke.** Blasts flash, throw sparks and dirt and leave scorch marks; big ones start fires. Knocked-out tanks and fallen emplacements burn. Fires flicker with hot cores and embers, light the ground and walls around them orange, and pour out smoke that drifts with the wind. Without WebGL the game falls back to the flat 2D battlefield.
 
 **0.7.0**
 - **Doctrines.** Five per army, each led by a commander with a painted portrait and its own banner, special unit and two commander call-ins: charges, accuracy and defence orders, artillery barrages, spotter planes, paradrops, free militia squads, ambushes and minefields. Command points are earned in combat and over time. The enemy commander chooses a doctrine and uses its call-ins too.
