@@ -39,6 +39,104 @@ const BASE_CLEAR = 4;
 
 type Cell = { x: number; y: number };
 
+/**
+ * Buildings traced from the town plans come out as staircases wherever a house
+ * stood at an angle to the grid. Rebuild each block of houses from its largest
+ * clean rectangles (at least 2 × 2 tiles); the leftover steps and slivers become
+ * open yard. A small house that would vanish keeps its biggest block.
+ */
+function tidyHouses(grid: string[][]): void {
+  const H = grid.length;
+  const W = grid[0].length;
+  const seen = new Uint8Array(W * H);
+  for (let start = 0; start < W * H; start++) {
+    const sx = start % W;
+    const sy = Math.floor(start / W);
+    if (seen[start] || grid[sy][sx] !== '#') continue;
+    // One block of touching houses.
+    const tiles: number[] = [];
+    const stack = [start];
+    seen[start] = 1;
+    while (stack.length) {
+      const k = stack.pop()!;
+      tiles.push(k);
+      const kx = k % W;
+      const ky = Math.floor(k / W);
+      for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+        const nx = kx + dx;
+        const ny = ky + dy;
+        if (nx < 0 || ny < 0 || nx >= W || ny >= H) continue;
+        const j = ny * W + nx;
+        if (!seen[j] && grid[ny][nx] === '#') {
+          seen[j] = 1;
+          stack.push(j);
+        }
+      }
+    }
+    const left = new Set(tiles);
+    const keep = new Set<number>();
+    let first = true;
+    for (;;) {
+      const r = largestRect(left, W);
+      if (!r) break;
+      const big = r.w >= 2 && r.h >= 2;
+      if (!big && !(first && r.w * r.h >= 2)) break;
+      for (let y = r.y; y < r.y + r.h; y++) {
+        for (let x = r.x; x < r.x + r.w; x++) {
+          left.delete(y * W + x);
+          keep.add(y * W + x);
+        }
+      }
+      first = false;
+      if (!big) break;
+    }
+    for (const k of tiles) if (!keep.has(k)) grid[Math.floor(k / W)][k % W] = '.';
+  }
+}
+
+/** The largest axis-aligned rectangle made only of the given tiles. */
+function largestRect(tiles: Set<number>, W: number): { x: number; y: number; w: number; h: number } | null {
+  if (tiles.size === 0) return null;
+  let x0 = Infinity;
+  let x1 = -Infinity;
+  let y0 = Infinity;
+  let y1 = -Infinity;
+  for (const k of tiles) {
+    const x = k % W;
+    const y = Math.floor(k / W);
+    x0 = Math.min(x0, x);
+    x1 = Math.max(x1, x);
+    y0 = Math.min(y0, y);
+    y1 = Math.max(y1, y);
+  }
+  const bw = x1 - x0 + 1;
+  const heights = new Array<number>(bw).fill(0);
+  let best: { x: number; y: number; w: number; h: number } | null = null;
+  let bestArea = 0;
+  for (let y = y0; y <= y1; y++) {
+    for (let i = 0; i < bw; i++) heights[i] = tiles.has(y * W + x0 + i) ? heights[i] + 1 : 0;
+    // Largest rectangle in the histogram of heights ending on this row.
+    const stack: number[] = [];
+    for (let i = 0; i <= bw; i++) {
+      const h = i < bw ? heights[i] : 0;
+      while (stack.length && heights[stack[stack.length - 1]] >= h) {
+        const top = stack.pop()!;
+        const height = heights[top];
+        const start = stack.length ? stack[stack.length - 1] + 1 : 0;
+        const width = i - start;
+        // Prefer squarer houses: a long sliver of a row is not much of a house.
+        const area = height * width - (Math.min(height, width) < 2 ? 0.5 : 0);
+        if (height > 0 && area > bestArea) {
+          bestArea = area;
+          best = { x: x0 + start, y: y - height + 1, w: width, h: height };
+        }
+      }
+      stack.push(i);
+    }
+  }
+  return best;
+}
+
 /** Decodes a grid and widens roads that only touch corner to corner (see below). */
 function prepareGrid(rows: readonly string[]): string[][] {
   const grid = rows.map(decodeGridRow);
@@ -238,6 +336,7 @@ function joinMiddle(grid: string[][]): void {
 
 function build(src: LuzonMapSource): MapDef {
   const grid = prepareGrid(src.rows);
+  tidyHouses(grid);
   mirrorGrid(grid);
   joinMiddle(grid);
   const H = grid.length;
