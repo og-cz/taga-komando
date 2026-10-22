@@ -54,7 +54,7 @@ function canopyBlob(seed: number, lumps: number): THREE.BufferGeometry {
     s.translate(Math.cos(a) * r, i === 0 ? 0.15 : hash2(i, seed, 3) * 0.12, Math.sin(a) * r);
     parts.push(s);
   }
-  const g = mergeGeometries(parts.map((p) => p.toNonIndexed()))!;
+  const g = mergeGeometries(parts.map((p) => (p.index ? p.toNonIndexed() : p)))!;
   g.computeVertexNormals();
   return g;
 }
