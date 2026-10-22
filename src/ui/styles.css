@@ -2178,15 +2178,9 @@ button:disabled {
 
 /* Messages above the doctrine panel, never under it. */
 .toasts {
-  bottom: 280px;
+  bottom: 226px;
 }
 
-/* Narrow windows: the doctrine panel moves up over the resources. */
-@media (max-width: 1300px) {
-  .doctrine-bar {
-    bottom: 212px;
-  }
-}
 
 /* ─── Pause menu ─── */
 .overlay.pause-screen {
@@ -2300,4 +2294,108 @@ button:disabled {
 
 ::-webkit-scrollbar-corner {
   background: #121309;
+}
+
+/* ═══ Info strip: doctrine and resources as one bar on the panel's top edge ═══ */
+.unit-card {
+  overflow: visible;
+}
+
+.info-strip {
+  position: absolute;
+  left: -1px;
+  right: -1px;
+  bottom: calc(100% + 1px);
+  z-index: 2;
+  display: flex;
+  align-items: stretch;
+  justify-content: space-between;
+  gap: 8px;
+  height: 38px;
+  pointer-events: none;
+}
+
+.info-strip > * {
+  pointer-events: auto;
+}
+
+/* Both halves are the same tab: steel, square bottom, sitting on the panel. */
+.info-strip .doctrine-bar,
+.info-strip .res-strip {
+  position: static;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: auto;
+  height: 38px;
+  margin: 0;
+  padding: 3px 6px;
+  background: var(--steel-raised);
+  border: 1px solid var(--edge);
+  border-bottom: none;
+  border-radius: 5px 5px 0 0;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 230, 0.14);
+}
+
+.info-strip .res-strip .res {
+  min-width: 0;
+  height: 30px;
+  padding: 2px 8px 2px 3px;
+}
+
+.info-strip .res-strip .res .val {
+  font-size: 15px;
+}
+
+/* Doctrine not chosen yet: the plaque fills its tab. */
+.info-strip .doctrine-choose {
+  height: 30px;
+  padding: 0 14px;
+  font-size: 16px;
+  outline-offset: -3px;
+  animation: none;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 230, 0.2), 0 0 0 1px var(--amber);
+}
+
+/* Chosen: commander, name and command points, then the call-ins. */
+.info-strip .db-head {
+  gap: 6px;
+}
+
+.info-strip .db-portrait {
+  width: 26px;
+  height: 30px;
+}
+
+.info-strip .db-name {
+  font-size: 15px;
+}
+
+.info-strip .db-commander {
+  display: none;
+}
+
+.info-strip .db-cp {
+  margin-top: 1px;
+}
+
+.info-strip .db-calls {
+  display: flex;
+  gap: 4px;
+}
+
+.info-strip .callin {
+  width: 30px;
+  height: 30px;
+}
+
+.info-strip .callin .cmd-icon {
+  font-size: 18px;
+}
+
+/* Narrow windows: drop the per-minute income to keep one line. */
+@media (max-width: 1200px) {
+  .info-strip .res .inc {
+    display: none;
+  }
 }
