@@ -208,6 +208,10 @@ export class Battlefield3D {
     this.canvas.style.height = `${h}px`;
     const size = this.renderer.getDrawingBufferSize(new THREE.Vector2());
     this.overlayMat.uniforms.res.value.copy(size);
+    // The units-and-markers canvas has a new size: free the old texture so it is
+    // allocated afresh, or every update would fail and the markers drift off the map.
+    this.overlayTex.dispose();
+    this.overlayTex.needsUpdate = true;
   }
 
   /** Match the 3D camera to the game camera (plus screen shake, in screen pixels). */
