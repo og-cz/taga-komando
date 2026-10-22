@@ -1,4 +1,4 @@
-import { COVER, CREW_PIVOT_RATE, RETREAT, TILE, VETERANCY } from '../../data/balance';
+import { COVER, RETREAT, TILE, VETERANCY } from '../../data/balance';
 import { T } from '../../data/terrain';
 import type { WeaponDef } from '../../data/types';
 import { angleDiff, angleTo, clamp, dist, lerp, rotateTowards, type Vec2 } from '../../core/vec';
@@ -37,7 +37,7 @@ export function updateCombat(world: World, dt: number): void {
     autoSetup(sq, target);
     for (const m of sq.models) {
       if (!m.alive) continue;
-      for (const ws of m.weapons) tryFire(world, sq, m, ws, target, dt);
+      for (const ws of m.weapons) tryFire(world, sq, m, ws, target);
       if (target.dead) break;
     }
   }
@@ -56,6 +56,27 @@ function validTarget(world: World, sq: Squad, t: Squad | undefined): t is Squad 
   return !!t && !t.dead && t.team !== sq.team && world.canSee(sq.team, t);
 }
 
+/** Whether this squad's main weapon fires over obstacles (mortars). */
+function firesIndirect(sq: Squad): boolean {
+  return sq.models.some((m) => m.alive && m.weapons.some((w) => w.def.indirect));
+}
+
+/** Can the squad actually put fire on `e` from where it stands? Not through a house. */
+function canEngage(world: World, sq: Squad, e: Squad, indirect: boolean): boolean {
+  if (indirect) return true;
+  return hasLineOfSight(world.map, sq.pos, e.pos, e.def.radius, sq.def.radius);
+}
+
+/** Half the firing cone of a deployed crew weapon, or null if it can fire all round. */
+function crewHalfArc(sq: Squad): number | null {
+  if (sq.def.kind !== 'team' || sq.setup !== 'deployed') return null;
+  for (const m of sq.models) {
+    if (!m.alive) continue;
+    for (const ws of m.weapons) if (ws.def.crew && ws.def.arc < 360) return (ws.def.arc * Math.PI) / 360;
+  }
+  return null;
+}
+
 function acquireTarget(world: World, sq: Squad, dt: number): Squad | null {
   if (sq.order.kind === 'attack') {
     const t = world.get(sq.order.targetId);
@@ -65,6 +86,7 @@ function acquireTarget(world: World, sq: Squad, dt: number): Squad | null {
     }
   }
   const range = maxRange(sq) + 16;
+  const indirect = firesIndirect(sq);
   let cur = world.get(sq.targetId);
   if (cur && (!validTarget(world, sq, cur) || dist(sq.pos, cur.pos) - cur.def.radius > range)) {
     cur = undefined;
@@ -73,8 +95,17 @@ function acquireTarget(world: World, sq: Squad, dt: number): Squad | null {
   sq.scanTimer -= dt;
   if (sq.scanTimer > 0) return cur ?? null;
   sq.scanTimer = 0.35 + world.rng.next() * 0.2;
+  // A target that has gone behind a house is let go, so the crew finds another.
+  if (cur && !canEngage(world, sq, cur, indirect)) {
+    cur = undefined;
+    sq.targetId = null;
+  }
 
+  // Score every enemy the squad can really engage: lower is better.
+  // Distance, then what the weapon is for, how dangerous the enemy is to us,
+  // whether a deployed gun has to traverse to it, and a bonus for staying on target.
   const prefers = preference(sq.def);
+  const halfArc = crewHalfArc(sq);
   let best: Squad | null = null;
   let bestScore = Infinity;
   for (const e of world.squads) {
@@ -82,6 +113,7 @@ function acquireTarget(world: World, sq: Squad, dt: number): Squad | null {
     const d = dist(sq.pos, e.pos) - e.def.radius;
     if (d > range || !world.canSee(sq.team, e)) continue;
     if (sq.def.kind === 'structure' && !structureCovers(sq, e.pos)) continue;
+    if (!canEngage(world, sq, e, indirect)) continue;
     const armored = e.def.armor !== null;
     let score = Math.max(d, 1);
     if (prefers === 'vehicle') score *= armored ? 0.4 : 1.6;
@@ -90,7 +122,12 @@ function acquireTarget(world: World, sq: Squad, dt: number): Squad | null {
     // one go for it first; those that cannot leave it alone. The HQ is a last resort.
     if (e.def.role === 'fort') score *= fortPriority(sq, e);
     else if (e.def.kind === 'structure') score *= 2.5;
-    if (e === cur) score *= 0.8;
+    // Threat: whoever is shooting at us comes first.
+    if (e.targetId === sq.id) score *= 0.7;
+    // A deployed gun keeps the facing it was set up with: only what is in its cone counts.
+    if (halfArc !== null && Math.abs(angleDiff(sq.setupFacing, angleTo(sq.pos, e.pos))) > halfArc) continue;
+    // Stay on target unless something is clearly better.
+    if (e === cur) score *= 0.75;
     if (score < bestScore) {
       bestScore = score;
       best = e;
@@ -155,7 +192,7 @@ function pickTargetModel(world: World, target: Squad): Model | null {
   return null;
 }
 
-function tryFire(world: World, sq: Squad, m: Model, ws: WeaponState, target: Squad, dt: number): void {
+function tryFire(world: World, sq: Squad, m: Model, ws: WeaponState, target: Squad): void {
   const w = ws.def;
   if (ws.cooldown > 0 || ws.reloading > 0 || sq.channel) return;
   if (w.crew && sq.setup !== 'deployed') return;
@@ -167,11 +204,8 @@ function tryFire(world: World, sq: Squad, m: Model, ws: WeaponState, target: Squ
   const ang = angleTo(m.pos, tm.pos);
   if (w.turret && Math.abs(angleDiff(sq.turret, ang)) > 0.08) return;
   if (w.crew && w.arc < 360) {
-    const half = (w.arc * Math.PI) / 360;
-    if (Math.abs(angleDiff(sq.setupFacing, ang)) > half) {
-      sq.setupFacing = rotateTowards(sq.setupFacing, ang, CREW_PIVOT_RATE * dt);
-      return;
-    }
+    // Set up, the gun never turns: it fires on whatever enters its cone, nothing else.
+    if (Math.abs(angleDiff(sq.setupFacing, ang)) > (w.arc * Math.PI) / 360) return;
   } else if (sq.def.kind === 'structure' && w.arc < 360 && !inArc(sq, w, tm.pos)) {
     // Emplaced guns cannot turn: they only cover the way they were built facing.
     return;
