@@ -3,6 +3,7 @@ import { el } from './dom';
 export const CONTROLS: [string, string][] = [
   ['Left-click / drag', 'Select units (Shift adds, double-click selects same type)'],
   ['Right-click', 'Move, or attack the enemy under the cursor (Shift queues)'],
+  ['Right-click a house', 'Infantry go in and fire from the windows; a move order brings them out'],
   ['Right-click + drag', 'Move there and face the drag direction; weapon teams set up aimed that way'],
   ['A', 'Attack-move'],
   ['S', 'Stop'],
