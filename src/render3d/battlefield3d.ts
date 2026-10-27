@@ -7,6 +7,7 @@ import { TerrainLayer } from '../render/terrainLayer';
 import { buildBuildings, type BuildingInfo } from './buildings';
 import { Effects3D } from './fx';
 import { Structures3D } from './structures';
+import { Units3D, type UnitLook } from './units';
 import type { Squad } from '../sim/entities';
 import { buildProps } from './props';
 import { disposeTextures } from './textures';
@@ -75,6 +76,7 @@ export class Battlefield3D {
   private buildingTiles = new Set<number>();
   readonly fx = new Effects3D();
   private readonly structures = new Structures3D();
+  private readonly units = new Units3D();
   /** While anything is being built, shadows are refreshed now and then. */
   private shadowClock = 0;
   private readonly deadSeen = new Set<number>();
@@ -150,7 +152,7 @@ export class Battlefield3D {
     fogPlane.renderOrder = 5;
     this.scene.add(fogPlane);
 
-    this.scene.add(this.fx.group, this.structures.group);
+    this.scene.add(this.fx.group, this.structures.group, this.units.group);
     // Shelled houses smoulder; a few still burn.
     this.info.damaged.forEach((d, i) => this.fx.addFire(d.x, d.y, 0.7 + (i % 3) * 0.2, Infinity, i % 3 !== 0));
   }
@@ -251,6 +253,11 @@ export class Battlefield3D {
   }
 
   /** Show these structures (the ones the player can see) as buildings. */
+  /** Show these soldiers, weapon teams and tanks (the ones the player can see) as models. */
+  syncUnits(list: readonly Squad[], lookOf: (sq: Squad) => UnitLook): void {
+    this.units.sync(list, this.world.time, lookOf);
+  }
+
   syncStructures(list: readonly Squad[]): void {
     const changed = this.structures.sync(list, (sq) => this.world.teams[sq.team].faction.id);
     this.shadowClock -= 1 / 60;
@@ -290,6 +297,7 @@ export class Battlefield3D {
     });
     this.fx.dispose();
     this.structures.dispose();
+    this.units.dispose();
     this.groundTex.dispose();
     this.overlayTex.dispose();
     this.fogTex.dispose();
