@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import type { HeadGear } from '../data/types';
 import type { Squad } from '../sim/entities';
+import { clothTexture } from './textures';
 
 /** How a unit is dressed and painted (from its army, or its doctrine kit). */
 export interface UnitLook {
@@ -110,13 +111,29 @@ export class Units3D {
   private readonly t = new THREE.Matrix4();
 
   constructor() {
-    const cloth = new THREE.MeshStandardMaterial({ roughness: 0.95 });
+    const cloth = new THREE.MeshStandardMaterial({ map: clothTexture(), roughness: 0.95 });
+    const limbs = new THREE.MeshStandardMaterial({ map: clothTexture(true), roughness: 0.95 });
+    // Round limbs and body: a cylinder standing on the ground, or lying along +x.
+    const limb = (r0: number, r1: number, len: number) => new THREE.CylinderGeometry(r1, r0, len, 8);
     const plain = (color: number, roughness = 0.9, metalness = 0) => new THREE.MeshStandardMaterial({ color, roughness, metalness });
-    this.legs = new PartMesh(mergeGeometries([box(1.0, 2.8, 0.9, 0, 1.4, 0.6)])!, cloth, MAX_SOLDIERS * 2);
-    this.torso = new PartMesh(box(1.9, 3.4, 2.6, 0, 4.5, 0), cloth, MAX_SOLDIERS);
-    this.arms = new PartMesh(mergeGeometries([box(2.6, 0.8, 0.8, 1.0, 5.0, 1.0), box(2.6, 0.8, 0.8, 1.0, 5.0, -1.0)])!, cloth, MAX_SOLDIERS);
+    // A leg with its boot (the boot darker comes from the cloth's lower folds).
+    this.legs = new PartMesh(mergeGeometries([limb(0.42, 0.55, 2.8).translate(0, 1.4, 0.6), box(1.3, 0.5, 0.75, 0.2, 0.25, 0.6)])!, limbs, MAX_SOLDIERS * 2);
+    // Torso: rounded, broad at the shoulders, a little narrower at the hips.
+    this.torso = new PartMesh(new THREE.CylinderGeometry(1.3, 1.05, 3.4, 10).scale(0.78, 1, 1.05).translate(0, 4.5, 0), cloth, MAX_SOLDIERS);
+    // Arms reaching forward to the rifle, with shoulders.
+    this.arms = new PartMesh(
+      mergeGeometries([
+        limb(0.38, 0.42, 2.6).rotateZ(-Math.PI / 2 + 0.25).translate(1.0, 5.15, 1.05),
+        limb(0.38, 0.42, 2.6).rotateZ(-Math.PI / 2 + 0.25).translate(1.0, 5.15, -0.95),
+        new THREE.SphereGeometry(0.55, 8, 6).translate(0, 5.8, 1.15),
+        new THREE.SphereGeometry(0.55, 8, 6).translate(0, 5.8, -1.15),
+      ])!,
+      limbs,
+      MAX_SOLDIERS,
+    );
     this.pack = new PartMesh(box(1.2, 2.0, 2.0, -1.5, 4.7, 0), plain(0xffffff), MAX_SOLDIERS);
-    this.head = new PartMesh(new THREE.SphereGeometry(1.0, 10, 8).translate(0, 7.0, 0), plain(0xa8754f, 0.8), MAX_SOLDIERS);
+    // Head and neck.
+    this.head = new PartMesh(mergeGeometries([new THREE.SphereGeometry(1.0, 12, 9).scale(1, 1.08, 0.95).translate(0.05, 7.0, 0), limb(0.45, 0.45, 0.6).translate(0, 6.3, 0)])!, plain(0xa8754f, 0.75), MAX_SOLDIERS);
     this.rifle = new PartMesh(box(6.2, 0.45, 0.45, 2.6, 5.1, 0.4), plain(0x2b2118, 0.7), MAX_SOLDIERS);
     this.blade = new PartMesh(box(3.0, 0.25, 0.5, 2.0, 4.8, 0.6), plain(0xc9c6b8, 0.35, 0.6), MAX_SOLDIERS);
     const gear = headgear();
@@ -168,6 +185,8 @@ export class Units3D {
         continue;
       }
       if (sq.def.kind !== 'infantry' && sq.def.kind !== 'team') continue;
+      // Men inside a house are out of sight.
+      if (sq.garrison !== null) continue;
       const look = lookOf(sq);
       const prone = sq.suppState === 'pinned';
       let crewDrawn = false;
