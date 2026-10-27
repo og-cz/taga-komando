@@ -1,3 +1,4 @@
+import { canGarrison, type House } from '../sim/systems/garrison';
 import { ABILITIES } from '../data/abilities';
 import { BUILDABLES } from '../data/buildables';
 import { LOGISTICS, TILE } from '../data/balance';
@@ -18,6 +19,7 @@ import {
   issueSetup,
   issueUpgrade,
   queueProduction,
+  issueGarrison,
 } from '../sim/commands';
 import { aliveCount, healthFraction, isSoft, type CapturePoint, type Squad } from '../sim/entities';
 import { fortPriority } from '../sim/systems/combat';
@@ -141,6 +143,7 @@ export class AICommander {
     if (sq.def.builds.length > 0 && this.fortify(world, sq)) return;
     this.useAbilities(world, sq);
     if (sq.order.kind === 'ability') return;
+    if (this.holdHouse(world, sq, own)) return;
     if (this.hunt(world, sq)) return;
 
     if (sq.order.kind === 'idle' && sq.def.kind === 'team' && sq.setup === 'packed' && this.objective.has(sq.id)) {
@@ -153,6 +156,32 @@ export class AICommander {
       if (!this.stale(world, sq)) return;
     }
     this.assignObjective(world, sq, own);
+  }
+
+  /**
+   * Hold a house by a point the army owns: one rifle squad per point goes
+   * into the nearest free house and fights from the windows. It stays while
+   * the point is ours, and comes out when it is lost.
+   */
+  private holdHouse(world: World, sq: Squad, own: Squad[]): boolean {
+    if (!canGarrison(sq) || sq.def.role !== 'line') return false;
+    const near = (p: { x: number; y: number }) => world.points.find((cp) => cp.owner === this.team && dist(cp.pos, p) < 150);
+    if (sq.garrison !== null) return !!near(world.houses[sq.garrison].center);
+    if (sq.order.kind !== 'idle') return false;
+    const point = near(sq.pos);
+    if (!point) return false;
+    if (own.some((o) => o.garrison !== null && dist(world.houses[o.garrison].center, point.pos) < 150)) return false;
+    let best: House | undefined;
+    let bestD = 130;
+    for (const h of world.houses) {
+      if (h.occupant !== null) continue;
+      const d = dist(h.center, point.pos);
+      if (d < bestD) {
+        bestD = d;
+        best = h;
+      }
+    }
+    return !!best && issueGarrison(world, sq, best).ok;
   }
 
   /** Buy a weapon upgrade when supplied and munitions allow: anti-tank once enemy armour has been seen, otherwise more firepower. */
