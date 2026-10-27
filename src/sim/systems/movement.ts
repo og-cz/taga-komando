@@ -1,3 +1,4 @@
+import { canHit } from './garrison';
 import { teamMult } from './doctrine';
 import { RETREAT, TILE } from '../../data/balance';
 import { ABILITIES } from '../../data/abilities';
@@ -16,7 +17,6 @@ import {
   type Vec2,
 } from '../../core/vec';
 import { aliveCount, crewOffset, formationOffset, maxRange, type Squad } from '../entities';
-import { hasLineOfSight } from '../los';
 import { finishOrder } from '../orders';
 import { findPath, pathLength } from '../pathfinding';
 import type { World } from '../world';
@@ -28,6 +28,8 @@ import { suppressionSpeed } from './suppression';
 export function updateMovement(world: World, dt: number): void {
   for (const sq of world.squads) {
     if (sq.dead || sq.def.kind === 'structure') continue;
+    // Inside a house the men hold their windows.
+    if (sq.garrison !== null) continue;
     updateSetupTimer(sq, dt);
     sq.repathTimer -= dt;
     const goal = movementGoal(world, sq);
@@ -42,6 +44,7 @@ function movementGoal(world: World, sq: Squad): Vec2 | null {
   switch (o.kind) {
     case 'move':
     case 'retreat':
+    case 'garrison':
       return o.dest ?? null;
     case 'attackMove': {
       // Stop to fight while something is in range; resume afterwards.
@@ -58,7 +61,7 @@ function movementGoal(world: World, sq: Squad): Vec2 | null {
       const range = maxRange(sq);
       const indirect = sq.models.some((m) => m.alive && m.weapons.some((w) => w.def.indirect));
       const inRange = dist(sq.pos, t.pos) - t.def.radius <= range * 0.9;
-      if (inRange && (indirect || hasLineOfSight(world.map, sq.pos, t.pos, t.def.radius, sq.def.radius))) return null;
+      if (inRange && (indirect || canHit(world, sq, t))) return null;
       return t.pos;
     }
     case 'build': {
