@@ -1,3 +1,4 @@
+import { findHouses, updateGarrisons, type House } from './systems/garrison';
 import { ECONOMY, TILE, VICTORY } from '../data/balance';
 import { FACTIONS } from '../data/factions';
 import { isHidden, updateDoctrines, type Drop, type Strike } from './systems/doctrine';
@@ -46,6 +47,11 @@ export interface WorldOptions {
 export class World {
   time = 0;
   readonly map: GameMap;
+  private houseList: House[] | null = null;
+  /** Houses infantry can hold, found from the map on first use. */
+  get houses(): House[] {
+    return (this.houseList ??= findHouses(this));
+  }
   readonly rng: Rng;
   readonly mapDef: MapDef;
   squads: Squad[] = [];
@@ -221,6 +227,7 @@ export class World {
     updateAbilities(this, dt);
     updateDoctrines(this, dt);
     updateMovement(this, dt);
+    updateGarrisons(this);
     updateEngineering(this, dt);
     updateCombat(this, dt);
     updateProjectiles(this, dt);
