@@ -18,6 +18,7 @@ import { Effects } from './effects';
 import { COVER_COLOR, NEUTRAL, TEAM } from './palette';
 import { TerrainLayer } from './terrainLayer';
 import { Battlefield3D, webglAvailable } from '../render3d/battlefield3d';
+import type { UnitLook } from '../render3d/units';
 import { drawIcon, unitIcon } from '../ui/icons';
 
 const POINT_GLYPH: Record<string, string> = { victory: 'V', munitions: 'M', fuel: 'F', manpower: 'P' };
@@ -245,6 +246,7 @@ export class Renderer {
 
     if (this.world3d) {
       this.world3d.syncStructures(visible.filter((s) => s.def.kind === 'structure'));
+      this.world3d.syncUnits(visible, (sq) => this.unitLook(sq));
       this.world3d.render(camera, dt, this.fogVersion, shakeX, shakeY);
       // Screen-space markers go on the screen canvas, over the 3D view.
       this.ctx = this.screenCtx;
@@ -580,6 +582,25 @@ export class Renderer {
       if (selected) this.ring(m.pos, 6.5, '#9dff7a');
       else if (hovered) this.ring(m.pos, 6.5, 'rgba(255,255,255,0.55)');
       const w = m.weapons[0]?.def;
+      if (this.world3d) {
+        // The soldier is a 3D model; the ground keeps his shadow, a dot in his army's colour and his wounds.
+        ctx.fillStyle = 'rgba(8,12,6,0.34)';
+        ctx.beginPath();
+        ctx.ellipse(m.pos.x + 2.6, m.pos.y + 2.6, pinned ? 5.4 : 3.6, 3, m.facing, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.fillStyle = TEAM[sq.team].main;
+        ctx.globalAlpha = 0.55;
+        ctx.beginPath();
+        ctx.arc(m.pos.x, m.pos.y, 1.6, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.globalAlpha = 1;
+        const hpFrac = m.hp / m.maxHp;
+        if (hpFrac < 0.99) {
+          ctx.fillStyle = hpFrac > 0.5 ? '#c9f08a' : hpFrac > 0.25 ? '#f2c94c' : '#ff5a4a';
+          ctx.fillRect(m.pos.x - 3, m.pos.y + 5.5, 6 * hpFrac, 1.4);
+        }
+        continue;
+      }
       if (w?.crew) {
         const facing = sq.setup === 'packed' ? m.facing : sq.setupFacing;
         ctx.save();
@@ -848,6 +869,11 @@ export class Renderer {
       this.tracks.set(sq.id, { x: sq.pos.x, y: sq.pos.y });
     }
 
+    if (this.world3d) {
+      ctx.restore();
+      if (healthFraction(sq) < 0.4 && Math.random() < 0.15) this.effects.puff(sq.pos);
+      return;
+    }
     // Tracks, with links.
     ctx.fillStyle = '#23231f';
     ctx.fillRect(-L / 2, -W / 2, L, 4.5);
@@ -950,6 +976,23 @@ export class Renderer {
     ctx.restore();
     // Damaged vehicles trail smoke.
     if (healthFraction(sq) < 0.4 && Math.random() < 0.15) this.effects.puff(sq.pos);
+  }
+
+  /** How a unit is dressed and painted, for the 3D models: its doctrine kit, or its army's. */
+  private unitLook(sq: Squad): UnitLook {
+    const army = this.look(sq);
+    return {
+      cloth: sq.def.look?.cloth ?? army.cloth,
+      helmet: sq.def.look?.helmet ?? army.helmet,
+      style: sq.def.look?.helmetStyle ?? army.helmetStyle,
+      pack: army.pack,
+      hull: army.hull,
+      turret: army.turret,
+      camo: army.camo,
+      barrel: army.barrel,
+      emblem: army.emblem,
+      chiHa: army.chiHa,
+    };
   }
 
   /** Paint and kit of a unit's army. */
