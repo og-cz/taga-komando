@@ -10,7 +10,7 @@ import { Structures3D } from './structures';
 import { Units3D, type UnitLook } from './units';
 import type { Squad } from '../sim/entities';
 import { buildProps } from './props';
-import { disposeTextures } from './textures';
+import { disposeTextures, groundDetailTexture } from './textures';
 import { buildVegetation } from './vegetation';
 
 /** A plane over the map that shows a screen-aligned canvas, so 2D drawing sits in the 3D scene. */
@@ -129,7 +129,20 @@ export class Battlefield3D {
     const outer = mapPlane(W + m * 2, H + m * 2, -0.6, new THREE.MeshBasicMaterial({ map: surround, toneMapped: false }));
     outer.position.set(W / 2, -0.6, H / 2);
     this.scene.add(outer);
-    const ground = mapPlane(W, H, 0, new THREE.MeshStandardMaterial({ map: this.groundTex, roughness: 0.96 }));
+    const groundMat = new THREE.MeshStandardMaterial({ map: this.groundTex, roughness: 0.96 });
+    // Fine grit, pebbles and grass tiled over the painted ground, so it stays sharp close up.
+    const detail = groundDetailTexture();
+    groundMat.onBeforeCompile = (shader) => {
+      shader.uniforms.detailMap = { value: detail };
+      shader.uniforms.detailRepeat = { value: new THREE.Vector2(W / 22, H / 22) };
+      shader.fragmentShader = shader.fragmentShader
+        .replace('#include <common>', '#include <common>\nuniform sampler2D detailMap;\nuniform vec2 detailRepeat;')
+        .replace(
+          '#include <map_fragment>',
+          '#include <map_fragment>\nfloat dA = texture2D(detailMap, vMapUv * detailRepeat).r;\nfloat dB = texture2D(detailMap, vMapUv * detailRepeat * 0.37 + 0.31).r;\ndiffuseColor.rgb *= 0.62 + (dA * 0.6 + dB * 0.4) * 0.76;',
+        );
+    };
+    const ground = mapPlane(W, H, 0, groundMat);
     ground.receiveShadow = true;
     this.scene.add(ground);
 
