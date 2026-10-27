@@ -13,6 +13,7 @@ import {
   type WeaponState,
 } from '../entities';
 import { hasLineOfSight } from '../los';
+import { canHit } from './garrison';
 import type { World } from '../world';
 import { earnCp, teamMult } from './doctrine';
 import { coverAt } from './cover';
@@ -64,7 +65,7 @@ function firesIndirect(sq: Squad): boolean {
 /** Can the squad actually put fire on `e` from where it stands? Not through a house. */
 function canEngage(world: World, sq: Squad, e: Squad, indirect: boolean): boolean {
   if (indirect) return true;
-  return hasLineOfSight(world.map, sq.pos, e.pos, e.def.radius, sq.def.radius);
+  return canHit(world, sq, e);
 }
 
 /** Half the firing cone of a deployed crew weapon, or null if it can fire all round. */
