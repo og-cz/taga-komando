@@ -77,5 +77,11 @@ export const VETERANCY = {
 };
 
 /** AI income multiplier per difficulty. */
+/** Squads holding a house: green cover from every side (the house tiles), and a better view. */
+export const GARRISON = {
+  /** Sight from the windows. */
+  sight: 1.25,
+};
+
 export const DIFFICULTY: Record<Difficulty, number> = { easy: 0.75, normal: 1, hard: 1.3 };
 
