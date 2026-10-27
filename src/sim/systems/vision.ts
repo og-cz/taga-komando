@@ -1,4 +1,4 @@
-import { MAX_SIGHT_DENSITY, TILE, VISION_INTERVAL } from '../../data/balance';
+import { GARRISON, MAX_SIGHT_DENSITY, TILE, VISION_INTERVAL } from '../../data/balance';
 import { TERRAIN } from '../../data/terrain';
 import type { TeamId } from '../../data/types';
 import type { Vec2 } from '../../core/vec';
@@ -33,7 +33,10 @@ export class Vision {
       vis.fill(0);
       for (const sq of world.squads) {
         if (sq.dead || sq.team !== team) continue;
-        this.cast(vis, sq.pos, sq.def.sight, sq.def.radius);
+        // From a house the men look out of every window, and see further.
+        const house = sq.garrison !== null ? world.houses[sq.garrison] : undefined;
+        if (house) this.cast(vis, house.center, sq.def.sight * GARRISON.sight, house.radius);
+        else this.cast(vis, sq.pos, sq.def.sight, sq.def.radius);
       }
       // Spotter planes see everything around their target.
       for (const r of world.teams[team].reveals) {
