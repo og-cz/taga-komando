@@ -1,7 +1,7 @@
 import { clamp, type Vec2 } from '../core/vec';
 
 /** How far the 3D battlefield camera leans back from straight down. */
-export const CAMERA_TILT = (24 * Math.PI) / 180;
+export const CAMERA_TILT = (36 * Math.PI) / 180;
 
 /**
  * Battlefield camera with pan and zoom. `x`/`y` is the world point at screen centre.
