@@ -24,7 +24,7 @@ export interface Model {
   coverSlot: Vec2 | null;
 }
 
-export type OrderKind = 'idle' | 'move' | 'attackMove' | 'attack' | 'retreat' | 'ability' | 'build' | 'repair';
+export type OrderKind = 'idle' | 'move' | 'attackMove' | 'attack' | 'retreat' | 'ability' | 'build' | 'repair' | 'garrison';
 
 export interface Order {
   kind: OrderKind;
@@ -33,6 +33,8 @@ export interface Order {
   abilityId?: string;
   /** Direction to face on arrival (right-click drag); weapon teams set up this way. */
   facing?: number;
+  /** The house to go into (garrison orders). */
+  houseId?: number;
 }
 
 export type SetupState = 'packed' | 'settingUp' | 'deployed' | 'tearingDown';
@@ -76,6 +78,8 @@ export interface Squad {
   suppState: SuppressionState;
   lastSuppressed: number;
   retreating: boolean;
+  /** The house the squad is holding, or null when it is outside. */
+  garrison: number | null;
   setup: SetupState;
   setupTimer: number;
   setupFacing: number;
@@ -277,6 +281,7 @@ export function createSquad(nextId: () => number, team: TeamId, def: UnitDef, po
     suppState: 'normal',
     lastSuppressed: -Infinity,
     retreating: false,
+    garrison: null,
     setup: 'packed',
     setupTimer: 0,
     setupFacing: heading,
