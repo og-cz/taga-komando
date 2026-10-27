@@ -2,6 +2,14 @@
 
 [Back to the README](../README.md)
 
+**0.9.2**
+- **Soldiers on the ground.** Each soldier has a dark contact shadow under his feet and a long evening shadow thrown away from the sun, like the houses and trees, so nobody floats; tanks too. Soldiers have rounded bodies, limbs, necks and shoulders in cloth with a twill weave, seams, webbing belt, pouches and a shoulder strap.
+- **Sharper ground.** Fine grit, pebbles, cracked earth and grass are tiled over the whole battlefield, so the ground stays sharp close up.
+
+**0.9.1**
+- **Garrisoning houses.** Right-click a house with infantry selected: the squad walks to the door, goes in and takes the windows. A house is green cover from every side and its garrison sees further; each man fires from his own window, so only the windows facing the enemy can shoot. Any move or retreat order brings them out of the door nearest where they are going. Right-click an enemy-held house to attack it. The enemy holds houses by the points it owns.
+- **Cursors that say what a click will do:** attack over an enemy, a wrench over something your engineers can repair, a hammer over a building going up, a house over one your infantry can enter, and each order's own icon while you aim it.
+
 **0.9.0**
 - **3D soldiers and tanks.** Every soldier is now a small 3D figure in his own unit's uniform and headgear (straw Baliwag hat, pith helmet, salakot, peaked cap, Type 90 helmet, steel helmet, bandana), with his rifle or blade and pack; he steps as he walks and drops flat when pinned. Machine guns stand on their tripods, mortars on their base plates and anti-tank guns behind their shields, facing where they were set up. Tanks are solid models with tracks, a turret that turns on its own, a gun that kicks back when it fires and the army's marking on top; the Chi-Ha keeps its rounder turret, hoop aerial and camouflage.
 - **A steeper battlefield camera**, so you see the soldiers' bodies and the walls of the houses, not only roofs and hats.
