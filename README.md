@@ -7,7 +7,7 @@
 
 Squad-based real-time tactics game for Windows, set on Luzon.
 
-Version 0.9.0 · Campaign, Theater of War and Skirmish vs. AI · Offline
+Version 0.9.2 · Campaign, Theater of War and Skirmish vs. AI · Offline
 
 <picture>![Taga Komando](docs/screenshot.jpg)</picture>
 <sub>Concept of the look the game is heading toward.</sub>
@@ -117,6 +117,8 @@ How the mission types work:
 **Tips**
 
 - Machine guns pin infantry inside their firing cone. Once set up, a machine gun or anti-tank gun keeps the direction you gave it and fires on its own at anything in its cone: flank it, or throw a grenade.
+- Hold houses: a squad inside has green cover from every side and sees further, and each man fires from his own window, so only the windows facing the enemy can shoot. Grenades and shells still reach them.
+- The cursor shows what a click will do: attack, repair, build or go into a house.
 - Mortars need a friendly unit to see the target.
 - Tanks have thin rear armour. Hit them from behind.
 - Retreat (**R**) damaged squads before they're wiped out, then reinforce (**E**) at the HQ. A retreat can't be cancelled: the squad takes no other orders until it gets home. Tanks can't retreat: drive them back and have engineers repair them.
@@ -129,6 +131,7 @@ How the mission types work:
 | --- | --- |
 | Left-click / drag | Select units (Shift adds; double-click selects the same unit type) |
 | Right-click | Move, or attack the enemy under the cursor (Shift queues) |
+| Right-click a house | The nearest selected infantry squad goes in and holds it; any move order brings them out |
 | Right-click + drag | Move there and face the drag direction. Machine gun and mortar teams set up aimed that way; the firing cone shows while you drag |
 | A | Attack-move |
 | S | Stop |
