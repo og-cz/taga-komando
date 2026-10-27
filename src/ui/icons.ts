@@ -56,6 +56,7 @@ const ICONS: Record<string, IconDef> = {
   grenade: { stroke: ['M12 9a6 6 0 1 0 .01 0', 'M10 9V6h4v3', 'M14 6l3-2'] },
   barrage: { stroke: ['M12 2v8', 'M9.5 7.5L12 10l2.5-2.5', 'M4 20l3-5 3 3 2-5 2 5 3-3 3 5'] },
   upgrade: { stroke: ['M6 12l6-6 6 6', 'M6 18l6-6 6 6'] },
+  enter: { stroke: ['M3 20V10l9-6 9 6v10z', 'M9 20v-6h6v6', 'M12 8.5v5', 'M9.8 11.3L12 13.5l2.2-2.2'] },
   back: { stroke: ['M15 5l-7 7 7 7'] },
   rally: { stroke: ['M6 21V3', 'M6 4h12l-2.5 4 2.5 4H6'], fill: ['M6 4h12l-2.5 4 2.5 4H6z'] },
 
@@ -121,4 +122,23 @@ export function drawIcon(ctx: CanvasRenderingContext2D, name: string, x: number,
 export function unitIcon(def: { id: string; role: string }): string {
   if (def.role === 'tech') return `tech${def.id.slice(-1)}`;
   return def.role === 'fort' ? def.id : def.role;
+}
+
+const cursors = new Map<string, string>();
+
+/**
+ * A mouse cursor drawn from one of the icons: the icon in `color` over a dark
+ * outline, so it reads on any ground. Falls back to a crosshair.
+ */
+export function iconCursor(name: string, color: string): string {
+  const key = `${name}|${color}`;
+  const hit = cursors.get(key);
+  if (hit) return hit;
+  const def = ICONS[name] ?? ICONS.line;
+  const paths = (stroke: string, width: number) => def.stroke.map((d) => `<path d='${d}' fill='none' stroke='${stroke}' stroke-width='${width}' stroke-linecap='round' stroke-linejoin='round'/>`).join('');
+  const fills = (def.fill ?? []).map((d) => `<path d='${d}' fill='${color}' fill-opacity='0.35'/>`).join('');
+  const svg = `<svg xmlns='http://www.w3.org/2000/svg' width='32' height='32' viewBox='-2 -2 28 28'>${paths('#0b0c07', 4.2)}${fills}${paths(color, 2)}</svg>`;
+  const css = `url("data:image/svg+xml,${encodeURIComponent(svg)}") 16 16, crosshair`;
+  cursors.set(key, css);
+  return css;
 }
