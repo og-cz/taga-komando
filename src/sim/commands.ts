@@ -1,3 +1,4 @@
+import { canGarrison, doorFor, type House } from './systems/garrison';
 import { ABILITIES } from '../data/abilities';
 import { BUILDABLES } from '../data/buildables';
 import { ECONOMY, LOGISTICS, TILE } from '../data/balance';
@@ -64,6 +65,18 @@ export function issueAttack(_world: World, sq: Squad, target: Squad): CommandRes
   setOrder(sq, { kind: 'attack', targetId: target.id });
   sq.targetId = target.id;
   if (sq.def.kind === 'team' && sq.setup === 'deployed') sq.setupFacing = angleTo(sq.pos, target.pos);
+  return OK;
+}
+
+/** Infantry: go into a house and hold it, firing from the windows. */
+export function issueGarrison(world: World, sq: Squad, house: House, queue = false): CommandResult {
+  if (!commandable(sq) || !canGarrison(sq)) return fail('Only infantry squads can go into houses');
+  if (sq.retreating) return RETREATING;
+  if (house.occupant !== null && house.occupant !== sq.id) {
+    return fail(world.get(house.occupant)?.team === sq.team ? 'Another squad already holds that house' : 'The enemy holds that house');
+  }
+  sq.channel = null;
+  setOrder(sq, { kind: 'garrison', houseId: house.id, dest: doorFor(house, sq.pos) }, queue);
   return OK;
 }
 
