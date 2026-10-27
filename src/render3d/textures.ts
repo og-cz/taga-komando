@@ -342,6 +342,131 @@ export function sparkSprite(): THREE.Texture {
   return finish('spark', c, { srgb: false });
 }
 
+/**
+ * Uniform cloth, white so each soldier's colour tints it: a twill weave, seams,
+ * a webbing belt and a cross strap with pouches. `plain` leaves out the kit
+ * (for legs and arms).
+ */
+export function clothTexture(plain = false): THREE.Texture {
+  const key = plain ? 'cloth-plain' : 'cloth';
+  const hit = cache.get(key);
+  if (hit) return hit;
+  const [c, x] = canvas(64, 64);
+  x.fillStyle = '#eeeeee';
+  x.fillRect(0, 0, 64, 64);
+  // Twill: fine diagonal weave.
+  for (let i = -64; i < 64; i += 3) {
+    x.strokeStyle = 'rgba(0,0,0,0.07)';
+    x.lineWidth = 1;
+    x.beginPath();
+    x.moveTo(i, 0);
+    x.lineTo(i + 64, 64);
+    x.stroke();
+  }
+  noiseSpeckle(x, 64, 64, 240, 'rgba(0,0,0,0.12)', 'rgba(255,255,255,0.18)', plain ? 151 : 152);
+  // Folds and seams.
+  x.fillStyle = 'rgba(0,0,0,0.14)';
+  x.fillRect(31, 0, 1.5, 64);
+  for (let i = 0; i < 5; i++) {
+    const g = x.createLinearGradient(0, 8 + i * 12, 0, 14 + i * 12);
+    g.addColorStop(0, 'rgba(0,0,0,0)');
+    g.addColorStop(1, 'rgba(0,0,0,0.1)');
+    x.fillStyle = g;
+    x.fillRect(0, 8 + i * 12, 64, 6);
+  }
+  if (!plain) {
+    // Webbing belt with pouches, and a strap over the shoulder.
+    x.fillStyle = '#5b4a30';
+    x.fillRect(0, 36, 64, 6);
+    x.fillStyle = '#4a3b26';
+    for (const px of [8, 22, 40, 54]) x.fillRect(px, 33, 7, 9);
+    x.strokeStyle = '#5b4a30';
+    x.lineWidth = 4;
+    x.beginPath();
+    x.moveTo(4, 0);
+    x.lineTo(60, 36);
+    x.stroke();
+    // Buttons down the front.
+    x.fillStyle = 'rgba(40,30,20,0.6)';
+    for (let y = 6; y < 34; y += 7) x.fillRect(30, y, 3, 2);
+  }
+  return finish(key, c);
+}
+
+/**
+ * Fine ground detail, grey around 0.5 so it lightens and darkens the painted
+ * terrain: grit, pebbles, cracked earth and blades of grass. Tiled finely
+ * over the whole battlefield so the ground stays sharp close up.
+ */
+export function groundDetailTexture(): THREE.Texture {
+  const hit = cache.get('ground-detail');
+  if (hit) return hit;
+  const S = 256;
+  const [c, x] = canvas(S, S);
+  x.fillStyle = 'rgb(128,128,128)';
+  x.fillRect(0, 0, S, S);
+  // Soft blotches of damp and dry earth.
+  for (let i = 0; i < 70; i++) {
+    const px = hash2(i, 1, 161) * S;
+    const py = hash2(i, 2, 161) * S;
+    const r = 8 + hash2(i, 3, 161) * 26;
+    const light = hash2(i, 4, 161) < 0.5;
+    for (const [ox, oy] of [[0, 0], [S, 0], [-S, 0], [0, S], [0, -S]]) {
+      const g = x.createRadialGradient(px + ox, py + oy, 0, px + ox, py + oy, r);
+      g.addColorStop(0, light ? 'rgba(170,170,170,0.35)' : 'rgba(80,80,80,0.35)');
+      g.addColorStop(1, 'rgba(128,128,128,0)');
+      x.fillStyle = g;
+      x.fillRect(px + ox - r, py + oy - r, r * 2, r * 2);
+    }
+  }
+  // Grit.
+  noiseSpeckle(x, S, S, 5000, 'rgba(60,60,60,0.45)', 'rgba(200,200,200,0.4)', 162);
+  // Pebbles with a lit top and a shadowed foot.
+  for (let i = 0; i < 160; i++) {
+    const px = hash2(i, 5, 163) * S;
+    const py = hash2(i, 6, 163) * S;
+    const r = 0.8 + hash2(i, 7, 163) * 1.8;
+    x.fillStyle = 'rgba(40,40,40,0.55)';
+    x.beginPath();
+    x.ellipse(px + 0.6, py + 0.6, r, r * 0.75, 0, 0, Math.PI * 2);
+    x.fill();
+    x.fillStyle = 'rgba(205,205,205,0.6)';
+    x.beginPath();
+    x.ellipse(px - 0.2, py - 0.3, r * 0.8, r * 0.6, 0, 0, Math.PI * 2);
+    x.fill();
+  }
+  // Cracks in dry earth.
+  x.strokeStyle = 'rgba(50,50,50,0.35)';
+  x.lineWidth = 0.7;
+  for (let i = 0; i < 40; i++) {
+    let px = hash2(i, 8, 164) * S;
+    let py = hash2(i, 9, 164) * S;
+    x.beginPath();
+    x.moveTo(px, py);
+    for (let k = 0; k < 4; k++) {
+      px += (hash2(i, k, 165) - 0.5) * 14;
+      py += (hash2(k, i, 165) - 0.5) * 14;
+      x.lineTo(px, py);
+    }
+    x.stroke();
+  }
+  // Blades of grass.
+  x.strokeStyle = 'rgba(175,175,175,0.45)';
+  x.lineWidth = 0.8;
+  for (let i = 0; i < 600; i++) {
+    const px = hash2(i, 10, 166) * S;
+    const py = hash2(i, 11, 166) * S;
+    const a = -Math.PI / 2 + (hash2(i, 12, 166) - 0.5) * 1.2;
+    const l = 2 + hash2(i, 13, 166) * 3;
+    x.beginPath();
+    x.moveTo(px, py);
+    x.lineTo(px + Math.cos(a) * l, py + Math.sin(a) * l);
+    x.stroke();
+  }
+  const t = finish('ground-detail', c, { repeat: true, srgb: false });
+  return t;
+}
+
 /** Free every cached texture (when the battle ends). */
 export function disposeTextures(): void {
   for (const t of cache.values()) t.dispose();
