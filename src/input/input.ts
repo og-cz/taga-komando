@@ -11,6 +11,7 @@ import {
   issueAttack,
   issueAttackMove,
   issueBuild,
+  issueGarrison,
   issueHelpBuild,
   issueMove,
   issueReinforce,
@@ -25,6 +26,8 @@ import {
 import type { Squad } from '../sim/entities';
 import { defenseAt } from '../sim/systems/defenses';
 import { constructionAt, frameJob } from '../sim/systems/engineering';
+import { canGarrison, doorFor, houseAt } from '../sim/systems/garrison';
+import { iconCursor } from '../ui/icons';
 import type { World } from '../sim/world';
 import type { Camera } from '../render/camera';
 import type { Inspect, UIState } from './uiState';
@@ -108,6 +111,57 @@ export class Input {
     const hover = this.pick(m.world);
     this.ui.hoverId = hover?.id ?? null;
     this.updateFaceDrag();
+    this.updateCursor(hover);
+  }
+
+  private cursorKey = '';
+
+  /** The cursor tells what a click will do: attack, repair, build, go into a house, or the chosen order. */
+  private updateCursor(hover: Squad | undefined): void {
+    if (this.middleDrag || this.keys.has(' ')) return;
+    const css = this.cursorFor(hover);
+    // Panning sets its own hand cursor; take over again once it is done.
+    const cur = this.canvas.style.cursor;
+    if (css === this.cursorKey && cur !== '' && !cur.startsWith('grab')) return;
+    if (css === '' && cur === '') return;
+    this.cursorKey = css;
+    this.canvas.style.cursor = css;
+  }
+
+  private cursorFor(hover: Squad | undefined): string {
+    const mode = this.ui.mode;
+    const gold = '#f2cf7e';
+    switch (mode.kind) {
+      case 'attackMove':
+        return iconCursor('attack', '#ff8a6a');
+      case 'ability':
+        return iconCursor(/barrage/.test(mode.abilityId) ? 'barrage' : 'grenade', '#ffb35c');
+      case 'callIn':
+        return iconCursor('barrage', '#ffb35c');
+      case 'setup':
+        return iconCursor('setup', gold);
+      case 'build':
+        return iconCursor('build', gold);
+      case 'repair':
+        return iconCursor('repair', '#9dff7a');
+      case 'rally':
+        return iconCursor('rally', gold);
+    }
+    const own = this.selectedOwn().filter(notStructure);
+    if (!own.length) return '';
+    const p = this.ui.mouse.world;
+    if (hover && hover.team !== this.player) return iconCursor('attack', '#ff6a5a');
+    const engineers = own.filter((s) => s.def.canRepair || s.def.builds.length > 0);
+    if (engineers.length) {
+      if ((hover && hover.team === this.player && frameJob(this.world, hover)) || constructionAt(this.world, this.player, p)) return iconCursor('build', gold);
+      const hull = hover?.models.find((x) => x.alive);
+      if (hover && hover.team === this.player && hover.def.armor && hull && hull.hp < hull.maxHp && engineers.some((s) => s.def.canRepair)) return iconCursor('repair', '#9dff7a');
+      const defense = defenseAt(this.world, Math.floor(p.x / TILE), Math.floor(p.y / TILE));
+      if (!hover && defense && defense.hp < defense.maxHp && engineers.some((s) => s.def.canRepair)) return iconCursor('repair', '#9dff7a');
+    }
+    const house = houseAt(this.world, p);
+    if (house && house.occupant === null && own.some(canGarrison)) return iconCursor('enter', '#9dff7a');
+    return '';
   }
 
   /** While the right button is held, work out where each unit will stand and face. */
@@ -143,6 +197,10 @@ export class Input {
     const ty = Math.floor(p.y / TILE);
     const built = this.world.squads.find((s) => !s.dead && s.footprint.some((f) => f.tx === tx && f.ty === ty) && this.world.canSee(this.player, s));
     if (built) return built;
+    // A click on a house picks the squad holding it, if we can see them.
+    const house = houseAt(this.world, p);
+    const holder = house?.occupant != null ? this.world.get(house.occupant) : undefined;
+    if (holder && !holder.dead && this.world.canSee(this.player, holder)) return holder;
     let best: Squad | undefined;
     let bestD = Infinity;
     for (const sq of this.world.squads) {
@@ -379,6 +437,22 @@ export class Input {
     if (target && target.team !== this.player) {
       this.report(own.filter(notStructure).map((s) => issueAttack(this.world, s, target)));
       return;
+    }
+    // Right-click a free house: the nearest infantry squad goes in and holds it; the rest wait by the door.
+    const house = houseAt(this.world, p);
+    if (house && house.occupant === null) {
+      const infantry = own.filter((s) => canGarrison(s) && s.garrison !== house.id);
+      if (infantry.length) {
+        infantry.sort((a, b) => dist(a.pos, p) - dist(b.pos, p));
+        const [first, ...rest] = infantry;
+        this.report([issueGarrison(this.world, first, house, shift)]);
+        const others = own.filter((s) => notStructure(s) && s !== first);
+        const door = doorFor(house, first.pos);
+        const spots = this.formationTargets(others, door);
+        for (const s of others) issueMove(this.world, s, spots.get(s.id)!, shift);
+        void rest;
+        return;
+      }
     }
     // Right-click one of our unfinished constructions: engineers join the work.
     const job = (target?.team === this.player ? frameJob(this.world, target) : undefined) ?? constructionAt(this.world, this.player, p);
