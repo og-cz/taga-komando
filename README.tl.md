@@ -7,7 +7,7 @@
 
 Larong taktika na real-time para sa Windows, gamit ang mga iskuwad, sa Luzon.
 
-Bersiyon 0.9.0 · Kampanya, Teatro ng Digmaan at Skirmish laban sa AI · Offline
+Bersiyon 0.9.2 · Kampanya, Teatro ng Digmaan at Skirmish laban sa AI · Offline
 
 <picture>![Taga Komando](docs/screenshot.jpg)</picture>
 <sub>Konsepto ng itsurang patutunguhan ng laro.</sub>
