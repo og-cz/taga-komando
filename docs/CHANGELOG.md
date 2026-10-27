@@ -2,6 +2,10 @@
 
 [Back to the README](../README.md)
 
+**0.9.0**
+- **3D soldiers and tanks.** Every soldier is now a small 3D figure in his own unit's uniform and headgear (straw Baliwag hat, pith helmet, salakot, peaked cap, Type 90 helmet, steel helmet, bandana), with his rifle or blade and pack; he steps as he walks and drops flat when pinned. Machine guns stand on their tripods, mortars on their base plates and anti-tank guns behind their shields, facing where they were set up. Tanks are solid models with tracks, a turret that turns on its own, a gun that kicks back when it fires and the army's marking on top; the Chi-Ha keeps its rounder turret, hoop aerial and camouflage.
+- **A steeper battlefield camera**, so you see the soldiers' bodies and the walls of the houses, not only roofs and hats.
+
 **0.8.5**
 - **Battle report.** The result screen now matches the rest of the game: two tall boards with the battle's recon map fill the desk behind a typed report on warm, stained paper, with the verdict stamped in solid ink, a postage stamp and filing stamps in the margins, the figures on a steel plate, and the game's version in the corner.
 
