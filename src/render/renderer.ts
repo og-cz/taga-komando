@@ -90,6 +90,12 @@ const LOOK: Record<string, FactionLook> = {
   },
 };
 
+/**
+ * Direction shadows fall on the ground (unit vector) and how long they are per
+ * unit of height: from the 3D scene's low north-west sun.
+ */
+const SUN_SHADOW = { x: 0.77, y: 0.64, length: 1.42 };
+
 /** Draws the world from the player's point of view. Reads the simulation, never writes it. */
 export class Renderer {
   readonly effects = new Effects();
@@ -256,6 +262,7 @@ export class Renderer {
     this.ctx.setTransform(this.dpr, 0, 0, this.dpr, 0, 0);
     this.drawGrade();
     if (!this.scenery) {
+      if (this.world3d) for (const sq of visible) if (sq.garrison !== null) this.drawHeldHouse(sq, ui, this.ctx, (p) => camera.worldToScreen(p));
       for (const sq of visible) this.drawSquadHud(sq, ui);
       this.drawPointLabels();
       this.effects.drawText(this.ctx, camera);
@@ -574,6 +581,12 @@ export class Renderer {
 
   private drawInfantry(sq: Squad, ui: UIState): void {
     const { ctx } = this;
+    // Inside a house: the men are out of sight; the house is marked in their army's colour.
+    if (sq.garrison !== null) {
+      // In 3D the outline goes on the screen layer, over the roof.
+      if (!this.world3d) this.drawHeldHouse(sq, ui, this.ctx, (p) => p);
+      return;
+    }
     const selected = ui.selected.has(sq.id);
     const hovered = ui.hoverId === sq.id;
     const pinned = sq.suppState === 'pinned';
@@ -583,17 +596,9 @@ export class Renderer {
       else if (hovered) this.ring(m.pos, 6.5, 'rgba(255,255,255,0.55)');
       const w = m.weapons[0]?.def;
       if (this.world3d) {
-        // The soldier is a 3D model; the ground keeps his shadow, a dot in his army's colour and his wounds.
-        ctx.fillStyle = 'rgba(8,12,6,0.34)';
-        ctx.beginPath();
-        ctx.ellipse(m.pos.x + 2.6, m.pos.y + 2.6, pinned ? 5.4 : 3.6, 3, m.facing, 0, Math.PI * 2);
-        ctx.fill();
-        ctx.fillStyle = TEAM[sq.team].main;
-        ctx.globalAlpha = 0.55;
-        ctx.beginPath();
-        ctx.arc(m.pos.x, m.pos.y, 1.6, 0, Math.PI * 2);
-        ctx.fill();
-        ctx.globalAlpha = 1;
+        // The soldier is a 3D model. The ground keeps his shadow (dark under his feet, and
+        // long away from the low sun like the houses' and trees') and his wounds.
+        this.groundShadow(m.pos, pinned ? 1.8 : 8.4, pinned ? 4.2 : 2.6);
         const hpFrac = m.hp / m.maxHp;
         if (hpFrac < 0.99) {
           ctx.fillStyle = hpFrac > 0.5 ? '#c9f08a' : hpFrac > 0.25 ? '#f2c94c' : '#ff5a4a';
@@ -852,9 +857,15 @@ export class Renderer {
       ctx.ellipse(0, 0, L * 0.7, L * 0.55, sq.heading, 0, Math.PI * 2);
       ctx.stroke();
     }
-    // The hull's shadow falls to the bottom-right, whichever way it faces.
+    // The hull's shadow falls away from the sun, whichever way it faces.
     ctx.save();
-    ctx.translate(5, 5);
+    if (this.world3d) {
+      ctx.fillStyle = 'rgba(8,10,5,0.5)';
+      ctx.beginPath();
+      ctx.ellipse(0, 0, L * 0.56, W * 0.56, sq.heading, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    ctx.translate(SUN_SHADOW.x * 7, SUN_SHADOW.y * 7);
     ctx.rotate(sq.heading);
     ctx.fillStyle = 'rgba(8,10,5,0.38)';
     ctx.beginPath();
@@ -976,6 +987,65 @@ export class Renderer {
     ctx.restore();
     // Damaged vehicles trail smoke.
     if (healthFraction(sq) < 0.4 && Math.random() < 0.15) this.effects.puff(sq.pos);
+  }
+
+  /**
+   * Shadow of something `height` tall standing at `p`: a dark contact patch
+   * under it and a soft streak cast away from the low sun, the way the 3D
+   * buildings and trees throw theirs.
+   */
+  private groundShadow(p: Vec2, height: number, width: number): void {
+    const { ctx } = this;
+    const len = height * SUN_SHADOW.length;
+    const a = Math.atan2(SUN_SHADOW.y, SUN_SHADOW.x);
+    ctx.save();
+    ctx.translate(p.x, p.y);
+    ctx.fillStyle = 'rgba(6,8,4,0.55)';
+    ctx.beginPath();
+    ctx.ellipse(0, 0, width * 0.85, width * 0.7, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.rotate(a);
+    const g = ctx.createLinearGradient(0, 0, len, 0);
+    g.addColorStop(0, 'rgba(6,8,4,0.42)');
+    g.addColorStop(1, 'rgba(6,8,4,0.05)');
+    ctx.fillStyle = g;
+    ctx.beginPath();
+    ctx.moveTo(0, -width * 0.55);
+    ctx.lineTo(len, -width * 0.4);
+    ctx.quadraticCurveTo(len + width * 0.6, 0, len, width * 0.4);
+    ctx.lineTo(0, width * 0.55);
+    ctx.closePath();
+    ctx.fill();
+    ctx.restore();
+  }
+
+  /** A house held by a squad: its outline, dashed in the army's colour (green when selected). */
+  private drawHeldHouse(sq: Squad, ui: UIState, ctx: CanvasRenderingContext2D, at: (p: Vec2) => Vec2): void {
+    const house = this.world.houses[sq.garrison!];
+    if (!house) return;
+    const w = this.world.map.w;
+    const line = (x0: number, y0: number, x1: number, y1: number) => {
+      const a = at({ x: x0, y: y0 });
+      const b = at({ x: x1, y: y1 });
+      ctx.moveTo(a.x, a.y);
+      ctx.lineTo(b.x, b.y);
+    };
+    ctx.save();
+    ctx.strokeStyle = ui.selected.has(sq.id) ? '#9dff7a' : TEAM[sq.team].main;
+    ctx.lineWidth = 1.6;
+    ctx.setLineDash([5, 3]);
+    ctx.beginPath();
+    const tiles = new Set(house.tiles);
+    for (const k of house.tiles) {
+      const x = (k % w) * TILE;
+      const y = Math.floor(k / w) * TILE;
+      if (!tiles.has(k - w)) line(x, y, x + TILE, y);
+      if (!tiles.has(k + w)) line(x, y + TILE, x + TILE, y + TILE);
+      if (!tiles.has(k - 1)) line(x, y, x, y + TILE);
+      if (!tiles.has(k + 1)) line(x + TILE, y, x + TILE, y + TILE);
+    }
+    ctx.stroke();
+    ctx.restore();
   }
 
   /** How a unit is dressed and painted, for the 3D models: its doctrine kit, or its army's. */
