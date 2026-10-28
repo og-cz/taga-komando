@@ -1,4 +1,4 @@
-import { canGarrison, doorFor, type House } from './systems/garrison';
+import { canGarrison, doorFor, standing, type House } from './systems/garrison';
 import { ABILITIES } from '../data/abilities';
 import { BUILDABLES } from '../data/buildables';
 import { ECONOMY, LOGISTICS, TILE } from '../data/balance';
@@ -72,6 +72,7 @@ export function issueAttack(_world: World, sq: Squad, target: Squad): CommandRes
 export function issueGarrison(world: World, sq: Squad, house: House, queue = false): CommandResult {
   if (!commandable(sq) || !canGarrison(sq)) return fail('Only infantry squads can go into houses');
   if (sq.retreating) return RETREATING;
+  if (!standing(house)) return fail('That house is a ruin');
   if (house.occupant !== null && house.occupant !== sq.id) {
     return fail(world.get(house.occupant)?.team === sq.team ? 'Another squad already holds that house' : 'The enemy holds that house');
   }
