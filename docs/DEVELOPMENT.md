@@ -56,6 +56,7 @@ Development URL parameters (dev server only), for example `http://localhost:5173
 | `doctrine=<id>`, `cp=<n>`, `picker=1` | Doctrine, command points, open the chooser |
 | `menu=defense\|base`, `frame=1` | Open an engineers' menu, leave spawned structures half built |
 | `fire=1` | Light fires, a blast and a burst of machine-gun and cannon fire by the spawned units |
+| `ruin=1` | Shell four houses near the middle of the map into each stage of damage (sound, damaged, burning, fallen in) and look at them |
 | `end=win\|lose` | End the battle at once (result screen) |
 | `screen=menu\|campaign\|skirmish\|theater` | Skip the intro and open a menu screen |
 
