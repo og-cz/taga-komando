@@ -134,7 +134,7 @@ if (devBattle) {
 interface DevGame {
   world: import('./sim/world').World;
   input: { select(ids: number[]): void };
-  renderer: { spectator: boolean; draw(ui: unknown, dt: number): void; world3d: { fx: { addFire(x: number, y: number, s: number, t: number): void; explosion(x: number, y: number, r: number): void } } | null };
+  renderer: { spectator: boolean; draw(ui: unknown, dt: number): void; world3d: { fx: { addFire(x: number, y: number, s: number, t: number): void; explosion(x: number, y: number, r: number): void; shot(fx: number, fy: number, tx: number, ty: number, hit: boolean, kind: 'rifle' | 'mg' | 'shell', armoured: boolean): void } } | null };
   ui: { buildMenu: false | 'defense' | 'base' };
   hud: { root: HTMLElement };
   camera: { zoom: number; minZoom: number; maxZoom: number; centerOn(p: { x: number; y: number }): void };
@@ -161,7 +161,14 @@ function devSetup(): void {
     fx.addFire(near.x + 60, near.y + 50, 1.3, 120);
     fx.addFire(near.x + 150, near.y - 20, 0.8, 120);
     // Let the fires take hold before the first look (effects only; the battle does not advance).
-    for (let i = 0; i < 180; i++) game.renderer.draw(game.ui, 1 / 60);
+    for (let i = 0; i < 180; i++) {
+      // A machine gun and a tank gun firing across the street, for a look at tracers.
+      if (i > 160 && i % 2 === 0) {
+        for (let k = 0; k < 3; k++) fx.shot(near.x - 60, near.y - 40 + k * 4, near.x + 170, near.y - 70 + k * 6, k !== 1, 'mg', false);
+        if (i === 172) fx.shot(near.x - 40, near.y + 90, near.x + 200, near.y + 40, true, 'shell', true);
+      }
+      game.renderer.draw(game.ui, 1 / 60);
+    }
     fx.explosion(near.x + 110, near.y + 10, 30);
     for (let i = 0; i < 6; i++) game.renderer.draw(game.ui, 1 / 60);
   }
