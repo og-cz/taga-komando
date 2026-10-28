@@ -11,7 +11,7 @@ import { Structures3D } from './structures';
 import { Units3D, type UnitLook } from './units';
 import type { Squad } from '../sim/entities';
 import { buildProps } from './props';
-import { disposeTextures, groundDetailTexture } from './textures';
+import { disposeTextures, groundDetailTexture, groundNormalTexture } from './textures';
 import { buildVegetation } from './vegetation';
 
 /** A plane over the map that shows a screen-aligned canvas, so 2D drawing sits in the 3D scene. */
@@ -75,6 +75,8 @@ export class Battlefield3D {
   private props = new THREE.Group();
   private info: BuildingInfo = { damaged: [] };
   private buildingTiles = new Set<number>();
+  /** Checksum of every house's damage stage: when it changes, the houses are rebuilt. */
+  private houseStages = 0;
   readonly fx = new Effects3D();
   private readonly structures = new Structures3D();
   private readonly units = new Units3D();
@@ -130,17 +132,35 @@ export class Battlefield3D {
     const outer = mapPlane(W + m * 2, H + m * 2, -0.6, new THREE.MeshBasicMaterial({ map: surround, toneMapped: false }));
     outer.position.set(W / 2, -0.6, H / 2);
     this.scene.add(outer);
-    const groundMat = new THREE.MeshStandardMaterial({ map: this.groundTex, roughness: 0.96 });
-    // Fine grit, pebbles and grass tiled over the painted ground, so it stays sharp close up.
+    // Grass blades on green ground, grit, pebbles and cracks on bare earth, tiled
+    // over the painted ground so it stays sharp close up, with real bumps for the sun.
     const detail = groundDetailTexture();
+    const bumps = groundNormalTexture();
+    bumps.repeat.set(W / 40, H / 40);
+    const groundMat = new THREE.MeshStandardMaterial({ map: this.groundTex, roughness: 0.96, normalMap: bumps, normalScale: new THREE.Vector2(0.9, 0.9) });
     groundMat.onBeforeCompile = (shader) => {
       shader.uniforms.detailMap = { value: detail };
-      shader.uniforms.detailRepeat = { value: new THREE.Vector2(W / 22, H / 22) };
+      shader.uniforms.detailRepeat = { value: new THREE.Vector2(W / 40, H / 40) };
       shader.fragmentShader = shader.fragmentShader
         .replace('#include <common>', '#include <common>\nuniform sampler2D detailMap;\nuniform vec2 detailRepeat;')
         .replace(
           '#include <map_fragment>',
-          '#include <map_fragment>\nfloat dA = texture2D(detailMap, vMapUv * detailRepeat).r;\nfloat dB = texture2D(detailMap, vMapUv * detailRepeat * 0.37 + 0.31).r;\ndiffuseColor.rgb *= 0.62 + (dA * 0.6 + dB * 0.4) * 0.76;',
+          [
+            '#include <map_fragment>',
+            'vec2 dUv = vMapUv * detailRepeat;',
+            'vec3 dA = texture2D(detailMap, dUv).rgb;',
+            'vec3 dB = texture2D(detailMap, dUv * 0.29 + 0.37).rgb;',
+            'float macro = texture2D(detailMap, dUv * 0.043 + 0.11).b;',
+            // Green ground gets grass, brown ground gets bare earth.
+            'float green = smoothstep(0.95, 1.3, diffuseColor.g / max(diffuseColor.r, 0.001));',
+            'float det = mix(dA.g * 0.6 + dB.g * 0.4, dA.r * 0.6 + dB.r * 0.4, green);',
+            'diffuseColor.rgb *= 0.58 + det * 0.84;',
+            // Broad patches: lush and sun-dried grass, damp and dusty earth.
+            'float m = smoothstep(0.25, 0.75, macro);',
+            'vec3 grassTint = mix(vec3(0.84, 1.0, 0.84), vec3(1.12, 1.04, 0.8), m);',
+            'vec3 earthTint = vec3(mix(0.86, 1.1, m));',
+            'diffuseColor.rgb *= mix(earthTint, grassTint, green);',
+          ].join('\n'),
         );
     };
     const ground = mapPlane(W, H, 0, groundMat);
@@ -167,8 +187,12 @@ export class Battlefield3D {
     this.scene.add(fogPlane);
 
     this.scene.add(this.fx.group, this.structures.group, this.units.group);
-    // Shelled houses smoulder; a few still burn.
-    this.info.damaged.forEach((d, i) => this.fx.addFire(d.x, d.y, 0.7 + (i % 3) * 0.2, Infinity, i % 3 !== 0));
+  }
+
+  private stageChecksum(): number {
+    let s = 0;
+    for (const h of this.world.houses) s = (Math.imul(s, 31) + h.stage + 1) | 0;
+    return s;
   }
 
   /** Buildings, trees and props, rebuilt when the ground changes. */
@@ -176,10 +200,26 @@ export class Battlefield3D {
     const map = this.world.map;
     this.scene.remove(this.statics);
     this.statics = new THREE.Group();
-    const b = buildBuildings(map, this.terrain, this.groundTex);
+    // Which tiles belong to a damaged or burning house.
+    const stage = new Map<number, number>();
+    for (const h of this.world.houses) if (h.stage > 0 && h.stage < 3) for (const k of h.tiles) stage.set(k, h.stage);
+    this.houseStages = this.stageChecksum();
+    this.statics.traverse((o) => {
+      if (o instanceof THREE.Mesh) {
+        o.geometry.dispose();
+        (Array.isArray(o.material) ? o.material : [o.material]).forEach((m) => m.dispose());
+      }
+    });
+    const b = buildBuildings(map, this.terrain, this.groundTex, (k) => stage.get(k) ?? 0);
     this.buildingTiles = new Set();
     map.tiles.forEach((t, i) => t === T.Building && this.buildingTiles.add(i));
     this.info = b.info;
+    // Damaged houses smoke; burning ones are on fire.
+    this.fx.removeFires('house');
+    for (const d of this.info.damaged) {
+      if (d.stage === 2) this.fx.addFire(d.x, d.y, 0.9 + Math.min(1, d.size / 40), Infinity, false, 'house');
+      this.fx.addFire(d.x, d.y, d.stage === 2 ? 1.1 : 0.7, Infinity, true, 'house');
+    }
     this.statics.add(b.group);
     const veg = buildVegetation(map, this.terrain);
     this.statics.add(veg.ground, veg.crowns);
@@ -203,7 +243,11 @@ export class Battlefield3D {
   /** Repaint and rebuild what the battle has changed on the ground. */
   private syncGround(): void {
     const map = this.world.map;
-    if (map.changes.length === 0) return;
+    // A house shelled into its next stage of damage is rebuilt, even if no tile changed.
+    if (map.changes.length === 0) {
+      if (this.stageChecksum() !== this.houseStages) this.buildStatics();
+      return;
+    }
     // Buildings only need rebuilding if one was touched; walls, wire and the like always.
     const buildingsTouched = map.changes.some((i) => map.tiles[i] === T.Building || this.buildingTiles.has(i));
     this.terrain.sync();
@@ -254,6 +298,12 @@ export class Battlefield3D {
         const target = e.hit ? this.world.squads.find((s) => !s.dead && s.def.armor && Math.hypot(s.pos.x - e.to.x, s.pos.y - e.to.y) < s.def.radius + 4) : undefined;
         this.fx.shot(e.from.x, e.from.y, e.to.x, e.to.y, e.hit, kind, !!target);
       } else if (e.type === 'explosion' && visible(e.pos)) this.fx.explosion(e.pos.x, e.pos.y, e.radius);
+      else if (e.type === 'collapse' && visible(e.pos)) {
+        // A house falls in: a cloud of dust and smoke, and the wreck burns for a while.
+        this.fx.explosion(e.pos.x, e.pos.y, Math.max(30, e.radius * 1.2));
+        this.fx.addFire(e.pos.x, e.pos.y, 1.2, 40);
+        this.fx.addFire(e.pos.x, e.pos.y, 1, 120, true);
+      }
       else if (e.type === 'death' && e.vehicle && visible(e.pos)) {
         // A knocked-out tank burns.
         this.fx.explosion(e.pos.x, e.pos.y, 26);
