@@ -5,6 +5,23 @@ export const TILE = 16;
 export const SIM_DT = 1 / 30;
 export const MAX_SIGHT_DENSITY = 2.5;
 export const VISION_INTERVAL = 0.2;
+/**
+ * Hedgerows are taller than a man: they hide what lies behind them unless the
+ * one looking is right at the hedge (within this many tiles), lining it and
+ * looking over. Men hugging the far side can still be seen.
+ */
+export const HEDGE_PEEK = 1.6;
+
+/** Smoke screens: sight and fire do not pass through a thick cloud. */
+export const SMOKE = {
+  /** Sight density each tile of a full cloud adds (sight stops past MAX_SIGHT_DENSITY). */
+  density: 1.3,
+  /** Looking into a cloud, sight stops once this much smoke has been crossed. */
+  see: 1,
+  /** Seconds a cloud takes to thicken, and to thin out at the end. */
+  buildUp: 1.5,
+  thinOut: 5,
+};
 
 export const COVER: Record<CoverType, { accuracy: number; suppression: number; explosive: number; rank: number }> = {
   negative: { accuracy: 1.25, suppression: 1.25, explosive: 1.15, rank: -1 },
