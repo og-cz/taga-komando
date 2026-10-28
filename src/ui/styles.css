@@ -2399,3 +2399,122 @@ button:disabled {
     display: none;
   }
 }
+
+
+/* ═══ HUD layout, final: like the field-gear concept ═══════════════════
+   Map · information panel (with the clock plate on its top edge) ·
+   resources stacked on a plate · orders, with the doctrine plaque and the
+   building tabs above them. The whole HUD scales down on smaller windows. */
+
+.clock-plate {
+  position: absolute;
+  left: 50%;
+  bottom: calc(100% - 6px);
+  z-index: 3;
+  transform: translateX(-50%);
+  display: grid;
+  justify-items: center;
+  min-width: 150px;
+  padding: 5px 22px 6px;
+  background:
+    radial-gradient(circle at 8px 8px, #8b8e74 0 1px, #2c2e22 1.4px 2.2px, transparent 2.5px),
+    radial-gradient(circle at calc(100% - 8px) 8px, #8b8e74 0 1px, #2c2e22 1.4px 2.2px, transparent 2.5px),
+    var(--steel);
+  border: 1px solid var(--edge);
+  border-radius: 6px 6px 3px 3px;
+  box-shadow: var(--bevel), 0 -3px 10px rgba(0, 0, 0, 0.5);
+  pointer-events: none;
+}
+
+.clock-plate::before,
+.clock-plate::after {
+  position: absolute;
+  top: 8px;
+  bottom: 8px;
+  width: 8px;
+  background: linear-gradient(180deg, #a0352a, #5a1912);
+  border-radius: 2px;
+  content: '';
+}
+
+.clock-plate::before { left: 6px; background: linear-gradient(180deg, #4f7a3a, #27401c); }
+.clock-plate::after { right: 6px; }
+
+.clock-time {
+  font: 400 26px/1 'Quiapo', var(--display);
+  letter-spacing: 0.06em;
+  color: var(--cream);
+  font-variant-numeric: tabular-nums;
+  text-shadow: 0 2px 0 rgba(0, 0, 0, 0.7);
+}
+
+.clock-sub {
+  margin-top: 2px;
+  font: 700 10px var(--type);
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--cream-dim);
+}
+
+/* Resources: four stamped plates in a column. */
+.res-stack {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: 4px;
+  width: 132px;
+  padding: 7px 6px;
+}
+
+.res-stack .res {
+  flex: 1;
+  min-width: 0;
+}
+
+/* The doctrine plaque sits over the orders, above the building tabs. */
+.command-card {
+  position: relative;
+}
+
+.doctrine-dock {
+  position: absolute;
+  right: -2px;
+  bottom: calc(100% + 34px);
+  z-index: 2;
+}
+
+.doctrine-dock .doctrine-bar {
+  position: static;
+  width: auto;
+  min-width: 248px;
+  margin: 0;
+}
+
+.doctrine-dock .doctrine-choose {
+  width: 100%;
+  justify-content: center;
+  padding: 10px 16px;
+  font-size: 18px;
+}
+
+/* The unit card has the clock above it now; leave it room. */
+.unit-card .portrait-text {
+  padding-top: 4px;
+}
+
+/* Scale the whole HUD with the window, so nothing squashes or overlaps. */
+@media (max-width: 1360px) {
+  .bottombar, .hud-top, .hud-corner, .toasts { zoom: 0.9; }
+}
+@media (max-width: 1180px) {
+  .bottombar, .hud-top, .hud-corner, .toasts { zoom: 0.78; }
+}
+@media (max-width: 1000px) {
+  .bottombar, .hud-top, .hud-corner, .toasts { zoom: 0.66; }
+}
+@media (max-width: 840px) {
+  .bottombar, .hud-top, .hud-corner, .toasts { zoom: 0.56; }
+}
+@media (max-height: 640px) {
+  .bottombar, .hud-top, .hud-corner, .toasts { zoom: 0.7; }
+}
