@@ -515,11 +515,44 @@ export class AICommander {
     return id ? own.filter((s) => s.def.id === id).length : 99;
   }
 
+  /**
+   * Smoke, like a player would use it: a squad pinned or cut up by a machine
+   * gun, a gun emplacement or a held house throws smoke on it; a mortar lays
+   * smoke on a gun that has our infantry pinned.
+   */
+  private smoke(world: World, sq: Squad, id: string): boolean {
+    const ab = ABILITIES[id];
+    const blinds = (e: Squad) => (e.def.kind === 'team' && e.setup === 'deployed') || e.def.role === 'fort' || e.garrison !== null;
+    if (ab.requiresSetup) {
+      const pinned = world.squads.filter((s) => !s.dead && s.team === this.team && s.def.kind === 'infantry' && s.suppState !== 'normal');
+      const gun = this.enemies(world).find((e) => blinds(e) && dist(e.pos, sq.pos) <= ab.range && pinned.some((p) => dist(p.pos, e.pos) < 260));
+      return !!gun && issueAbility(world, sq, id, gun.pos).ok;
+    }
+    if (sq.suppState === 'normal' && world.time - sq.lastHurt > 3) return false;
+    let gun: Squad | undefined;
+    let gunD = 280;
+    for (const e of this.enemies(world)) {
+      const d = dist(e.pos, sq.pos);
+      if (blinds(e) && d < gunD) {
+        gun = e;
+        gunD = d;
+      }
+    }
+    if (!gun) return false;
+    // On the gun if it is close enough, else as far towards it as we can throw.
+    const k = Math.min(1, (ab.range * 0.9) / gunD);
+    return issueAbility(world, sq, id, lerpVec(sq.pos, gun.pos, k)).ok;
+  }
+
   private useAbilities(world: World, sq: Squad): void {
     const res = world.teams[this.team].resources;
     for (const id of sq.def.abilities) {
       const ab = ABILITIES[id];
       if ((sq.cooldowns[id] ?? 0) > 0 || !canAfford(res, ab.cost) || res.munitions < ab.cost.munitions + 10) continue;
+      if (WEAPONS[ab.weapon].smoke) {
+        if (this.smoke(world, sq, id)) return;
+        continue;
+      }
       const range = ab.range * (ab.requiresSetup ? 1 : 0.95);
       // Grenades and barrages go on enemy nests, bunkers and aid stations first.
       const fort = this.enemies(world).find((e) => e.def.role === 'fort' && dist(e.pos, sq.pos) <= range);
