@@ -7,7 +7,7 @@
 
 Squad-based real-time tactics game for Windows, set on Luzon.
 
-Version 0.9.4 · Campaign, Theater of War and Skirmish vs. AI · Offline
+Version 0.9.5 · Campaign, Theater of War and Skirmish vs. AI · Offline
 
 <picture>![Taga Komando](docs/screenshot.jpg)</picture>
 <sub>Concept of the look the game is heading toward.</sub>
@@ -118,6 +118,7 @@ How the mission types work:
 
 - Machine guns pin infantry inside their firing cone. Once set up, a machine gun or anti-tank gun keeps the direction you gave it and fires on its own at anything in its cone: flank it, or throw a grenade.
 - Hold houses: a squad inside has green cover from every side and sees further, and each man fires from his own window, so only the windows facing the enemy can shoot. Grenades and shells still reach them.
+- Houses can be shelled down: a damaged one smokes, a burning one hurts the men inside, and one that falls in throws them out and leaves rubble nobody can enter.
 - The cursor shows what a click will do: attack, repair, build or go into a house.
 - Mortars need a friendly unit to see the target.
 - Tanks have thin rear armour. Hit them from behind.
