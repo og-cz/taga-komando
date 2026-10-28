@@ -3,6 +3,7 @@ import './ui/frontend.css';
 import { audio } from './audio/audio';
 import { installUiSounds } from './audio/uiSounds';
 import { hurtHouse } from './sim/systems/garrison';
+import { addSmoke } from './sim/systems/smoke';
 import { CAMPAIGN } from './data/campaign';
 import { Game, type MatchSetup } from './game';
 import { MenuBattle } from './ui/frontend/background';
@@ -116,6 +117,7 @@ void document.fonts.load("400 48px 'Quiapo'").catch(() => {});
 // &menu=defense|base opens an engineers' submenu, &doctrine=<id> chooses a doctrine (with &cp=<n>
 // command points), &picker=1 opens the doctrine chooser, &frame=1 leaves spawned structures half built,
 // &faction=ija plays the Imperial side, &fire=1 lights fires and a blast by the spawned units (3D).
+// &smoke=1 lays two smoke screens by the spawned units, already thick (3D).
 // &ruin=1 shells three houses near the middle of the map into each stage of damage and looks at them.
 const devBattle = import.meta.env.DEV ? new URLSearchParams(location.search).get('battle') : null;
 if (devBattle) {
@@ -184,6 +186,14 @@ function devSetup(): void {
   const focus = params.get('focus');
   const target = focus === 'enemy' ? game.world.hqOf(1) : focus === 'hq' ? hq : undefined;
   if (target) game.camera.centerOn(target.pos);
+  if (params.get('smoke')) {
+    addSmoke(game.world, { x: near.x + 70, y: near.y + 10 }, 44, 30);
+    addSmoke(game.world, { x: near.x + 130, y: near.y + 40 }, 36, 30);
+    // Already thick: the battle does not advance while the effects warm up.
+    for (const s of game.world.smokes) s.born -= 3;
+    game.world.events.length = 0;
+    for (let i = 0; i < 300; i++) game.renderer.draw(game.ui, 1 / 60);
+  }
   if (params.get('ruin')) {
     const w = game.world;
     const mid = { x: w.map.pixelWidth / 2, y: w.map.pixelHeight / 2 };
