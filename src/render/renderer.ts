@@ -148,6 +148,7 @@ export class Renderer {
         this.world3d = new Battlefield3D(world, this.worldCanvas, this.fogSoft);
         canvas.parentElement.insertBefore(this.world3d.canvas, canvas);
         camera.tilted = true;
+        this.effects.shotsIn3d = true;
       } catch (err) {
         console.warn('3D battlefield unavailable, drawing in 2D', err);
         this.world3d = null;
