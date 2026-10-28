@@ -14,6 +14,7 @@ import {
 } from '../entities';
 import { hasLineOfSight } from '../los';
 import { canHit, damageHouses } from './garrison';
+import { addSmoke } from './smoke';
 import type { World } from '../world';
 import { earnCp, teamMult } from './doctrine';
 import { coverAt } from './cover';
@@ -338,6 +339,11 @@ export function updateProjectiles(world: World, dt: number): void {
 
 /** Area damage with falloff. Explosives ignore allegiance: friendly fire is real. */
 export function explode(world: World, pos: Vec2, w: WeaponDef, source: Squad | null): void {
+  // Smoke rounds burst into a cloud and hurt nobody.
+  if (w.smoke) {
+    addSmoke(world, pos, w.aoe, w.smoke);
+    return;
+  }
   world.emit({ type: 'explosion', pos: { ...pos }, radius: w.aoe, weapon: w.id });
   for (const sq of world.squads) {
     if (sq.dead) continue;
