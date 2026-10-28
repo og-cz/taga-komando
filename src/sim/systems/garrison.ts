@@ -1,10 +1,12 @@
-import { TILE } from '../../data/balance';
+import { HOUSE, TILE } from '../../data/balance';
 import { T } from '../../data/terrain';
-import { dist, type Vec2 } from '../../core/vec';
+import type { WeaponDef } from '../../data/types';
+import { clamp, dist, type Vec2 } from '../../core/vec';
 import type { Squad } from '../entities';
 import { hasLineOfSight } from '../los';
 import { finishOrder, resetMovement } from '../orders';
 import type { World } from '../world';
+import { applyDamage } from './combat';
 
 /** A house infantry can occupy: one connected block of building tiles. */
 export interface House {
@@ -18,12 +20,30 @@ export interface House {
   /** Ground next to the house a squad walks to before going in. */
   doors: Vec2[];
   occupant: number | null;
+  hp: number;
+  maxHp: number;
+  /** 0 standing, 1 damaged (roof broken, smoking), 2 burning, 3 fallen in. */
+  stage: HouseStage;
+}
+
+export type HouseStage = 0 | 1 | 2 | 3;
+
+/** How badly a house is hit, from its health. */
+export function stageFor(hp: number, maxHp: number): HouseStage {
+  if (hp <= 0) return 3;
+  const k = hp / maxHp;
+  return k <= HOUSE.burning ? 2 : k <= HOUSE.damaged ? 1 : 0;
+}
+
+/** A fixed number in [0, 1) per house, so the same houses start damaged every time. */
+function hash(n: number): number {
+  return ((Math.imul(n + 1, 2654435761) >>> 8) % 10000) / 10000;
 }
 
 /** How close to a door a squad must come to go in. */
 const DOOR_REACH = 22;
 
-/** Houses are found once from the map: buildings are not torn down in battle. */
+/** Houses are found once from the map; after that they only lose health and fall in. */
 export function findHouses(world: World): House[] {
   const map = world.map;
   const seen = new Uint8Array(map.w * map.h);
@@ -76,7 +96,13 @@ export function findHouses(world: World): House[] {
       }
     }
     if (!doors.length || !windows.length) continue;
-    houses.push({ id: houses.length, tiles, center, radius, windows, doors, occupant: null });
+    // The ground under a headquarters or other structure is not a house.
+    if (world.squads.some((s) => s.def.kind === 'structure' && dist(s.pos, center) < s.def.radius + TILE)) continue;
+    const maxHp = HOUSE.baseHp + HOUSE.hpPerTile * tiles.length;
+    // Some houses have already been shelled before the battle starts.
+    const r = hash(tiles[0]);
+    const hp = r < HOUSE.startBurning ? maxHp * 0.3 : r < HOUSE.startBurning + HOUSE.startDamaged ? maxHp * 0.55 : maxHp;
+    houses.push({ id: houses.length, tiles, center, radius, windows, doors, occupant: null, hp, maxHp, stage: stageFor(hp, maxHp) });
   }
   return houses;
 }
@@ -84,12 +110,17 @@ export function findHouses(world: World): House[] {
 /** The house at a world point, if any. */
 export function houseAt(world: World, p: Vec2): House | undefined {
   const i = world.map.idx(Math.floor(p.x / TILE), Math.floor(p.y / TILE));
-  return world.houses.find((h) => h.tiles.includes(i));
+  return world.houses.find((h) => h.stage < 3 && h.tiles.includes(i));
 }
 
 /** The squad's house while it is inside one. */
 export function houseOf(world: World, sq: Squad): House | undefined {
   return sq.garrison === null ? undefined : world.houses[sq.garrison];
+}
+
+/** Whether a house can be gone into: a ruin cannot. */
+export function standing(house: House): boolean {
+  return house.stage < 3;
 }
 
 /** Whether this squad may go into houses at all: foot soldiers, not weapon teams or tanks. */
@@ -169,7 +200,58 @@ function placeAtWindows(sq: Squad, house: House): void {
   });
 }
 
-export function updateGarrisons(world: World): void {
+/**
+ * A blast wears down the houses it reaches. Bullets never do: it takes
+ * mortars, shells or satchels, and a lot of them, to bring a house down.
+ */
+export function damageHouses(world: World, pos: Vec2, w: WeaponDef): void {
+  if (w.aoe <= 0) return;
+  const map = world.map;
+  for (const h of world.houses) {
+    if (h.stage === 3 || dist(h.center, pos) > h.radius + w.aoe + TILE) continue;
+    // Distance from the blast to the nearest wall.
+    let gap = Infinity;
+    for (const k of h.tiles) {
+      const x0 = (k % map.w) * TILE;
+      const y0 = Math.floor(k / map.w) * TILE;
+      const dx = Math.max(x0 - pos.x, 0, pos.x - (x0 + TILE));
+      const dy = Math.max(y0 - pos.y, 0, pos.y - (y0 + TILE));
+      gap = Math.min(gap, Math.hypot(dx, dy));
+    }
+    if (gap > w.aoe) continue;
+    const falloff = 1 - 0.65 * clamp(gap / Math.max(w.aoe, 1), 0, 1);
+    hurtHouse(world, h, w.damage * falloff * (w.vs.structure ?? 1));
+  }
+}
+
+/** Take hit points off a house; it shows each new stage, and falls in at zero. */
+export function hurtHouse(world: World, h: House, dmg: number): void {
+  if (h.stage === 3 || dmg <= 0) return;
+  h.hp = Math.max(0, h.hp - dmg);
+  const stage = stageFor(h.hp, h.maxHp);
+  if (stage === h.stage) return;
+  h.stage = stage;
+  const occupant = h.occupant !== null ? world.get(h.occupant) : undefined;
+  if (stage === 2) {
+    world.emit({ type: 'float', pos: { ...h.center }, text: 'House on fire', tone: 'bad' });
+    if (occupant) world.emit({ type: 'notify', team: occupant.team, text: `${occupant.def.short}'s house is burning`, tone: 'bad', pos: { ...h.center } });
+  }
+  if (stage === 3) collapse(world, h, occupant);
+}
+
+/** The house falls in: rubble where it stood, and whoever was inside is thrown out hurt. */
+function collapse(world: World, h: House, occupant: Squad | undefined): void {
+  const map = world.map;
+  for (const k of h.tiles) map.set(k % map.w, Math.floor(k / map.w), T.Rubble);
+  world.emit({ type: 'collapse', pos: { ...h.center }, radius: h.radius });
+  world.emit({ type: 'float', pos: { ...h.center }, text: 'House destroyed', tone: 'bad' });
+  if (!occupant) return;
+  leave(world, occupant, occupant.order.dest ?? h.center);
+  world.emit({ type: 'notify', team: occupant.team, text: `${occupant.def.short}'s house came down on them`, tone: 'bad', pos: { ...h.center } });
+  for (const m of occupant.models) applyDamage(world, occupant, m, HOUSE.collapseDamage * (0.6 + world.rng.next() * 0.8), null);
+}
+
+export function updateGarrisons(world: World, dt: number): void {
   for (const sq of world.squads) {
     const house = houseOf(world, sq);
     if (sq.dead) {
@@ -187,11 +269,13 @@ export function updateGarrisons(world: World): void {
       if (o.kind === 'garrison') finishOrder(sq);
       // Reinforcements and anyone out of place take a window.
       placeAtWindows(sq, house);
+      // A burning house hurts the men inside until they get out.
+      if (house.stage === 2) for (const m of sq.models) applyDamage(world, sq, m, HOUSE.fireDamage * dt, null);
       continue;
     }
     if (sq.order.kind !== 'garrison') continue;
     const target = world.houses[sq.order.houseId ?? -1];
-    if (!target || (target.occupant !== null && target.occupant !== sq.id) || !canGarrison(sq)) {
+    if (!target || !standing(target) || (target.occupant !== null && target.occupant !== sq.id) || !canGarrison(sq)) {
       finishOrder(sq);
       continue;
     }
