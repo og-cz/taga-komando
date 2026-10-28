@@ -27,6 +27,7 @@ const PADDY: RGB = [58, 80, 68];
 const WATER: RGB = [28, 56, 68];
 const STONE: RGB = [118, 112, 100];
 const YARD: RGB = [86, 74, 52];
+const RUBBLE: RGB = [104, 94, 80];
 
 const GROUND: Record<number, RGB> = {
   [T.Open]: GRASS,
@@ -43,6 +44,7 @@ const GROUND: Record<number, RGB> = {
   [T.Wire]: GRASS,
   [T.TankTrap]: GRASS,
   [T.Emplacement]: YARD,
+  [T.Rubble]: RUBBLE,
 };
 
 /** Smooth value noise in [0, 1]. */
@@ -488,6 +490,21 @@ export class TerrainLayer {
         c.fillStyle = 'rgba(60,50,34,0.25)';
         for (let i = 0; i < 4; i++) c.fillRect(x + hh(i) * PX, y + hh(i + 4) * PX, 2, 2);
         break;
+      case T.Rubble: {
+        // Ash and soot, then broken brick and plaster lying about.
+        const g = c.createRadialGradient(x + PX / 2, y + PX / 2, 2, x + PX / 2, y + PX / 2, PX * 0.75);
+        g.addColorStop(0, 'rgba(30,26,22,0.45)');
+        g.addColorStop(1, 'rgba(30,26,22,0)');
+        c.fillStyle = g;
+        c.fillRect(x - PX / 4, y - PX / 4, PX * 1.5, PX * 1.5);
+        for (let i = 0; i < 14; i++) {
+          const tint = hh(i + 60);
+          c.fillStyle = tint < 0.35 ? 'rgba(150,84,56,0.85)' : tint < 0.7 ? 'rgba(186,176,156,0.85)' : 'rgba(56,50,44,0.85)';
+          const s = 2 + hh(i + 70) * 5;
+          c.fillRect(x + hh(i) * (PX - s), y + hh(i + 20) * (PX - s), s, s * (0.6 + hh(i + 40) * 0.5));
+        }
+        break;
+      }
       default:
         if (t === T.Open && hh(50) < 0.25) {
           // Tufts of grass.
@@ -514,6 +531,8 @@ export class TerrainLayer {
         return 16;
       case T.Wall:
         return 7;
+      case T.Rubble:
+        return 3;
       case T.Sandbag:
         return 6;
       case T.Hedge:
