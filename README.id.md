@@ -7,7 +7,7 @@
 
 Game taktik real-time berbasis regu untuk Windows, berlatar di Luzon.
 
-Versi 0.9.5 · Kampanye, Teater Perang dan Skirmish melawan AI · Offline
+Versi 0.9.6 · Kampanye, Teater Perang dan Skirmish melawan AI · Offline
 
 <picture>![Taga Komando](docs/screenshot.jpg)</picture>
 <sub>Konsep tampilan yang sedang dituju game ini.</sub>
