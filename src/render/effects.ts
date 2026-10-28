@@ -36,6 +36,8 @@ export class Effects {
   private decals: Decal[] = [];
   /** Screen shake from blasts near the camera, in screen pixels; the renderer applies it. */
   shake = 0;
+  /** The 3D battlefield draws tracers and muzzle flashes itself. */
+  shotsIn3d = false;
 
   consume(events: readonly SimEvent[], visible: (p: Vec2) => boolean): void {
     for (const e of events) {
@@ -46,7 +48,7 @@ export class Effects {
             this.shells.push({ from: e.from, to: e.to, t: 0, flight: Math.max(0.08, dist(e.from, e.to) / 900), kind: e.projectile, blast: IMPACT_BLAST[e.weapon] ?? 0 });
             this.flashes.push({ pos: e.from, life: 0.12 });
             this.smokes.push({ pos: { ...e.from }, r: 6, life: 1.2, max: 1.2, drift: { x: 0, y: -4 } });
-          } else {
+          } else if (!this.shotsIn3d) {
             this.tracers.push({ from: e.from, to: e.to, life: 0.07, max: 0.07, heavy: false, team: e.team });
             this.flashes.push({ pos: e.from, life: 0.05 });
           }
