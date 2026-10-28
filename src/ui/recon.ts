@@ -51,6 +51,7 @@ export function drawReconMap(c: CanvasRenderingContext2D, map: GameMap, W: numbe
       else if (t === T.Building) cell(tx, ty, 'rgba(70,52,34,0.9)');
       else if (t === T.Wall || t === T.Rampart) cell(tx, ty, 'rgba(60,54,46,0.85)', s * 0.2);
       else if (t === T.Crater) cell(tx, ty, 'rgba(90,70,46,0.45)', s * 0.2);
+      else if (t === T.Rubble) cell(tx, ty, 'rgba(96,84,70,0.7)', s * 0.1);
     }
   }
   // Grid and folds.
