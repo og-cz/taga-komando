@@ -30,6 +30,7 @@ import { updateSuppression } from './systems/suppression';
 import { Territory, updateCapture } from './systems/territory';
 import { createObjective, updateObjectives, type ObjectiveState } from './systems/objectives';
 import { Vision } from './systems/vision';
+import { updateSmoke, type Smoke } from './systems/smoke';
 
 export interface WorldOptions {
   map: MapDef;
@@ -58,6 +59,10 @@ export class World {
   readonly points: CapturePoint[];
   readonly teams: [TeamState, TeamState];
   projectiles: Projectile[] = [];
+  /** Smoke screens hanging over the battlefield. */
+  smokes: Smoke[] = [];
+  /** Whether the map's smoke layer still holds a cloud that has to be cleared. */
+  smokeOnMap = false;
   constructions: Construction[] = [];
   mines: Mine[] = [];
   /** Commander artillery strikes and paradrops in progress. */
@@ -228,6 +233,7 @@ export class World {
     updateDoctrines(this, dt);
     updateMovement(this, dt);
     updateGarrisons(this, dt);
+    updateSmoke(this);
     updateEngineering(this, dt);
     updateCombat(this, dt);
     updateProjectiles(this, dt);
