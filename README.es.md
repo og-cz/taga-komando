@@ -7,7 +7,7 @@
 
 Juego de táctica en tiempo real con escuadras, para Windows, ambientado en Luzón.
 
-Versión 0.9.6 · Campaña, Teatro de Guerra y Escaramuza contra la IA · Sin conexión
+Versión 0.9.7 · Campaña, Teatro de Guerra y Escaramuza contra la IA · Sin conexión
 
 <picture>![Taga Komando](docs/screenshot.jpg)</picture>
 <sub>Concepto del aspecto hacia el que avanza el juego.</sub>
