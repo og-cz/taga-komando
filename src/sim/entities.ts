@@ -197,6 +197,8 @@ export type SimEvent =
   | { type: 'shot'; from: Vec2; to: Vec2; projectile: ProjectileKind; hit: boolean; team: TeamId; weapon: string }
   | { type: 'launch'; from: Vec2; team: TeamId; weapon: string }
   | { type: 'explosion'; pos: Vec2; radius: number; weapon: string }
+  /** A house fell in. */
+  | { type: 'collapse'; pos: Vec2; radius: number }
   | { type: 'death'; pos: Vec2; team: TeamId; vehicle: boolean; heading: number }
   | { type: 'float'; pos: Vec2; text: string; tone: Tone }
   | { type: 'notify'; team: TeamId | -1; text: string; tone: Tone; pos?: Vec2 };
