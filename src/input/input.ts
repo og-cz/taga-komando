@@ -135,7 +135,7 @@ export class Input {
       case 'attackMove':
         return iconCursor('attack', '#ff8a6a');
       case 'ability':
-        return iconCursor(/barrage/.test(mode.abilityId) ? 'barrage' : 'grenade', '#ffb35c');
+        return iconCursor(/smoke/.test(mode.abilityId) ? 'smoke' : /barrage/.test(mode.abilityId) ? 'barrage' : 'grenade', '#ffb35c');
       case 'callIn':
         return iconCursor('barrage', '#ffb35c');
       case 'setup':
@@ -706,6 +706,7 @@ export class Input {
         break;
       case 'g':
       case 'b':
+      case 'n':
         this.abilityMode(key);
         break;
       case 'q':
