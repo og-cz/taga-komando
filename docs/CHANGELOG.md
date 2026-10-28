@@ -2,6 +2,13 @@
 
 [Back to the README](../README.md)
 
+**0.9.4**
+- **Towns laid out like real barrios.** Houses now line both sides of every road on their own lots, behind a small front yard and a gap from the next house, with a second row behind the first where the town was built up; fields, paddies, jungle and the plaza stay open. Roads are painted as smooth packed-earth tracks along their centre line, so diagonal roads are clean instead of staircases, and the mud patches no longer hide them.
+- **HUD laid out like the field-gear concept.** The clock sits on a steel plate on top of the information panel, with what the battle is about under it (victory points, winning or losing, the wave or the sector); the resources are stacked on their own plate beside the orders; the doctrine plaque sits above the orders. The whole HUD scales down on smaller windows instead of squashing.
+
+**0.9.3**
+- **Gun effects.** Every shot has a muzzle flash and a wisp of smoke; rounds fly as glowing tracer streaks (now and then for rifles, often for machine guns, always for cannon); misses kick up dirt and hits on armour throw sparks. Tank guns flash and light up their surroundings.
+
 **0.9.2**
 - **Soldiers on the ground.** Each soldier has a dark contact shadow under his feet and a long evening shadow thrown away from the sun, like the houses and trees, so nobody floats; tanks too. Soldiers have rounded bodies, limbs, necks and shoulders in cloth with a twill weave, seams, webbing belt, pouches and a shoulder strap.
 - **Sharper ground.** Fine grit, pebbles, cracked earth and grass are tiled over the whole battlefield, so the ground stays sharp close up.
