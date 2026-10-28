@@ -381,7 +381,7 @@ export class AICommander {
       let best = doctrinesOf(t.faction.id)[0].id;
       let bestScore = -Infinity;
       for (const d of doctrinesOf(t.faction.id)) {
-        const s = this.doctrineScore(world, d.id) + world.rng.next() * 0.6;
+        const s = this.doctrineScore(world, d.id) + world.rng.next() * 0.9;
         if (s > bestScore) {
           bestScore = s;
           best = d.id;
@@ -448,8 +448,9 @@ export class AICommander {
     const t = world.teams[this.team];
     const foe = world.teams[this.team === 0 ? 1 : 0];
     const enemies = this.enemies(world);
-    // Tanks already seen count fully; tanks the enemy could still bring, half.
-    const armour = this.seenVehicles.size > 0 ? 1 : foe.faction.roster.some((u) => UNITS[u]?.kind === 'vehicle') ? 0.5 : 0;
+    // Tanks already seen count fully; tanks the enemy could still bring, only a little
+    // (every army can build them, so this alone must not decide every battle).
+    const armour = this.seenVehicles.size > 0 ? 1 : foe.faction.roster.some((u) => UNITS[u]?.kind === 'vehicle') ? 0.1 : 0;
     const dug = enemies.filter((e) => e.garrison !== null || e.def.role === 'fort' || (e.def.kind === 'team' && e.setup === 'deployed')).length;
     const mine = world.points.filter((p) => p.owner === this.team).length;
     const theirs = world.points.filter((p) => p.owner !== -1 && p.owner !== this.team).length;
@@ -457,37 +458,47 @@ export class AICommander {
     const ahead = mine > theirs;
     const houses = world.houses.filter((h) => h.stage < 2 && world.points.some((p) => dist(p.pos, h.center) < 150)).length;
     const cover = this.coverShare(world);
-    let s = 0;
-    // The special unit.
+    // Every doctrine starts even: its unit and each call-in are worth the same in
+    // a battle that favours nothing. What the army has seen tips the balance,
+    // through the one call-in that suits it best (so a doctrine with two attack
+    // call-ins does not count being behind twice).
     const unit = UNITS[d.unit];
     const antiTank = unit.kind === 'vehicle' || unit.loadout.some((l) => l.weapons.some((w) => WEAPONS[w]?.prefers === 'vehicle'));
-    s += antiTank ? 0.6 + armour * 1.9 : 1;
+    const lost = t.stats.lost >= 3;
+    let s = antiTank ? 0.85 + armour * 1.6 : 1;
+    let best = 0;
     for (const c of d.callIns) {
+      s += 0.8;
       const e = c.effect;
+      let fit = 0;
       switch (e.kind) {
         case 'buff':
-          if (e.speed || e.accuracy) s += behind ? 1.6 : 0.8;
-          if (e.received) s += (ahead ? 1.4 : 0.7) + Math.min(houses, 4) * 0.15;
-          if (e.rally || e.steady) s += 0.4 + Math.min(dug, 3) * 0.3;
-          if (e.camo) s += cover * 4;
+          fit = Math.max(
+            e.speed || e.accuracy ? (behind ? 0.7 : 0) : 0,
+            e.received ? (ahead ? 0.6 : 0) + Math.min(houses, 4) * 0.04 : 0,
+            e.rally || e.steady ? Math.min(dug, 3) * 0.25 + (lost ? 0.3 : 0) : 0,
+            // Most maps are 10–15% jungle and hedges; only thick country (a quarter or more) favours ambushes.
+            e.camo ? Math.min(1.2, Math.max(0, (cover - 0.05) * 4)) - 0.4 : 0,
+          );
           break;
         case 'levy':
-          s += t.stats.lost >= 3 ? 1.4 : 0.7;
+          fit = lost ? 0.6 : 0;
           break;
         case 'barrage':
-          s += 0.8 + Math.min(dug, 4) * 0.45;
-          break;
-        case 'recon':
-          s += 0.7;
+          fit = Math.min(dug, 4) * 0.45;
           break;
         case 'paradrop':
-          s += behind ? 1.6 : 0.8;
+          fit = behind ? 0.7 : 0;
           break;
         case 'mines':
-          s += 0.7 + armour * 0.7 + (ahead ? 0.4 : 0);
+          fit = armour * 0.7 + (ahead ? 0.4 : 0);
+          break;
+        case 'recon':
           break;
       }
+      best = Math.max(best, fit);
     }
+    s += best;
     return s;
   }
 
