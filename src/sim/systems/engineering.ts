@@ -12,7 +12,7 @@ import { defenseAt, repairDefense, resetDefense } from './defenses';
 import { refund } from './economy';
 
 /** Ground engineers may build on. Existing defenses, buildings and water are off limits. */
-const BUILDABLE_GROUND = new Set<number>([T.Open, T.Road, T.Paddy, T.Crater, T.Hedge]);
+const BUILDABLE_GROUND = new Set<number>([T.Open, T.Road, T.Paddy, T.Crater, T.Hedge, T.Rubble]);
 /** How close a squad must stand to the tile it works on. */
 export const WORK_RANGE = 34;
 /** Hit points restored per second by a full engineer squad. */
