@@ -156,6 +156,9 @@ class ParticleLayer {
         a = Math.min(1, t * 3) * (1 - t) * 0.75;
       } else if (preset === 3) {
         a = (1 - t) * (0.6 + Math.random() * 0.4);
+      } else if (preset === 4) {
+        a = 1 - t;
+        size *= 0.8 + Math.random() * 0.5;
       } else {
         // Flash / fireball: bright, quick.
         a = (1 - t) * (1 - t);
@@ -181,6 +184,25 @@ class ParticleLayer {
     this.geo.dispose();
     (this.mesh.material as THREE.Material).dispose();
   }
+}
+
+/** One round in flight: a glowing streak running from the muzzle to where it lands. */
+interface Tracer {
+  ax: number;
+  az: number;
+  bx: number;
+  bz: number;
+  y0: number;
+  y1: number;
+  t: number;
+  flight: number;
+  len: number;
+  width: number;
+  r: number;
+  g: number;
+  b: number;
+  /** Rounds fired by a squad's other guns don't all glow: only every few is a tracer. */
+  glow: number;
 }
 
 interface Fire {
@@ -222,6 +244,14 @@ export class Effects3D {
   private readonly scorch: THREE.InstancedMesh;
   private scorchCount = 0;
   private readonly fires: Fire[] = [];
+  private readonly tracers: Tracer[] = [];
+  private readonly tracerMesh: THREE.InstancedMesh;
+  private readonly tmpM = new THREE.Matrix4();
+  private readonly tmpQ = new THREE.Quaternion();
+  private readonly tmpV = new THREE.Vector3();
+  private readonly tmpS = new THREE.Vector3();
+  private readonly tmpC = new THREE.Color();
+  private readonly axisX = new THREE.Vector3(1, 0, 0);
   private readonly flashes: Flash[] = [];
   private readonly lights: THREE.PointLight[] = [];
   private readonly wind = new THREE.Vector3(3, 0, -1.6);
@@ -243,6 +273,13 @@ export class Effects3D {
     );
     this.scorch.count = 0;
     this.scorch.frustumCulled = false;
+    // Tracer streaks: a thin glowing bar along +x, stretched and coloured per round.
+    const bar = new THREE.BoxGeometry(1, 1, 1).translate(-0.5, 0, 0);
+    this.tracerMesh = new THREE.InstancedMesh(bar, new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, toneMapped: false }), 600);
+    this.tracerMesh.count = 0;
+    this.tracerMesh.frustumCulled = false;
+    this.tracerMesh.renderOrder = 6;
+    this.group.add(this.tracerMesh);
     this.scorch.renderOrder = 0;
     this.group.add(this.scorch);
     for (let i = 0; i < 4; i++) {
@@ -266,6 +303,82 @@ export class Effects3D {
     this.scorchCount++;
     this.scorch.count = Math.min(200, this.scorchCount);
     this.scorch.instanceMatrix.needsUpdate = true;
+  }
+
+  /**
+   * A shot: muzzle flash and a wisp of smoke at the gun, a tracer streak to the
+   * target, and a puff of dirt or a shower of sparks where it lands.
+   * `kind`: small arms, a machine gun, or a cannon shell.
+   */
+  shot(fx: number, fy: number, tx: number, ty: number, hit: boolean, kind: 'rifle' | 'mg' | 'shell', armoured: boolean): void {
+    const q = this.quality;
+    const d = Math.hypot(tx - fx, ty - fy);
+    const big = kind === 'shell';
+    const muzzleY = big ? 7 : 5.2;
+    // Muzzle flash: a hot star at the barrel, gone in a blink.
+    this.flames.spawn(fx, muzzleY, fy, 0, 0, 0, big ? 0.12 : 0.06, big ? 9 : kind === 'mg' ? 4.5 : 3.2, big ? 14 : 5, 4, 1, 0.9, 0.55);
+    if (big) this.flashes.push({ x: fx, z: fy, y: 8, power: 6, life: 0.12, age: 0 });
+    if (q > 0.5 || big) this.smoke.spawn(fx, muzzleY, fy, (Math.random() - 0.5) * 3, 3, (Math.random() - 0.5) * 3, big ? 2.2 : 0.9, big ? 5 : 1.6, big ? 18 : 5, 2, 0.55, 0.53, 0.5);
+    // The round: rifles show a tracer now and then, machine guns often, shells always.
+    const glow = kind === 'rifle' ? 0.35 : kind === 'mg' ? 0.75 : 1;
+    if (Math.random() < glow) {
+      const speed = big ? 900 : 1500;
+      const fall = hit ? (armoured ? 3.5 : 3) : 0.5;
+      this.tracers.push({
+        ax: fx, az: fy, bx: tx + (hit ? 0 : (Math.random() - 0.5) * 6), bz: ty + (hit ? 0 : (Math.random() - 0.5) * 6),
+        y0: muzzleY, y1: fall, t: 0, flight: Math.max(0.04, d / speed),
+        len: Math.min(d * 0.7, big ? 34 : kind === 'mg' ? 26 : 20), width: big ? 2.2 : kind === 'mg' ? 1.25 : 0.95,
+        r: 1, g: big ? 0.75 : 0.62, b: big ? 0.35 : 0.22, glow: 1,
+      });
+    }
+    // Impact: sparks off armour, dirt kicked up from a miss.
+    const sparks = armoured ? 6 : 0;
+    for (let i = 0; i < sparks * q; i++) {
+      const a = Math.random() * Math.PI * 2;
+      const s = 20 + Math.random() * 40;
+      this.sparks.spawn(tx, 4, ty, Math.cos(a) * s, 10 + Math.random() * 30, Math.sin(a) * s, 0.25 + Math.random() * 0.3, 1, 0.4, 3, 1, 0.85, 0.5);
+    }
+    if (!hit && q > 0.3) {
+      const n = big ? 6 : 2;
+      for (let i = 0; i < n; i++) {
+        const dirt = 0.32 + Math.random() * 0.1;
+        this.smoke.spawn(tx + (Math.random() - 0.5) * 3, 1, ty + (Math.random() - 0.5) * 3, (Math.random() - 0.5) * 6, 8 + Math.random() * 10, (Math.random() - 0.5) * 6, 0.5 + Math.random() * 0.6, big ? 4 : 1.6, big ? 14 : 5, 2, dirt, dirt * 0.82, dirt * 0.62);
+      }
+    }
+  }
+
+  private updateTracers(dt: number): void {
+    let n = 0;
+    for (let i = this.tracers.length - 1; i >= 0; i--) {
+      const tr = this.tracers[i];
+      tr.t += dt;
+      if (tr.t > tr.flight + 0.05) {
+        this.tracers.splice(i, 1);
+        continue;
+      }
+      if (n >= 600) continue;
+      const k = Math.min(1, tr.t / tr.flight);
+      const hx = tr.ax + (tr.bx - tr.ax) * k;
+      const hz = tr.az + (tr.bz - tr.az) * k;
+      const hy = tr.y0 + (tr.y1 - tr.y0) * k;
+      const dx = tr.bx - tr.ax;
+      const dz = tr.bz - tr.az;
+      const dy = tr.y1 - tr.y0;
+      const L = Math.hypot(dx, dy, dz) || 1;
+      this.tmpV.set(dx / L, dy / L, dz / L);
+      this.tmpQ.setFromUnitVectors(this.axisX, this.tmpV);
+      const len = Math.min(tr.len, L * k + 1);
+      this.tmpS.set(len, tr.width, tr.width);
+      this.tmpM.compose(this.tmpV.set(hx, hy, hz), this.tmpQ, this.tmpS);
+      this.tracerMesh.setMatrixAt(n, this.tmpM);
+      // Fades out once it has landed.
+      const fade = tr.t > tr.flight ? 1 - (tr.t - tr.flight) / 0.05 : 1;
+      this.tracerMesh.setColorAt(n, this.tmpC.setRGB(tr.r * fade * 2.2, tr.g * fade * 2.2, tr.b * fade * 2.2));
+      n++;
+    }
+    this.tracerMesh.count = n;
+    this.tracerMesh.instanceMatrix.needsUpdate = true;
+    if (this.tracerMesh.instanceColor) this.tracerMesh.instanceColor.needsUpdate = true;
   }
 
   /** A blast: flash, fireball, flying dirt and sparks, then a smoke cloud; big ones leave a fire. */
@@ -337,6 +450,7 @@ export class Effects3D {
       fl.age += dt;
       if (fl.age >= fl.life) this.flashes.splice(i, 1);
     }
+    this.updateTracers(dt);
     this.glow.update(dt, this.wind);
     this.flames.update(dt, this.wind);
     this.sparks.update(dt, this.wind);
@@ -375,6 +489,7 @@ export class Effects3D {
     this.flames.dispose();
     this.glow.dispose();
     this.scorch.dispose();
+    this.tracerMesh.dispose();
     this.sparks.dispose();
     this.smoke.dispose();
   }
