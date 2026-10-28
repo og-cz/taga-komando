@@ -46,7 +46,7 @@ const LIST: UnitDef[] = [
     description: 'Five riflemen with semi-automatic Kalayaan rifles. Captures territory. Can throw grenades.',
     models: 5, modelHp: 80, cost: { manpower: 260, munitions: 0, fuel: 0 }, pop: 6, buildTime: 22,
     speed: 22, sight: 210, loadout: [{ weapons: ['m1_garand'], count: 5 }], canCapture: true,
-    abilities: ['grenade_us'], upgrades: ['us_bazooka_kit', 'us_bar'],
+    abilities: ['grenade_us', 'smoke_us'], upgrades: ['us_bazooka_kit', 'us_bar'],
   }),
   unit({
     id: 'us_engineers', name: 'Inhinyero ng Maharlika', short: 'Inhinyero', type: 'Combat Engineers', kind: 'infantry', role: 'engineer',
@@ -68,7 +68,7 @@ const LIST: UnitDef[] = [
     description: 'Indirect fire support. Needs allied eyes on the target. Can fire a barrage.',
     models: 3, modelHp: 80, cost: { manpower: 240, munitions: 0, fuel: 0 }, pop: 5, buildTime: 24,
     speed: 19, sight: 200, loadout: [{ weapons: ['m2_mortar'], count: 1 }, { weapons: ['m1_carbine'], count: 2 }],
-    canCapture: true, setupTime: 2, teardownTime: 2, abilities: ['barrage_us'],
+    canCapture: true, setupTime: 2, teardownTime: 2, abilities: ['barrage_us', 'smoke_barrage_us'],
   }),
   unit({
     id: 'us_bazooka', requires: 'us_tech2', name: 'Pangontra-Tangke ng Maharlika', short: 'Kontra-Tangke', type: 'Anti-Tank Gun',
@@ -100,7 +100,7 @@ const LIST: UnitDef[] = [
     description: 'Six riflemen with bolt-action Arisakas. Fragile individually but numerous. Can throw grenades.',
     models: 6, modelHp: 70, cost: { manpower: 260, munitions: 0, fuel: 0 }, pop: 6, buildTime: 22,
     speed: 23, sight: 215, loadout: [{ weapons: ['arisaka'], count: 6 }], canCapture: true,
-    abilities: ['grenade_ija'], upgrades: ['ija_lmg', 'ija_at_rifle'],
+    abilities: ['grenade_ija', 'smoke_ija'], upgrades: ['ija_lmg', 'ija_at_rifle'],
   }),
   unit({
     id: 'ija_engineers', name: 'Teikoku Kōhei', short: 'Kōhei', type: 'Combat Engineers', kind: 'infantry', role: 'engineer',
@@ -121,7 +121,7 @@ const LIST: UnitDef[] = [
     description: '81mm mortar: heavier shells and longer reach than the 60mm, slower rate of fire.',
     models: 3, modelHp: 80, cost: { manpower: 250, munitions: 0, fuel: 0 }, pop: 5, buildTime: 24,
     speed: 18, sight: 200, loadout: [{ weapons: ['type97_mortar'], count: 1 }, { weapons: ['type38_carbine'], count: 2 }],
-    canCapture: true, setupTime: 2.2, teardownTime: 2, abilities: ['barrage_ija'],
+    canCapture: true, setupTime: 2.2, teardownTime: 2, abilities: ['barrage_ija', 'smoke_barrage_ija'],
   }),
   unit({
     id: 'ija_at', requires: 'ija_tech2', name: 'Teikoku Taisensha-han', short: 'Taisensha', type: 'Anti-Tank Gun', kind: 'team', role: 'at',
@@ -146,7 +146,7 @@ const LIST: UnitDef[] = [
     description: 'Elite shock troops in rayadillo, raised in the spirit of General Luna. Fast, and they fire submachine guns on the run: hit hard, then get out.',
     models: 5, modelHp: 90, cost: { manpower: 340, munitions: 20, fuel: 0 }, pop: 7, buildTime: 26,
     speed: 30, sight: 220, loadout: [{ weapons: ['subfusil'], count: 3 }, { weapons: ['m1_garand'], count: 2 }],
-    canCapture: true, abilities: ['grenade_us'], receivedAccuracy: 0.9,
+    canCapture: true, abilities: ['grenade_us', 'smoke_us'], receivedAccuracy: 0.9,
     look: { cloth: '#8ea0b2', helmet: '#2f3b55', helmetStyle: 'cap' },
   }),
   unit({
@@ -172,7 +172,7 @@ const LIST: UnitDef[] = [
     description: 'Airborne infantry with submachine guns and an automatic rifle. Also dropped anywhere you can see by the Paglundag call-in.',
     models: 5, modelHp: 85, cost: { manpower: 330, munitions: 15, fuel: 0 }, pop: 7, buildTime: 26,
     speed: 25, sight: 220, loadout: [{ weapons: ['subfusil'], count: 2 }, { weapons: ['bar'], count: 1 }, { weapons: ['m1_carbine'], count: 2 }],
-    canCapture: true, abilities: ['grenade_us'],
+    canCapture: true, abilities: ['grenade_us', 'smoke_us'],
     look: { cloth: '#7d7a5c', helmet: '#e6dfcc', helmetStyle: 'pith' },
   }),
   unit({
@@ -181,7 +181,7 @@ const LIST: UnitDef[] = [
     description: 'Four guerrillas who know the land. Hidden from the enemy while they hold still and hold fire: wait in ambush, then strike.',
     models: 4, modelHp: 75, cost: { manpower: 240, munitions: 0, fuel: 0 }, pop: 5, buildTime: 22,
     speed: 26, sight: 240, loadout: [{ weapons: ['riple_luma'], count: 2 }, { weapons: ['m1_carbine'], count: 2 }],
-    canCapture: true, abilities: ['grenade_us'], camo: true,
+    canCapture: true, abilities: ['grenade_us', 'smoke_us'], camo: true,
     look: { cloth: '#4b5a36', helmet: '#a8915a', helmetStyle: 'straw' },
   }),
   unit({
@@ -190,7 +190,7 @@ const LIST: UnitDef[] = [
     description: 'Assault troops with submachine guns. Fast, and they fire on the run: they close in and break the line.',
     models: 5, modelHp: 85, cost: { manpower: 330, munitions: 20, fuel: 0 }, pop: 7, buildTime: 26,
     speed: 30, sight: 220, loadout: [{ weapons: ['type100_smg'], count: 3 }, { weapons: ['arisaka'], count: 2 }],
-    canCapture: true, abilities: ['grenade_ija'], receivedAccuracy: 0.9,
+    canCapture: true, abilities: ['grenade_ija', 'smoke_ija'], receivedAccuracy: 0.9,
     look: { cloth: '#7d7448', helmet: '#5a5432', helmetStyle: 'type90' },
   }),
   unit({
@@ -216,7 +216,7 @@ const LIST: UnitDef[] = [
     description: 'Raiding paratroopers with submachine guns and a light machine gun. Also dropped anywhere you can see by the Kōka call-in.',
     models: 5, modelHp: 82, cost: { manpower: 320, munitions: 15, fuel: 0 }, pop: 7, buildTime: 26,
     speed: 25, sight: 220, loadout: [{ weapons: ['type100_smg'], count: 2 }, { weapons: ['type99_lmg'], count: 1 }, { weapons: ['type38_carbine'], count: 2 }],
-    canCapture: true, abilities: ['grenade_ija'],
+    canCapture: true, abilities: ['grenade_ija', 'smoke_ija'],
     look: { cloth: '#6b6a4a', helmet: '#4a4930', helmetStyle: 'type90' },
   }),
   unit({
@@ -225,7 +225,7 @@ const LIST: UnitDef[] = [
     description: 'Four raiders who move unseen. Hidden from the enemy while they hold still and hold fire.',
     models: 4, modelHp: 72, cost: { manpower: 240, munitions: 0, fuel: 0 }, pop: 5, buildTime: 22,
     speed: 26, sight: 240, loadout: [{ weapons: ['murata'], count: 2 }, { weapons: ['type38_carbine'], count: 2 }],
-    canCapture: true, abilities: ['grenade_ija'], camo: true,
+    canCapture: true, abilities: ['grenade_ija', 'smoke_ija'], camo: true,
     look: { cloth: '#4e5636', helmet: '#3a4128', helmetStyle: 'bandana' },
   }),
 
