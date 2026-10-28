@@ -4,6 +4,7 @@ import type { SimEvent } from '../sim/entities';
 import type { World } from '../sim/world';
 import { CAMERA_TILT, type Camera } from '../render/camera';
 import { TerrainLayer } from '../render/terrainLayer';
+import { WEAPONS } from '../data/weapons';
 import { buildBuildings, type BuildingInfo } from './buildings';
 import { Effects3D } from './fx';
 import { Structures3D } from './structures';
@@ -248,7 +249,11 @@ export class Battlefield3D {
   /** New fires and blasts from this frame's battle events. */
   consume(events: readonly SimEvent[], visible: (p: { x: number; y: number }) => boolean): void {
     for (const e of events) {
-      if (e.type === 'explosion' && visible(e.pos)) this.fx.explosion(e.pos.x, e.pos.y, e.radius);
+      if (e.type === 'shot' && (visible(e.from) || visible(e.to))) {
+        const kind = e.projectile === 'shell' || e.projectile === 'rocket' ? 'shell' : WEAPONS[e.weapon]?.suppression >= 0.05 ? 'mg' : 'rifle';
+        const target = e.hit ? this.world.squads.find((s) => !s.dead && s.def.armor && Math.hypot(s.pos.x - e.to.x, s.pos.y - e.to.y) < s.def.radius + 4) : undefined;
+        this.fx.shot(e.from.x, e.from.y, e.to.x, e.to.y, e.hit, kind, !!target);
+      } else if (e.type === 'explosion' && visible(e.pos)) this.fx.explosion(e.pos.x, e.pos.y, e.radius);
       else if (e.type === 'death' && e.vehicle && visible(e.pos)) {
         // A knocked-out tank burns.
         this.fx.explosion(e.pos.x, e.pos.y, 26);
