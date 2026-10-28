@@ -7,7 +7,7 @@
 
 Squad-based real-time tactics game for Windows, set on Luzon.
 
-Version 0.9.5 · Campaign, Theater of War and Skirmish vs. AI · Offline
+Version 0.9.6 · Campaign, Theater of War and Skirmish vs. AI · Offline
 
 <picture>![Taga Komando](docs/screenshot.jpg)</picture>
 <sub>Concept of the look the game is heading toward.</sub>
@@ -118,6 +118,8 @@ How the mission types work:
 
 - Machine guns pin infantry inside their firing cone. Once set up, a machine gun or anti-tank gun keeps the direction you gave it and fires on its own at anything in its cone: flank it, or throw a grenade.
 - Hold houses: a squad inside has green cover from every side and sees further, and each man fires from his own window, so only the windows facing the enemy can shoot. Grenades and shells still reach them.
+- Smoke blinds: nobody sees or shoots through a smoke screen, so throw smoke on a machine gun before you rush it, or across open ground before you cross.
+- Hedgerows hide what is behind them. A squad lining a hedge sees and shoots over it; from farther back you only see the men hugging its far side.
 - Houses can be shelled down: a damaged one smokes, a burning one hurts the men inside, and one that falls in throws them out and leaves rubble nobody can enter.
 - The cursor shows what a click will do: attack, repair, build or go into a house.
 - Mortars need a friendly unit to see the target.
@@ -141,6 +143,7 @@ How the mission types work:
 | D | Set up / tear down machine gun and mortar teams (shows the firing cone; click to aim) |
 | G | Grenade |
 | B | Mortar barrage |
+| N | Smoke: a smoke grenade (rifle squads) or smoke rounds (mortars) |
 | Q | Engineers: open the Build menu (Esc closes it) |
 | W | Engineers: open the Base menu: Z / X / C build Tier 1 / Tier 2 / Tier 3 |
 | Z / X / C / V | Build menu: sandbags / barbed wire / tank traps / mine (drag to lay a line; Shift keeps placing) |
