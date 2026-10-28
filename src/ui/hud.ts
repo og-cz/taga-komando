@@ -56,7 +56,7 @@ function callInIcon(c: CallInDef): string {
  */
 const ORDER_SLOT: Record<string, number> = {
   attack: 0, stop: 1, reinforce: 2, retreat: 3,
-  base: 4, build: 5,
+  base: 4, build: 5, smoke: 7,
   repair: 8, setup: 8, grenade: 9, barrage: 10, back: 11, rally: 11,
 };
 /** Squares in the order grid. */
@@ -399,9 +399,10 @@ export class Hud {
       b.classList.toggle('on', teams.some((s) => s.setup === 'deployed' || s.setup === 'settingUp'));
       b.classList.toggle('active', this.ui.mode.kind === 'setup');
     });
-    for (const hotkey of ['G', 'B']) {
+    const abilityButton: Record<string, [string, string]> = { G: ['grenade', 'Grenade'], B: ['barrage', 'Barrage'], N: ['smoke', 'Smoke'] };
+    for (const hotkey of ['G', 'B', 'N']) {
       const holderOf = (own: Squad[]) => own.find((s) => s.def.abilities.some((a) => ABILITIES[a].hotkey === hotkey));
-      add(hotkey === 'G' ? 'grenade' : 'barrage', hotkey === 'G' ? 'Grenade' : 'Barrage', hotkey, () => {
+      add(abilityButton[hotkey][0], abilityButton[hotkey][1], hotkey, () => {
         const holder = holderOf(this.input.selectedOwn());
         if (!holder) return { title: '—' };
         const ab = ABILITIES[holder.def.abilities.find((a) => ABILITIES[a].hotkey === hotkey)!];
