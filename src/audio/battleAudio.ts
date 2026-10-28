@@ -4,10 +4,10 @@ import type { Acknowledgement } from '../input/input';
 import type { SimEvent, Squad } from '../sim/entities';
 import type { World } from '../sim/world';
 import { audio, type Loop } from './audio';
-import { BLAST, DEFAULT_BLAST, ENGINE, FIRE, IMPACT, WRECK, type SoundSpec } from './sounds';
+import { BIRDS, BLAST, COLLAPSE, DEFAULT_BLAST, DISTANT_GUNS, ENGINE, FIRE, FIRE_LOOP, IMPACT, SMOKE_POP, WIND_LOOP, WRECK, type SoundSpec } from './sounds';
 
 /** Weapons whose throw or launch makes no firing sound of its own (grenades). */
-const SILENT_LAUNCH = new Set(['mk2_grenade', 'type97_grenade']);
+const SILENT_LAUNCH = new Set(['mk2_grenade', 'type97_grenade', 'smoke_grenade_us', 'smoke_grenade_ija']);
 
 /**
  * Battle sounds, heard from the camera: loud near the middle of the screen,
@@ -16,6 +16,13 @@ const SILENT_LAUNCH = new Set(['mk2_grenade', 'type97_grenade']);
  */
 export class BattleAudio {
   private readonly engines = new Map<number, Loop>();
+  private fireLoop: Loop | null = null;
+  private windLoop: Loop | null = null;
+  /** How much fighting is going on on screen, 0..1: birds keep quiet while it is high. */
+  private din = 0;
+  private birdsIn = 6;
+  private gunsIn = 20;
+  private last = performance.now();
 
   constructor(
     private readonly world: World,
@@ -50,6 +57,7 @@ export class BattleAudio {
     for (const e of events) {
       switch (e.type) {
         case 'shot': {
+          if (this.place(e.from).gain > 0.2) this.din = Math.min(1, this.din + 0.04);
           const spec = FIRE[e.weapon];
           if (spec && this.heard(e.from, e.team)) this.emit(spec, e.from);
           // Rockets and HE shells go off where they land, a moment later.
@@ -66,7 +74,14 @@ export class BattleAudio {
           break;
         }
         case 'explosion':
+          this.din = Math.min(1, this.din + 0.15);
           this.emit(BLAST[e.weapon] ?? DEFAULT_BLAST, e.pos);
+          break;
+        case 'collapse':
+          if (this.world.vision.isVisible(this.player, e.pos)) this.emit(COLLAPSE, e.pos);
+          break;
+        case 'smoke':
+          if (this.world.vision.isVisible(this.player, e.pos)) this.emit(SMOKE_POP, e.pos);
           break;
         case 'death':
           if (e.vehicle) this.emit(WRECK, e.pos);
@@ -117,8 +132,44 @@ export class BattleAudio {
     }
   }
 
+  /**
+   * The world around the fighting: burning houses roar and crackle, the wind
+   * blows, birds call when it goes quiet, and guns thump far off now and then.
+   */
+  private ambience(dt: number): void {
+    // Fires: one loop, as loud as the burning houses on screen, leaning towards them.
+    let sum = 0;
+    let lean = 0;
+    for (const h of this.world.houses) {
+      if (h.stage !== 2 || !this.world.vision.isVisible(this.player, h.center)) continue;
+      const { gain, pan } = this.place(h.center);
+      sum += gain;
+      lean += gain * pan;
+    }
+    if (sum > 0.02 && !this.fireLoop) this.fireLoop = audio.loop(FIRE_LOOP);
+    this.fireLoop?.set(Math.min(0.45, sum * 0.22), sum > 0 ? lean / sum : 0, 1);
+    // Wind under everything, a little stronger zoomed out.
+    this.windLoop ??= audio.loop(WIND_LOOP);
+    this.windLoop?.set(0.07 + 0.05 * Math.max(0, 1 - this.camera.zoom / 1.4), 0, 1);
+    this.din = Math.max(0, this.din - dt * 0.08);
+    this.birdsIn -= dt;
+    if (this.birdsIn <= 0) {
+      this.birdsIn = 7 + Math.random() * 12;
+      if (this.din < 0.5) audio.play(BIRDS.name, BIRDS.gain * (1 - this.din * 1.6), (Math.random() - 0.5) * 1.4, BIRDS.gap);
+    }
+    this.gunsIn -= dt;
+    if (this.gunsIn <= 0) {
+      this.gunsIn = 22 + Math.random() * 40;
+      audio.play(DISTANT_GUNS.name, DISTANT_GUNS.gain * (0.6 + Math.random() * 0.4), (Math.random() - 0.5) * 1.6, DISTANT_GUNS.gap);
+    }
+  }
+
   /** Engine noise for vehicles on screen: a low idle, louder and higher while moving. */
   update(): void {
+    const now = performance.now();
+    const dt = Math.min(0.25, (now - this.last) / 1000);
+    this.last = now;
+    this.ambience(dt);
     const seen = new Set<number>();
     for (const sq of this.world.squads) {
       if (sq.dead || sq.def.kind !== 'vehicle' || !this.heard(sq.pos, sq.team)) continue;
@@ -145,6 +196,10 @@ export class BattleAudio {
   dispose(): void {
     for (const loop of this.engines.values()) loop.stop();
     this.engines.clear();
+    this.fireLoop?.stop();
+    this.windLoop?.stop();
+    this.fireLoop = null;
+    this.windLoop = null;
   }
 }
 
