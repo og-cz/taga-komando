@@ -2,7 +2,7 @@
   "name": "taga-komando",
   "productName": "Taga Komando",
   "private": true,
-  "version": "0.9.6",
+  "version": "0.9.7",
   "description": "A squad-based real-time tactics game set in Luzon, 1941-45.",
   "author": "og-cz",
   "type": "module",
