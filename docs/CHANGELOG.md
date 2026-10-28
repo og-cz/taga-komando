@@ -2,6 +2,12 @@
 
 [Back to the README](../README.md)
 
+**0.9.5**
+- **Houses can be shelled down.** Every house has health. Bullets never hurt it; mortars, shells, grenades and satchels do, and it takes a real shelling to bring one down (about nine mortar rounds for an ordinary house). Damage shows two ways: a damaged house has its roof broken open, soot up its walls and smoke rising; a badly hit one is on fire, with most of its roof gone and its walls charred, and it hurts the men inside until they get out. At the end it falls in: whoever was inside is thrown out hurt, and it leaves rubble, light cover that troops and tanks can cross but nobody can go into. Some houses are already damaged, a few burning, when the battle starts.
+- **The enemy plays like you.** It picks its doctrine for what the battle needs (anti-tank and mines against tanks, artillery against dug-in troops and held houses, speed and paratroopers when it is behind, a defensive one when it is ahead, ambushes in thick country, cheap levies after heavy losses) instead of at random; it gets out of a burning house, never goes into a burning one or a ruin, and shells houses your troops hold.
+- **Better ground and houses.** The ground has grass tufts and blades where it is green and grit, pebbles and cracks where it is bare, with broad patches of lush and sun-dried grass, and real bumps the low sun picks out. Houses stand on a stone footing, with timber corner posts and a dark eave board under the roof.
+- **HUD back to the previous layout:** the clock under the score bar, the doctrine and resources as tabs on top of the information panel. The doctrine plaque stays big and easy to see, and the HUD still scales with the window.
+
 **0.9.4**
 - **Towns laid out like real barrios.** Houses now line both sides of every road on their own lots, behind a small front yard and a gap from the next house, with a second row behind the first where the town was built up; fields, paddies, jungle and the plaza stay open. Roads are painted as smooth packed-earth tracks along their centre line, so diagonal roads are clean instead of staircases, and the mud patches no longer hide them.
 - **HUD laid out like the field-gear concept.** The clock sits on a steel plate on top of the information panel, with what the battle is about under it (victory points, winning or losing, the wave or the sector); the resources are stacked on their own plate beside the orders; the doctrine plaque sits above the orders. The whole HUD scales down on smaller windows instead of squashing.
