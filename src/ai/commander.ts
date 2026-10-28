@@ -1,4 +1,5 @@
-import { canGarrison, type House } from '../sim/systems/garrison';
+import { canGarrison, doorFor, type House } from '../sim/systems/garrison';
+import { T } from '../data/terrain';
 import { ABILITIES } from '../data/abilities';
 import { BUILDABLES } from '../data/buildables';
 import { LOGISTICS, TILE } from '../data/balance';
@@ -166,7 +167,12 @@ export class AICommander {
   private holdHouse(world: World, sq: Squad, own: Squad[]): boolean {
     if (!canGarrison(sq) || sq.def.role !== 'line') return false;
     const near = (p: { x: number; y: number }) => world.points.find((cp) => cp.owner === this.team && dist(cp.pos, p) < 150);
-    if (sq.garrison !== null) return !!near(world.houses[sq.garrison].center);
+    if (sq.garrison !== null) {
+      const held = world.houses[sq.garrison];
+      // A burning house is a death trap: get out on the side towards home.
+      if (held.stage >= 2) return issueMove(world, sq, doorFor(held, world.teams[this.team].base)).ok;
+      return !!near(held.center);
+    }
     if (sq.order.kind !== 'idle') return false;
     const point = near(sq.pos);
     if (!point) return false;
@@ -174,7 +180,7 @@ export class AICommander {
     let best: House | undefined;
     let bestD = 130;
     for (const h of world.houses) {
-      if (h.occupant !== null) continue;
+      if (h.occupant !== null || h.stage >= 2) continue;
       const d = dist(h.center, point.pos);
       if (d < bestD) {
         bestD = d;
@@ -371,8 +377,17 @@ export class AICommander {
   private commander(world: World, own: Squad[]): void {
     const t = world.teams[this.team];
     if (!t.doctrine && world.time > 40) {
-      const options = doctrinesOf(t.faction.id);
-      chooseDoctrine(world, this.team, options[Math.floor(world.rng.next() * options.length)].id);
+      // Like a player: weigh each doctrine against what this battle needs.
+      let best = doctrinesOf(t.faction.id)[0].id;
+      let bestScore = -Infinity;
+      for (const d of doctrinesOf(t.faction.id)) {
+        const s = this.doctrineScore(world, d.id) + world.rng.next() * 0.6;
+        if (s > bestScore) {
+          bestScore = s;
+          best = d.id;
+        }
+      }
+      chooseDoctrine(world, this.team, best);
     }
     if (!t.doctrine) return;
     const enemies = this.enemies(world);
@@ -392,8 +407,8 @@ export class AICommander {
           go = t.resources.manpower > c.cost.manpower + 150;
           break;
         case 'barrage': {
-          // Shell a dug-in emplacement first, else a cluster of enemies.
-          const fort = enemies.find((x) => x.def.role === 'fort' || x.def.role === 'tech' || (x.def.kind === 'team' && x.setup === 'deployed'));
+          // Shell a dug-in emplacement or a held house first, else a cluster of enemies.
+          const fort = enemies.find((x) => x.def.role === 'fort' || x.def.role === 'tech' || x.garrison !== null || (x.def.kind === 'team' && x.setup === 'deployed'));
           const cluster = enemies.find((x) => enemies.filter((y) => dist(x.pos, y.pos) < 90).length >= 3);
           target = (fort ?? cluster)?.pos;
           go = !!target;
@@ -420,6 +435,71 @@ export class AICommander {
       }
       if (go) useCallIn(world, this.team, c.id, target);
     }
+  }
+
+  /**
+   * How well a doctrine fits this battle: enemy armour wants anti-tank and
+   * mines; dug-in enemies and held houses want artillery; losing on points
+   * wants speed and paratroopers; winning wants to hold; thick cover suits
+   * ambushes; heavy losses suit cheap levies.
+   */
+  private doctrineScore(world: World, id: string): number {
+    const d = DOCTRINES[id];
+    const t = world.teams[this.team];
+    const foe = world.teams[this.team === 0 ? 1 : 0];
+    const enemies = this.enemies(world);
+    // Tanks already seen count fully; tanks the enemy could still bring, half.
+    const armour = this.seenVehicles.size > 0 ? 1 : foe.faction.roster.some((u) => UNITS[u]?.kind === 'vehicle') ? 0.5 : 0;
+    const dug = enemies.filter((e) => e.garrison !== null || e.def.role === 'fort' || (e.def.kind === 'team' && e.setup === 'deployed')).length;
+    const mine = world.points.filter((p) => p.owner === this.team).length;
+    const theirs = world.points.filter((p) => p.owner !== -1 && p.owner !== this.team).length;
+    const behind = theirs > mine;
+    const ahead = mine > theirs;
+    const houses = world.houses.filter((h) => h.stage < 2 && world.points.some((p) => dist(p.pos, h.center) < 150)).length;
+    const cover = this.coverShare(world);
+    let s = 0;
+    // The special unit.
+    const unit = UNITS[d.unit];
+    const antiTank = unit.kind === 'vehicle' || unit.loadout.some((l) => l.weapons.some((w) => WEAPONS[w]?.prefers === 'vehicle'));
+    s += antiTank ? 0.6 + armour * 1.9 : 1;
+    for (const c of d.callIns) {
+      const e = c.effect;
+      switch (e.kind) {
+        case 'buff':
+          if (e.speed || e.accuracy) s += behind ? 1.6 : 0.8;
+          if (e.received) s += (ahead ? 1.4 : 0.7) + Math.min(houses, 4) * 0.15;
+          if (e.rally || e.steady) s += 0.4 + Math.min(dug, 3) * 0.3;
+          if (e.camo) s += cover * 4;
+          break;
+        case 'levy':
+          s += t.stats.lost >= 3 ? 1.4 : 0.7;
+          break;
+        case 'barrage':
+          s += 0.8 + Math.min(dug, 4) * 0.45;
+          break;
+        case 'recon':
+          s += 0.7;
+          break;
+        case 'paradrop':
+          s += behind ? 1.6 : 0.8;
+          break;
+        case 'mines':
+          s += 0.7 + armour * 0.7 + (ahead ? 0.4 : 0);
+          break;
+      }
+    }
+    return s;
+  }
+
+  private cover: number | null = null;
+
+  /** Share of the map in jungle and hedgerows: country that suits ambushes. */
+  private coverShare(world: World): number {
+    if (this.cover !== null) return this.cover;
+    const tiles = world.map.tiles;
+    let n = 0;
+    for (const v of tiles) if (v === T.Jungle || v === T.Hedge) n++;
+    return (this.cover = n / Math.max(1, tiles.length));
   }
 
   /** The doctrine's special unit, if it can be recruited now. */
