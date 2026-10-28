@@ -58,6 +58,8 @@ export interface WeaponDef {
   turret: boolean;
   prefers: 'infantry' | 'vehicle' | 'any';
   projectile: ProjectileKind;
+  /** A smoke round or grenade: it lays a cloud this many seconds long (over its `aoe`) instead of doing damage. */
+  smoke?: number;
   /**
    * Damage multiplier by target type. This is what makes the roster a web of
    * counters rather than a ladder: mortars wreck weapon teams, rifles bully
