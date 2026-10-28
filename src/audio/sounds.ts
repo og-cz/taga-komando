@@ -30,8 +30,11 @@ export const FIRE: Readonly<Record<string, SoundSpec>> = {
   murata: s('arisaka', 0.5),
   subfusil: s('coax', 0.4, 0.07),
   type100_smg: s('coax', 0.4, 0.07),
-  at_gun_37: s('tankgun', 0.7, 0.2),
-  type1_47mm: s('tankgun', 0.75, 0.2),
+  // Anti-tank guns have their own sharp, ringing crack, not the tanks' boom.
+  at_gun_37: s('atgun', 0.75, 0.2),
+  type94_37mm: s('atgun', 0.75, 0.2),
+  at_gun_57: s('atgun', 0.85, 0.2),
+  type1_47mm: s('atgun', 0.8, 0.2),
   bunker_mg: s('hmg', 0.45, 0.08),
   bazooka: s('bazooka', 0.6, 0.2),
   type97_at_rifle: s('atrifle', 0.6, 0.15),
@@ -39,6 +42,8 @@ export const FIRE: Readonly<Record<string, SoundSpec>> = {
   type97_57mm: s('tankgun', 0.8, 0.2),
   m2_mortar: s('mortar', 0.6, 0.15),
   type97_mortar: s('mortar', 0.7, 0.15),
+  smoke_mortar_us: s('mortar', 0.55, 0.15),
+  smoke_mortar_ija: s('mortar', 0.6, 0.15),
 };
 
 /** Rockets and HE shells that burst on impact (bazooka, tank guns). */
@@ -65,3 +70,15 @@ export const WRECK = s('explode_big', 1, 0.2);
 
 /** Engine loop for vehicles. */
 export const ENGINE = 'engine_loop';
+
+/** A house falling in: beams cracking, walls roaring down, bricks clattering. */
+export const COLLAPSE = s('collapse', 0.95, 0.3);
+/** A smoke round or grenade bursting: a dull thump and a long hiss. */
+export const SMOKE_POP = s('smoke_pop', 0.6, 0.1);
+/** Burning houses: a roar with crackling timber, louder the more there are on screen. */
+export const FIRE_LOOP = 'fire_loop';
+
+/** The world around the battle: wind always, birds when it is quiet, guns far away now and then. */
+export const WIND_LOOP = 'wind_loop';
+export const BIRDS = s('birds', 0.2, 3);
+export const DISTANT_GUNS = s('distant_boom', 0.32, 3);
