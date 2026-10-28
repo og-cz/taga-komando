@@ -7,7 +7,7 @@
 
 Squad-based real-time tactics game for Windows, set on Luzon.
 
-Version 0.9.6 · Campaign, Theater of War and Skirmish vs. AI · Offline
+Version 0.9.7 · Campaign, Theater of War and Skirmish vs. AI · Offline
 
 <picture>![Taga Komando](docs/screenshot.jpg)</picture>
 <sub>Concept of the look the game is heading toward.</sub>
