@@ -119,6 +119,11 @@ class ParticleLayer {
         p[q + 4] *= 1 - dt * 0.25;
       } else if (preset === 3) {
         p[q + 4] -= 30 * dt;
+      } else if (preset === 5) {
+        // A smoke screen hangs low and creeps with the wind.
+        p[q + 3] += (wind.x * 0.4 - p[q + 3]) * dt * 0.6;
+        p[q + 5] += (wind.z * 0.4 - p[q + 5]) * dt * 0.6;
+        p[q + 4] *= 1 - dt * 0.9;
       }
       p[q] += p[q + 3] * dt;
       p[q + 1] += p[q + 4] * dt;
@@ -154,6 +159,9 @@ class ParticleLayer {
         g = g + (0.4 - g) * k;
         b = b + (0.37 - b) * k;
         a = Math.min(1, t * 3) * (1 - t) * 0.75;
+      } else if (preset === 5) {
+        // Smoke screen: thick white-grey that holds, then thins.
+        a = Math.min(1, t * 4) * Math.min(1, (1 - t) * 2.2) * 0.8;
       } else if (preset === 3) {
         a = (1 - t) * (0.6 + Math.random() * 0.4);
       } else if (preset === 4) {
@@ -296,6 +304,30 @@ export class Effects3D {
   addFire(x: number, y: number, scale: number, seconds: number, smokeOnly = false, tag?: string): void {
     this.fires.push({ x, z: y, scale, left: seconds, smokeOnly, tag, acc: { flame: 0, smoke: 0, ember: 0 }, phase: Math.random() * 10 });
     if (!smokeOnly && !tag) this.addScorch(x, y, 16 * scale);
+  }
+
+  /**
+   * A smoke screen: thick, slow, white-grey smoke billowing over its whole
+   * area, as dense as `strength` (0..1) says.
+   */
+  smokeScreen(x: number, z: number, radius: number, strength: number, dt: number): void {
+    const rate = radius * radius * 0.016 * strength * (0.5 + this.quality * 0.5);
+    let n = Math.floor(rate * dt + Math.random());
+    while (n-- > 0) {
+      const a = Math.random() * Math.PI * 2;
+      const d = Math.sqrt(Math.random()) * radius * 0.8;
+      const shade = 0.74 + Math.random() * 0.12;
+      this.smoke.spawn(x + Math.cos(a) * d, 3 + Math.random() * 6, z + Math.sin(a) * d, (Math.random() - 0.5) * 4, 2 + Math.random() * 3, (Math.random() - 0.5) * 4, 5 + Math.random() * 3, radius * 0.45, radius * 0.85, 5, shade, shade, shade * 0.97);
+    }
+  }
+
+  /** The pop of a smoke round or grenade: a quick white burst. */
+  smokeBurst(x: number, z: number, radius: number): void {
+    for (let i = 0; i < 14; i++) {
+      const a = Math.random() * Math.PI * 2;
+      const s = 8 + Math.random() * radius * 0.6;
+      this.smoke.spawn(x, 2, z, Math.cos(a) * s, 4 + Math.random() * 6, Math.sin(a) * s, 1.5 + Math.random(), 6, 16 + radius * 0.3, 5, 0.82, 0.82, 0.8);
+    }
   }
 
   /** Put out every fire with this tag. */
