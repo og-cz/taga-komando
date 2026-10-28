@@ -16,6 +16,8 @@ export const T = {
   TankTrap: 12,
   /** Ground taken up by a structure: nothing passes through it. */
   Emplacement: 13,
+  /** What is left of a house that was shelled down: broken walls to crouch behind. */
+  Rubble: 14,
 } as const;
 
 export type TerrainId = (typeof T)[keyof typeof T];
@@ -40,6 +42,7 @@ export const TERRAIN: readonly TerrainDef[] = [
   { id: T.Wire, name: 'Barbed Wire', cover: 'none', infantryCost: X, vehicleCost: 1.2, blocksSight: false, sightDensity: 0, crushInto: T.Open },
   { id: T.TankTrap, name: 'Tank Traps', cover: 'light', infantryCost: 1.3, vehicleCost: X, blocksSight: false, sightDensity: 0, crushInto: null },
   { id: T.Emplacement, name: 'Emplacement', cover: 'heavy', infantryCost: X, vehicleCost: X, blocksSight: false, sightDensity: 0, crushInto: null },
+  { id: T.Rubble, name: 'Rubble', cover: 'light', infantryCost: 1.5, vehicleCost: 2.2, blocksSight: false, sightDensity: 0.35, crushInto: null },
 ];
 
 /** Lowest per-tile cost of any terrain; keeps the A* heuristic admissible. */
