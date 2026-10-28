@@ -2,6 +2,7 @@ import './ui/styles.css';
 import './ui/frontend.css';
 import { audio } from './audio/audio';
 import { installUiSounds } from './audio/uiSounds';
+import { hurtHouse } from './sim/systems/garrison';
 import { CAMPAIGN } from './data/campaign';
 import { Game, type MatchSetup } from './game';
 import { MenuBattle } from './ui/frontend/background';
@@ -115,6 +116,7 @@ void document.fonts.load("400 48px 'Quiapo'").catch(() => {});
 // &menu=defense|base opens an engineers' submenu, &doctrine=<id> chooses a doctrine (with &cp=<n>
 // command points), &picker=1 opens the doctrine chooser, &frame=1 leaves spawned structures half built,
 // &faction=ija plays the Imperial side, &fire=1 lights fires and a blast by the spawned units (3D).
+// &ruin=1 shells three houses near the middle of the map into each stage of damage and looks at them.
 const devBattle = import.meta.env.DEV ? new URLSearchParams(location.search).get('battle') : null;
 if (devBattle) {
   const side = new URLSearchParams(location.search).get('faction') === 'ija' ? 'ija' : 'usaffe';
@@ -182,6 +184,27 @@ function devSetup(): void {
   const focus = params.get('focus');
   const target = focus === 'enemy' ? game.world.hqOf(1) : focus === 'hq' ? hq : undefined;
   if (target) game.camera.centerOn(target.pos);
+  if (params.get('ruin')) {
+    const w = game.world;
+    const mid = { x: w.map.pixelWidth / 2, y: w.map.pixelHeight / 2 };
+    const near3 = [...w.houses].sort((p, q) => Math.hypot(p.center.x - mid.x, p.center.y - mid.y) - Math.hypot(q.center.x - mid.x, q.center.y - mid.y)).slice(0, 4);
+    // Sound, damaged, burning, fallen in.
+    near3.forEach((h, i) => {
+      h.hp = h.maxHp;
+      h.stage = 0;
+      if (i > 0) hurtHouse(w, h, h.maxHp * [0, 0.4, 0.72, 1][i]);
+    });
+    // Between the four, leaning towards the ruin so the panels do not cover it.
+    const avg = near3.reduce((s, h) => ({ x: s.x + h.center.x / near3.length, y: s.y + h.center.y / near3.length }), { x: 0, y: 0 });
+    const ruin = near3[near3.length - 1].center;
+    const c = { x: (avg.x + ruin.x) / 2, y: (avg.y + ruin.y) / 2 + 40 };
+    game.camera.zoom = Math.min(game.camera.maxZoom, zoom || 2.2);
+    game.camera.centerOn(c);
+    // Show the collapse once, then let the fires take hold (the battle does not advance).
+    game.renderer.draw(game.ui, 1 / 60);
+    w.events.length = 0;
+    for (let i = 0; i < 200; i++) game.renderer.draw(game.ui, 1 / 60);
+  }
   const end = params.get('end');
   if (end) game.world.winner = end === 'win' ? 0 : 1;
   if (params.get('edge')) {
