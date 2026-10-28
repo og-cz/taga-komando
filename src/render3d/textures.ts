@@ -393,82 +393,225 @@ export function clothTexture(plain = false): THREE.Texture {
   return finish(key, c);
 }
 
-/**
- * Fine ground detail, grey around 0.5 so it lightens and darkens the painted
- * terrain: grit, pebbles, cracked earth and blades of grass. Tiled finely
- * over the whole battlefield so the ground stays sharp close up.
- */
-export function groundDetailTexture(): THREE.Texture {
-  const hit = cache.get('ground-detail');
-  if (hit) return hit;
-  const S = 256;
-  const [c, x] = canvas(S, S);
+/** Size of the ground detail tile, in texels. */
+const GD = 512;
+
+/** Draw something at a point and again across the edges it overlaps, so the tile repeats without seams. */
+function wrapped(S: number, px: number, py: number, r: number, draw: (x: number, y: number) => void): void {
+  for (const ox of [0, S, -S]) {
+    if (ox !== 0 && (ox > 0 ? px > r : px < S - r)) continue;
+    for (const oy of [0, S, -S]) {
+      if (oy !== 0 && (oy > 0 ? py > r : py < S - r)) continue;
+      draw(px + ox, py + oy);
+    }
+  }
+}
+
+/** Grey grass layer: tufts and blades, light tips over dark roots. */
+function grassLayer(): Uint8ClampedArray {
+  const S = GD;
+  const [, x] = canvas(S, S);
   x.fillStyle = 'rgb(128,128,128)';
   x.fillRect(0, 0, S, S);
-  // Soft blotches of damp and dry earth.
-  for (let i = 0; i < 70; i++) {
-    const px = hash2(i, 1, 161) * S;
-    const py = hash2(i, 2, 161) * S;
-    const r = 8 + hash2(i, 3, 161) * 26;
-    const light = hash2(i, 4, 161) < 0.5;
-    for (const [ox, oy] of [[0, 0], [S, 0], [-S, 0], [0, S], [0, -S]]) {
-      const g = x.createRadialGradient(px + ox, py + oy, 0, px + ox, py + oy, r);
-      g.addColorStop(0, light ? 'rgba(170,170,170,0.35)' : 'rgba(80,80,80,0.35)');
+  // Soft patches where the grass grows thicker or thinner.
+  for (let i = 0; i < 90; i++) {
+    const px = hash2(i, 1, 171) * S;
+    const py = hash2(i, 2, 171) * S;
+    const r = 10 + hash2(i, 3, 171) * 34;
+    const light = hash2(i, 4, 171) < 0.5;
+    wrapped(S, px, py, r, (cx, cy) => {
+      const g = x.createRadialGradient(cx, cy, 0, cx, cy, r);
+      g.addColorStop(0, light ? 'rgba(160,160,160,0.4)' : 'rgba(92,92,92,0.4)');
       g.addColorStop(1, 'rgba(128,128,128,0)');
       x.fillStyle = g;
-      x.fillRect(px + ox - r, py + oy - r, r * 2, r * 2);
-    }
+      x.fillRect(cx - r, cy - r, r * 2, r * 2);
+    });
   }
-  // Grit.
-  noiseSpeckle(x, S, S, 5000, 'rgba(60,60,60,0.45)', 'rgba(200,200,200,0.4)', 162);
-  // Pebbles with a lit top and a shadowed foot.
-  for (let i = 0; i < 160; i++) {
-    const px = hash2(i, 5, 163) * S;
-    const py = hash2(i, 6, 163) * S;
-    const r = 0.8 + hash2(i, 7, 163) * 1.8;
-    x.fillStyle = 'rgba(40,40,40,0.55)';
-    x.beginPath();
-    x.ellipse(px + 0.6, py + 0.6, r, r * 0.75, 0, 0, Math.PI * 2);
-    x.fill();
-    x.fillStyle = 'rgba(205,205,205,0.6)';
-    x.beginPath();
-    x.ellipse(px - 0.2, py - 0.3, r * 0.8, r * 0.6, 0, 0, Math.PI * 2);
-    x.fill();
+  // Tufts: a dark root with blades fanning up from it.
+  for (let i = 0; i < 900; i++) {
+    const px = hash2(i, 5, 172) * S;
+    const py = hash2(i, 6, 172) * S;
+    const n = 3 + Math.floor(hash2(i, 7, 172) * 5);
+    wrapped(S, px, py, 8, (cx, cy) => {
+      x.fillStyle = 'rgba(40,40,40,0.35)';
+      x.beginPath();
+      x.ellipse(cx, cy + 0.8, 2.2, 1.1, 0, 0, Math.PI * 2);
+      x.fill();
+      for (let k = 0; k < n; k++) {
+        const a = -Math.PI / 2 + (hash2(i, k, 173) - 0.5) * 1.6;
+        const l = 3 + hash2(k, i, 173) * 5;
+        const v = 150 + Math.floor(hash2(i, k, 174) * 90);
+        x.strokeStyle = `rgba(${v},${v},${v},0.7)`;
+        x.lineWidth = 0.9;
+        x.beginPath();
+        x.moveTo(cx + (k - n / 2) * 0.5, cy);
+        x.quadraticCurveTo(cx + Math.cos(a) * l * 0.5, cy + Math.sin(a) * l * 0.6, cx + Math.cos(a) * l, cy + Math.sin(a) * l);
+        x.stroke();
+      }
+    });
   }
-  // Cracks in dry earth.
-  x.strokeStyle = 'rgba(50,50,50,0.35)';
-  x.lineWidth = 0.7;
-  for (let i = 0; i < 40; i++) {
-    let px = hash2(i, 8, 164) * S;
-    let py = hash2(i, 9, 164) * S;
-    x.beginPath();
-    x.moveTo(px, py);
-    for (let k = 0; k < 4; k++) {
-      px += (hash2(i, k, 165) - 0.5) * 14;
-      py += (hash2(k, i, 165) - 0.5) * 14;
-      x.lineTo(px, py);
-    }
-    x.stroke();
-  }
-  // Blades of grass.
-  x.strokeStyle = 'rgba(175,175,175,0.45)';
-  x.lineWidth = 0.8;
-  for (let i = 0; i < 600; i++) {
-    const px = hash2(i, 10, 166) * S;
-    const py = hash2(i, 11, 166) * S;
-    const a = -Math.PI / 2 + (hash2(i, 12, 166) - 0.5) * 1.2;
-    const l = 2 + hash2(i, 13, 166) * 3;
+  // Loose single blades between the tufts.
+  for (let i = 0; i < 2600; i++) {
+    const px = hash2(i, 10, 175) * S;
+    const py = hash2(i, 11, 175) * S;
+    const a = -Math.PI / 2 + (hash2(i, 12, 175) - 0.5) * 1.4;
+    const l = 2 + hash2(i, 13, 175) * 3.5;
+    const v = hash2(i, 14, 175) < 0.35 ? 70 : 180;
+    x.strokeStyle = `rgba(${v},${v},${v},0.5)`;
+    x.lineWidth = 0.7;
     x.beginPath();
     x.moveTo(px, py);
     x.lineTo(px + Math.cos(a) * l, py + Math.sin(a) * l);
     x.stroke();
   }
-  const t = finish('ground-detail', c, { repeat: true, srgb: false });
-  return t;
+  return x.getImageData(0, 0, S, S).data;
+}
+
+/** Grey earth layer: damp and dry blotches, grit, pebbles and cracks. */
+function earthLayer(): Uint8ClampedArray {
+  const S = GD;
+  const [, x] = canvas(S, S);
+  x.fillStyle = 'rgb(128,128,128)';
+  x.fillRect(0, 0, S, S);
+  for (let i = 0; i < 110; i++) {
+    const px = hash2(i, 1, 161) * S;
+    const py = hash2(i, 2, 161) * S;
+    const r = 10 + hash2(i, 3, 161) * 40;
+    const light = hash2(i, 4, 161) < 0.5;
+    wrapped(S, px, py, r, (cx, cy) => {
+      const g = x.createRadialGradient(cx, cy, 0, cx, cy, r);
+      g.addColorStop(0, light ? 'rgba(172,172,172,0.35)' : 'rgba(78,78,78,0.35)');
+      g.addColorStop(1, 'rgba(128,128,128,0)');
+      x.fillStyle = g;
+      x.fillRect(cx - r, cy - r, r * 2, r * 2);
+    });
+  }
+  noiseSpeckle(x, S, S, 16000, 'rgba(60,60,60,0.45)', 'rgba(200,200,200,0.4)', 162);
+  // Cracks in dry earth.
+  x.lineWidth = 0.8;
+  for (let i = 0; i < 80; i++) {
+    let px = hash2(i, 8, 164) * S;
+    let py = hash2(i, 9, 164) * S;
+    x.strokeStyle = 'rgba(46,46,46,0.4)';
+    x.beginPath();
+    x.moveTo(px, py);
+    for (let k = 0; k < 5; k++) {
+      px += (hash2(i, k, 165) - 0.5) * 18;
+      py += (hash2(k, i, 165) - 0.5) * 18;
+      x.lineTo(px, py);
+    }
+    x.stroke();
+  }
+  // Pebbles and small stones, with a lit top and a shadowed foot.
+  for (let i = 0; i < 520; i++) {
+    const px = hash2(i, 5, 163) * S;
+    const py = hash2(i, 6, 163) * S;
+    const r = 0.8 + Math.pow(hash2(i, 7, 163), 2.2) * 4;
+    const rot = hash2(i, 15, 163) * 3;
+    wrapped(S, px, py, r + 2, (cx, cy) => {
+      x.fillStyle = 'rgba(34,34,34,0.6)';
+      x.beginPath();
+      x.ellipse(cx + 0.8, cy + 0.9, r, r * 0.72, rot, 0, Math.PI * 2);
+      x.fill();
+      const v = 150 + Math.floor(hash2(i, 16, 163) * 80);
+      x.fillStyle = `rgba(${v},${v},${v},0.85)`;
+      x.beginPath();
+      x.ellipse(cx - 0.2, cy - 0.3, r * 0.85, r * 0.6, rot, 0, Math.PI * 2);
+      x.fill();
+    });
+  }
+  return x.getImageData(0, 0, S, S).data;
+}
+
+/** Tileable value noise over the detail tile, for broad patches. */
+function macroLayer(): Float32Array {
+  const S = GD;
+  const out = new Float32Array(S * S);
+  const octave = (cells: number, seed: number) => {
+    const at = (ix: number, iy: number) => hash2(((ix % cells) + cells) % cells, ((iy % cells) + cells) % cells, seed);
+    for (let y = 0; y < S; y++) {
+      for (let xx = 0; xx < S; xx++) {
+        const u = (xx / S) * cells;
+        const v = (y / S) * cells;
+        const ix = Math.floor(u);
+        const iy = Math.floor(v);
+        const fx = u - ix;
+        const fy = v - iy;
+        const sx = fx * fx * (3 - 2 * fx);
+        const sy = fy * fy * (3 - 2 * fy);
+        const a = at(ix, iy);
+        const b = at(ix + 1, iy);
+        const c = at(ix, iy + 1);
+        const d = at(ix + 1, iy + 1);
+        out[y * S + xx] += (a + (b - a) * sx + (c - a) * sy + (a - b - c + d) * sx * sy) / (cells === 4 ? 1.6 : cells === 8 ? 3.2 : 6.4);
+      }
+    }
+  };
+  octave(4, 181);
+  octave(8, 182);
+  octave(16, 183);
+  return out;
+}
+
+let detailLayers: { grass: Uint8ClampedArray; earth: Uint8ClampedArray } | null = null;
+const layers = () => (detailLayers ??= { grass: grassLayer(), earth: earthLayer() });
+
+/**
+ * Ground detail, three greys packed in one tile: red is grass (tufts and
+ * blades), green is bare earth (grit, pebbles, cracks), blue is broad
+ * patches of lush and dry ground. The ground shader picks grass or earth by
+ * the colour of the painted ground underneath.
+ */
+export function groundDetailTexture(): THREE.Texture {
+  const hit = cache.get('ground-detail');
+  if (hit) return hit;
+  const S = GD;
+  const { grass, earth } = layers();
+  const macro = macroLayer();
+  const [c, x] = canvas(S, S);
+  const img = x.createImageData(S, S);
+  for (let i = 0; i < S * S; i++) {
+    img.data[i * 4] = grass[i * 4];
+    img.data[i * 4 + 1] = earth[i * 4];
+    img.data[i * 4 + 2] = Math.max(0, Math.min(255, macro[i] * 255));
+    img.data[i * 4 + 3] = 255;
+  }
+  x.putImageData(img, 0, 0);
+  return finish('ground-detail', c, { repeat: true, srgb: false });
+}
+
+/** Bumps of the same grass and stones, as a normal map, so the low sun picks them out. */
+export function groundNormalTexture(): THREE.Texture {
+  const hit = cache.get('ground-normal');
+  if (hit) return hit;
+  const S = GD;
+  const { grass, earth } = layers();
+  const h = (xx: number, y: number) => {
+    const i = ((y + S) % S) * S + ((xx + S) % S);
+    return (grass[i * 4] * 0.4 + earth[i * 4] * 0.6) / 255;
+  };
+  const [c, x] = canvas(S, S);
+  const img = x.createImageData(S, S);
+  const strength = 2.4;
+  for (let y = 0; y < S; y++) {
+    for (let xx = 0; xx < S; xx++) {
+      const dx = (h(xx + 1, y) - h(xx - 1, y)) * strength;
+      const dy = (h(xx, y + 1) - h(xx, y - 1)) * strength;
+      const l = Math.hypot(dx, dy, 1);
+      const p = (y * S + xx) * 4;
+      img.data[p] = (-dx / l * 0.5 + 0.5) * 255;
+      img.data[p + 1] = (dy / l * 0.5 + 0.5) * 255;
+      img.data[p + 2] = (1 / l * 0.5 + 0.5) * 255;
+      img.data[p + 3] = 255;
+    }
+  }
+  x.putImageData(img, 0, 0);
+  return finish('ground-normal', c, { repeat: true, srgb: false });
 }
 
 /** Free every cached texture (when the battle ends). */
 export function disposeTextures(): void {
   for (const t of cache.values()) t.dispose();
   cache.clear();
+  detailLayers = null;
 }
