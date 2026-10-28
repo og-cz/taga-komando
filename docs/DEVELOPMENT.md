@@ -36,7 +36,7 @@ src/render3d/ the 3D battlefield (Three.js): ground, buildings, trees, props, st
 src/ui/     menus and HUD
 src/input/  mouse and keyboard
 tests/      automated tests
-tools/      map converter for Watabou village exports
+tools/      map converter for Watabou village exports; world sound maker
 ```
 
 ## How the 3D battlefield fits in
@@ -60,6 +60,10 @@ Development URL parameters (dev server only), for example `http://localhost:5173
 | `ruin=1` | Shell four houses near the middle of the map into each stage of damage (sound, damaged, burning, fallen in) and look at them |
 | `end=win\|lose` | End the battle at once (result screen) |
 | `screen=menu\|campaign\|skirmish\|theater` | Skip the intro and open a menu screen |
+
+## World sounds
+
+`python tools/make-sounds.py` (needs numpy and ffmpeg with libvorbis) writes the world sounds into `src/audio/sfx`: the fire loop, houses falling in, smoke bursts, wind and birds are synthesised; the anti-tank gun crack and the distant guns are made from the game's own tank gun and blast clips. Clips named `name_1.ogg`, `name_2.ogg`… are variations of one sound, picked at random.
 
 ## Adding a town map
 
