@@ -55,6 +55,7 @@ const ICONS: Record<string, IconDef> = {
   setup: { stroke: ['M12 4v8', 'M12 12l-6 8', 'M12 12l6 8', 'M12 12v8', 'M7 7h10'] },
   grenade: { stroke: ['M12 9a6 6 0 1 0 .01 0', 'M10 9V6h4v3', 'M14 6l3-2'] },
   barrage: { stroke: ['M12 2v8', 'M9.5 7.5L12 10l2.5-2.5', 'M4 20l3-5 3 3 2-5 2 5 3-3 3 5'] },
+  smoke: { stroke: ['M6 18a4 4 0 0 1 .5-8 5.5 5.5 0 0 1 10.5-1.5A4 4 0 0 1 18 18z', 'M9 21h7', 'M11 3.5a2 2 0 0 1 3 0'], fill: ['M6 18a4 4 0 0 1 .5-8 5.5 5.5 0 0 1 10.5-1.5A4 4 0 0 1 18 18z'] },
   upgrade: { stroke: ['M6 12l6-6 6 6', 'M6 18l6-6 6 6'] },
   enter: { stroke: ['M3 20V10l9-6 9 6v10z', 'M9 20v-6h6v6', 'M12 8.5v5', 'M9.8 11.3L12 13.5l2.2-2.2'] },
   back: { stroke: ['M15 5l-7 7 7 7'] },
