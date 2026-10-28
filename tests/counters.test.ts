@@ -37,7 +37,8 @@ function duel(attacker: string, defender: string, o: DuelOptions = {}, trials = 
       A.setupFacing = Math.atan2(560 - ay, bx - ax);
     }
     if (o.spotter) {
-      const s = w.spawn(0, 'us_riflemen', { x: bx + (left ? 20 : -20), y: 360 }, 0);
+      // On the road behind the gun, out of its arc: hedgerows elsewhere would hide it.
+      const s = w.spawn(0, 'us_riflemen', { x: bx + (left ? 70 : -70), y: 560 }, 0);
       issueStop(w, s);
       for (const m of s.models) m.weapons = [];
     }
