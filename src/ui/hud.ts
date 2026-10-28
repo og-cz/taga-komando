@@ -150,7 +150,6 @@ export class Hud {
   private readonly pointIcons: HTMLElement;
   private readonly objective: { box: HTMLElement; title: HTMLElement; detail: HTMLElement } | null;
   private readonly clock: HTMLElement;
-  private readonly clockSub: HTMLElement;
   private readonly roster: HTMLElement;
   private readonly rosterCards = new Map<number, HTMLElement>();
   private readonly unitPanel: HTMLElement;
@@ -202,8 +201,7 @@ export class Hud {
     this.tickets = [n0, n1];
     this.ticketBars = [b0, b1];
     this.pointIcons = el('div', { class: 'vp-icons' });
-    this.clock = el('div', { class: 'clock-time' });
-    this.clockSub = el('div', { class: 'clock-sub' });
+    this.clock = el('div', { class: 'clock' });
     // Ticket bars only make sense for capture-point battles; everything else gets an objective panel.
     if (world.objective.mode === 'skirmish' && world.win === 'points') {
       this.objective = null;
@@ -212,7 +210,7 @@ export class Hud {
       const detail = el('div', { class: 'obj-detail' });
       this.objective = { box: el('div', { class: `objective-panel mode-${world.objective.mode}` }, title, detail), title, detail };
     }
-    const top = el('div', { class: 'hud-top' }, this.objective ? this.objective.box : el('div', { class: 'score' }, t0, this.pointIcons, t1));
+    const top = el('div', { class: 'hud-top' }, this.objective ? this.objective.box : el('div', { class: 'score' }, t0, this.pointIcons, t1), this.clock);
 
     // ─── Resources (bottom, beside the orders) ───
     const stat = (cls: string, label: string, name: string) => {
@@ -280,17 +278,14 @@ export class Hud {
       el(
         'div',
         { class: 'panel unit-card' },
-        el('div', { class: 'clock-plate' }, this.clock, this.clockSub),
+        el('div', { class: 'info-strip' }, this.doctrineBar, el('div', { class: 'resources res-strip' }, mpBox, muBox, fuBox, popBox)),
         this.unitPanel,
         this.upgradePanel,
         queue,
       ),
-      // Resources stacked on their own plate, by the orders.
-      el('div', { class: 'panel resources res-stack' }, mpBox, muBox, fuBox, popBox),
       el(
         'div',
         { class: 'panel command-card' },
-        el('div', { class: 'doctrine-dock' }, this.doctrineBar),
         this.buildingTabs,
         this.orderGrid,
         this.buildGrid,
@@ -729,7 +724,6 @@ ${d.description}` }));
       ...world.points.filter((p) => p.kind === 'victory').map((p) => el('span', { class: `vp o${p.owner}`, title: p.name, text: 'V' })),
     );
     this.clock.textContent = formatTime(world.time);
-    this.clockSub.textContent = this.clockLabel();
     if (this.objective) this.renderObjective();
 
     const own = this.input.selectedOwn();
@@ -770,19 +764,6 @@ ${d.description}` }));
     this.renderRoster();
     this.renderUnitPanel();
     if (this.tipSource) this.renderTip();
-  }
-
-  /** What the battle is about, under the clock: victory points, a wave, a sector, or annihilation. */
-  private clockLabel(): string {
-    const o = this.world.objective;
-    if (o.mode === 'defense') return `Wave ${o.wave} / ${o.totalWaves}`;
-    if (o.mode === 'offensive') return `Sector ${o.sector} / ${o.totalSectors}`;
-    if (this.world.win === 'annihilation') return 'Annihilation';
-    if (this.world.win === 'none') return 'Free battle';
-    const vp = this.world.points.filter((p) => p.kind === 'victory');
-    const mine = vp.filter((p) => p.owner === this.player).length;
-    const theirs = vp.filter((p) => p.owner !== -1 && p.owner !== this.player).length;
-    return mine > theirs ? 'Winning' : theirs > mine ? 'Losing' : 'Victory points';
   }
 
   private renderObjective(): void {
