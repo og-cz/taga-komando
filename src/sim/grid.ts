@@ -8,6 +8,8 @@ import type { Vec2 } from '../core/vec';
 /** Tile grid of terrain. Knows nothing about units; purely spatial queries. */
 export class GameMap {
   readonly tiles: Uint8Array;
+  /** Smoke over each tile, as sight density (see systems/smoke.ts); 0 where the air is clear. */
+  readonly smoke: Float32Array;
   /** Bumped on every terrain change so caches (render, paths) can invalidate. */
   version = 0;
   /** Indices of tiles changed since the renderer last consumed them. */
@@ -18,6 +20,7 @@ export class GameMap {
     readonly h: number,
   ) {
     this.tiles = new Uint8Array(w * h);
+    this.smoke = new Float32Array(w * h);
   }
 
   static fromDef(def: MapDef): GameMap {
