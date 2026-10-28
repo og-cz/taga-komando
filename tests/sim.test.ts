@@ -64,12 +64,22 @@ describe('pathfinding', () => {
 });
 
 describe('line of sight and cover', () => {
-  it('is blocked by buildings but not by a single hedge', () => {
+  it('is blocked by buildings, and by a hedge unless one side is lining it', () => {
     const map = new GameMap(20, 5);
     map.set(10, 2, T.Building);
     expect(hasLineOfSight(map, at(2, 2), at(18, 2))).toBe(false);
     map.set(10, 2, T.Hedge);
+    expect(hasLineOfSight(map, at(2, 2), at(18, 2))).toBe(false);
+    // Right at the hedge, looking over it, both ways.
+    expect(hasLineOfSight(map, at(9, 2), at(18, 2))).toBe(true);
+    expect(hasLineOfSight(map, at(2, 2), at(11, 2))).toBe(true);
+  });
+
+  it('is blocked by a smoke screen', () => {
+    const map = new GameMap(20, 5);
     expect(hasLineOfSight(map, at(2, 2), at(18, 2))).toBe(true);
+    for (const x of [9, 10, 11]) map.smoke[map.idx(x, 2)] = 1.3;
+    expect(hasLineOfSight(map, at(2, 2), at(18, 2))).toBe(false);
   });
 
   it('is blocked by deep jungle', () => {
