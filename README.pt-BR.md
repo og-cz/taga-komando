@@ -7,7 +7,7 @@
 
 Jogo de tática em tempo real com esquadrões, para Windows, ambientado em Luzon.
 
-Versão 0.9.4 · Campanha, Teatro de Guerra e Escaramuça contra a IA · Offline
+Versão 0.9.5 · Campanha, Teatro de Guerra e Escaramuça contra a IA · Offline
 
 <picture>![Taga Komando](docs/screenshot.jpg)</picture>
 <sub>Conceito do visual para o qual o jogo está caminhando.</sub>
