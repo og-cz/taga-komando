@@ -21,7 +21,7 @@ type RGB = [number, number, number];
 const GRASS: RGB = [64, 82, 40];
 const DRY: RGB = [102, 96, 56];
 const JUNGLE_FLOOR: RGB = [32, 46, 24];
-const DIRT: RGB = [106, 86, 58];
+const DIRT: RGB = [146, 122, 86];
 const MUD: RGB = [68, 54, 36];
 const PADDY: RGB = [58, 80, 68];
 const WATER: RGB = [28, 56, 68];
@@ -285,17 +285,23 @@ export class TerrainLayer {
         const iy = Math.floor(v);
         const fx = smooth(0.15, 0.85, u - ix);
         const fy = smooth(0.15, 0.85, v - iy);
-        const a = GROUND[this.t(ix, iy)];
-        const b = GROUND[this.t(ix + 1, iy)];
-        const cc = GROUND[this.t(ix, iy + 1)];
-        const dd = GROUND[this.t(ix + 1, iy + 1)];
+        // Roads are painted below as smooth bands, so here they count as the grass they run through.
+        const ground = (x: number, y: number) => {
+          const tt = this.t(x, y);
+          return tt === T.Road ? GRASS : GROUND[tt];
+        };
+        const a = ground(ix, iy);
+        const b = ground(ix + 1, iy);
+        const cc = ground(ix, iy + 1);
+        const dd = ground(ix + 1, iy + 1);
+        const road = this.roadWeight(wx + (noise(wx / 9, wy / 9, 7) - 0.5) * 2.2, wy + (noise(wx / 9, wy / 9, 8) - 0.5) * 2.2);
         const fine = noise(wx / 2.6, wy / 2.6, 3) * 0.55 + noise(wx / 0.9, wy / 0.9, 4) * 0.45;
         const large = noise(wx / 46, wy / 46, 5);
         const k = 0.8 + fine * 0.38;
         const dry = smooth(0.52, 0.8, large) * 0.6;
         const dark = smooth(0.32, 0.08, large) * 0.22;
         // Wet, churned patches of mud.
-        const wet = smooth(0.62, 0.82, noise(wx / 21, wy / 21, 6)) * 0.55;
+        const wet = smooth(0.74, 0.92, noise(wx / 21, wy / 21, 6)) * 0.4;
         const p = (j * gw + i) * 4;
         for (let ch = 0; ch < 3; ch++) {
           const top = a[ch] + (b[ch] - a[ch]) * fx;
@@ -303,7 +309,9 @@ export class TerrainLayer {
           let val = (top + (bot - top) * fy) * k;
           val = val + (DRY[ch] * k - val) * dry * (ch === 2 ? 0.6 : 1);
           val = val + (MUD[ch] * k - val) * wet;
-          d[p + ch] = val * (1 - dark);
+          // Packed earth of the road, a little darker down the wheel ruts at its middle.
+          val = val + (DIRT[ch] * k * (0.92 + 0.08 * fine) - val) * road;
+          d[p + ch] = val * (1 - dark * (1 - road));
         }
         d[p + 3] = 255;
       }
@@ -314,6 +322,42 @@ export class TerrainLayer {
     tmp.getContext('2d')!.putImageData(img, 0, 0);
     this.ctx.imageSmoothingEnabled = true;
     this.ctx.drawImage(tmp, tx0 * PX, ty0 * PX, gw * SCALE, gh * SCALE);
+  }
+
+  /**
+   * How much of a road lies under a point, 0..1: the road runs as a smooth
+   * band along the line joining neighbouring road tiles (diagonals included),
+   * so a road drawn as a staircase of tiles becomes a clean diagonal track.
+   */
+  private roadWeight(wx: number, wy: number): number {
+    const tx = Math.floor(wx / TILE);
+    const ty = Math.floor(wy / TILE);
+    let best = Infinity;
+    const isRoad = (x: number, y: number) => this.t(x, y) === T.Road;
+    for (let dy = -1; dy <= 1; dy++) {
+      for (let dx = -1; dx <= 1; dx++) {
+        const ax = tx + dx;
+        const ay = ty + dy;
+        if (!isRoad(ax, ay)) continue;
+        const cx = (ax + 0.5) * TILE;
+        const cy = (ay + 0.5) * TILE;
+        best = Math.min(best, Math.hypot(wx - cx, wy - cy));
+        // Segments to the next road tile on (right, down and both diagonals).
+        for (const [nx, ny] of [[1, 0], [0, 1], [1, 1], [1, -1]]) {
+          if (!isRoad(ax + nx, ay + ny)) continue;
+          // Skip a diagonal when the corner is already joined by a straight step.
+          if (nx !== 0 && ny !== 0 && (isRoad(ax + nx, ay) || isRoad(ax, ay + ny))) continue;
+          const bx = cx + nx * TILE;
+          const by = cy + ny * TILE;
+          const vx = bx - cx;
+          const vy = by - cy;
+          const l2 = vx * vx + vy * vy;
+          const s = Math.max(0, Math.min(1, ((wx - cx) * vx + (wy - cy) * vy) / l2));
+          best = Math.min(best, Math.hypot(wx - (cx + vx * s), wy - (cy + vy * s)));
+        }
+      }
+    }
+    return smooth(TILE * 0.78, TILE * 0.5, best);
   }
 
   /** Flat things in the ground: ruts and puddles, paddy rows, craters, ripples and banks. */
