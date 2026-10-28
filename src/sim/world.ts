@@ -227,7 +227,7 @@ export class World {
     updateAbilities(this, dt);
     updateDoctrines(this, dt);
     updateMovement(this, dt);
-    updateGarrisons(this);
+    updateGarrisons(this, dt);
     updateEngineering(this, dt);
     updateCombat(this, dt);
     updateProjectiles(this, dt);
