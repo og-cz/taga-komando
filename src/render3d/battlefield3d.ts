@@ -5,6 +5,7 @@ import type { World } from '../sim/world';
 import { CAMERA_TILT, type Camera } from '../render/camera';
 import { TerrainLayer } from '../render/terrainLayer';
 import { WEAPONS } from '../data/weapons';
+import { smokeStrength } from '../sim/systems/smoke';
 import { buildBuildings, type BuildingInfo } from './buildings';
 import { Effects3D } from './fx';
 import { Structures3D } from './structures';
@@ -298,6 +299,7 @@ export class Battlefield3D {
         const target = e.hit ? this.world.squads.find((s) => !s.dead && s.def.armor && Math.hypot(s.pos.x - e.to.x, s.pos.y - e.to.y) < s.def.radius + 4) : undefined;
         this.fx.shot(e.from.x, e.from.y, e.to.x, e.to.y, e.hit, kind, !!target);
       } else if (e.type === 'explosion' && visible(e.pos)) this.fx.explosion(e.pos.x, e.pos.y, e.radius);
+      else if (e.type === 'smoke' && visible(e.pos)) this.fx.smokeBurst(e.pos.x, e.pos.y, e.radius);
       else if (e.type === 'collapse' && visible(e.pos)) {
         // A house falls in: a cloud of dust and smoke, and the wreck burns for a while.
         this.fx.explosion(e.pos.x, e.pos.y, Math.max(30, e.radius * 1.2));
@@ -339,6 +341,11 @@ export class Battlefield3D {
     const t0 = performance.now();
     this.syncGround();
     this.syncCamera(camera, shakeX, shakeY);
+    // Smoke screens billow for as long as they hang; anyone may see a cloud from outside it.
+    for (const s of this.world.smokes) {
+      const k = smokeStrength(s, this.world.time);
+      if (k > 0) this.fx.smokeScreen(s.pos.x, s.pos.y, s.radius, k, dt);
+    }
     this.fx.update(dt);
     this.overlayTex.needsUpdate = true;
     if (fogVersion !== this.fogVersion) {
