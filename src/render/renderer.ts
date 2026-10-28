@@ -11,6 +11,7 @@ import { aliveCount, formationOffset, healthFraction, maxRange, type Squad } fro
 import { coverAt, findCoverSpots } from '../sim/systems/cover';
 import { defenseAt } from '../sim/systems/defenses';
 import { planBuild } from '../sim/systems/engineering';
+import { smokeStrength } from '../sim/systems/smoke';
 import type { World } from '../sim/world';
 import type { UIState } from '../input/uiState';
 import type { Camera } from './camera';
@@ -241,6 +242,7 @@ export class Renderer {
     // Tree crowns stand over the soldiers beneath them.
     this.terrain?.drawCanopy(ctx);
     this.effects.drawAir(ctx);
+    if (!this.world3d) this.drawSmoke(ctx);
     if (!this.spectator) {
       this.updateFog();
       // In 3D the fog lies over the whole scene, buildings and trees too.
@@ -2249,6 +2251,28 @@ export class Renderer {
       ctx.fillText(status, x + 1, y - 19);
       ctx.fillStyle = sq.retreating || sq.suppState === 'pinned' ? '#ffcf5c' : '#d9e8ff';
       ctx.fillText(status, x, y - 20);
+    }
+  }
+
+  /** Smoke screens in the flat view: soft, overlapping puffs of white-grey. */
+  private drawSmoke(ctx: CanvasRenderingContext2D): void {
+    for (const s of this.world.smokes) {
+      const k = smokeStrength(s, this.world.time);
+      if (k <= 0) continue;
+      for (let i = 0; i < 7; i++) {
+        const a = i * 2.4 + s.born;
+        const d = i === 0 ? 0 : s.radius * 0.45;
+        const x = s.pos.x + Math.cos(a + this.world.time * 0.05) * d;
+        const y = s.pos.y + Math.sin(a + this.world.time * 0.05) * d;
+        const r = s.radius * (i === 0 ? 0.9 : 0.6);
+        const g = ctx.createRadialGradient(x, y, 0, x, y, r);
+        g.addColorStop(0, `rgba(214,214,206,${0.55 * k})`);
+        g.addColorStop(1, 'rgba(214,214,206,0)');
+        ctx.fillStyle = g;
+        ctx.beginPath();
+        ctx.arc(x, y, r, 0, Math.PI * 2);
+        ctx.fill();
+      }
     }
   }
 }
