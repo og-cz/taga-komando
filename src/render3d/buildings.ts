@@ -18,19 +18,27 @@ const STEP = 4;
 const INSET = 1.6;
 
 export interface BuildingInfo {
-  /** Centre of a shell-damaged building, where its ruins smoulder. */
-  damaged: { x: number; y: number; size: number }[];
+  /** Centre of a shell-damaged building, where it smokes (stage 1) or burns (stage 2). */
+  damaged: { x: number; y: number; size: number; stage: 1 | 2 }[];
 }
+
+/** How badly the building on a tile is hit: 0 standing, 1 damaged, 2 burning. */
+export type StageAt = (tile: number) => number;
 
 /**
  * Every building on the map as real geometry: walls with windows and doors,
- * and roofs whose height at each point is its distance in from the eaves, so
- * any shape of building gets proper hips, ridges and valleys. A few buildings
- * are shell-damaged, with their roofs broken open. The roofs take their colour
- * from the terrain painting (clay tile, nipa or rusted iron), and the scene's
- * light does the rest.
+ * a stone footing, timber corner posts and eave boards, and roofs whose height
+ * at each point is its distance in from the eaves, so any shape of building
+ * gets proper hips, ridges and valleys. The roofs take their colour from the
+ * terrain painting (clay tile, nipa or rusted iron), and the scene's light
+ * does the rest.
+ *
+ * Damage shows two ways: a damaged house has its roof broken open and soot
+ * up its walls; a burning one has lost most of its roof and its walls are
+ * charred black. A house that falls in leaves rubble: broken wall stubs and
+ * heaps of debris (see `buildRuins`).
  */
-export function buildBuildings(map: GameMap, terrain: TerrainLayer, groundTex: THREE.Texture): { group: THREE.Group; info: BuildingInfo } {
+export function buildBuildings(map: GameMap, terrain: TerrainLayer, groundTex: THREE.Texture, stageAt: StageAt = () => 0): { group: THREE.Group; info: BuildingInfo } {
   const group = new THREE.Group();
   const info: BuildingInfo = { damaged: [] };
   const isB = (tx: number, ty: number) => map.inBounds(tx, ty) && map.get(tx, ty) === T.Building;
@@ -87,6 +95,11 @@ export function buildBuildings(map: GameMap, terrain: TerrainLayer, groundTex: T
   const wallPos: number[] = [];
   const wallUv: number[] = [];
   const wallNorm: number[] = [];
+  const wallCol: number[] = [];
+  /** Footings, corner posts and eave boards: boxes, each with its colour. */
+  const trim: { m: THREE.Matrix4; c: THREE.Color }[] = [];
+  const box = (x: number, y: number, z: number, sx: number, sy: number, sz: number, color: number, k = 1) =>
+    trim.push({ m: new THREE.Matrix4().compose(new THREE.Vector3(x, y, z), new THREE.Quaternion(), new THREE.Vector3(sx, sy, sz)), c: new THREE.Color(color).multiplyScalar(k) });
   const N = TILE / STEP;
 
   comps.forEach((comp, ci) => {
@@ -99,17 +112,28 @@ export function buildBuildings(map: GameMap, terrain: TerrainLayer, groundTex: T
     }
     const cx = (sx / comp.tiles.length) * TILE;
     const cz = (sy / comp.tiles.length) * TILE;
-    // Some larger buildings have taken a shell through the roof.
-    const damaged = comp.tiles.length >= 3 && hash2(seed, 3, 909) < 0.3;
-    const holeR = damaged ? TILE * (0.7 + hash2(seed, 4, 909) * 0.6) : 0;
-    const hx = cx + (hash2(seed, 5, 909) - 0.5) * TILE;
-    const hz = cz + (hash2(seed, 6, 909) - 0.5) * TILE;
-    if (damaged) info.damaged.push({ x: hx, y: hz, size: holeR });
+    // Shelled houses: the roof broken open (damaged), or mostly gone and burning.
+    const stage = Math.min(2, stageAt(seed));
+    const damaged = stage > 0;
+    const size = Math.sqrt(comp.tiles.length);
+    const holeR = !damaged ? 0 : TILE * (stage === 2 ? 0.75 + size * 0.24 : 0.5 + hash2(seed, 4, 909) * 0.45) * (0.85 + hash2(seed, 7, 909) * 0.3);
+    const hx = cx + (hash2(seed, 5, 909) - 0.5) * TILE * Math.min(1, size * 0.5);
+    const hz = cz + (hash2(seed, 6, 909) - 0.5) * TILE * Math.min(1, size * 0.5);
+    if (damaged) info.damaged.push({ x: hx, y: hz, size: holeR, stage: stage as 1 | 2 });
     const inHole = (x: number, z: number) => {
       if (!damaged) return false;
       const a = Math.atan2(z - hz, x - hx);
       const ragged = holeR * (0.75 + 0.35 * Math.sin(a * 5 + seed) * Math.sin(a * 3 - seed * 0.7));
       return Math.hypot(x - hx, z - hz) < ragged;
+    };
+    /** Soot on the walls: none on a sound house, streaks on a damaged one, charred on a burning one. */
+    const soot = (x: number, y: number, z: number): number => {
+      if (!damaged) return 1;
+      const near = Math.max(0, 1 - Math.hypot(x - hx, z - hz) / (holeR * 2.4 + TILE));
+      const up = y / (WALL_H + 0.6);
+      const streak = 0.75 + 0.25 * Math.sin(x * 0.9 + z * 1.3 + seed);
+      if (stage === 1) return 1 - near * up * 0.55 * streak;
+      return Math.max(0.22, 0.62 - near * 0.3 - up * 0.25 * streak);
     };
 
     // Roof: a shared grid of vertices over the whole building.
@@ -200,7 +224,23 @@ export function buildBuildings(map: GameMap, terrain: TerrainLayer, groundTex: T
           wallPos.push(x, y, z);
           wallUv.push(u, v);
           wallNorm.push(nx, 0, nz);
+          const s = soot(x, y, z);
+          wallCol.push(s, s * 0.97, s * 0.94);
         }
+        // A stone footing along the foot of the wall.
+        const char = stage === 2 ? 0.55 : 1;
+        const mx = (a0x + b0x) / 2;
+        const mz = (a0z + b0z) / 2;
+        const len = Math.hypot(b0x - a0x, b0z - a0z);
+        const shade = 0.85 + hash2(tx, ty, 320 + si) * 0.25;
+        box(mx + nx * 0.35, 0.9, mz + nz * 0.35, nx ? 0.9 : len + 0.6, 1.8, nz ? 0.9 : len + 0.6, 0x6a6255, shade * char);
+        // An eave board under the roof edge, out at the tile edge.
+        const ex = mx + nx * (INSET - 0.2);
+        const ez = mz + nz * (INSET - 0.2);
+        const elen = len + (beforeOpen ? INSET : 0) + (afterOpen ? INSET : 0);
+        if (!inHole(ex, ez)) box(ex, WALL_H - 0.2, ez, nx ? 0.35 : elen, 1.1, nz ? 0.35 : elen, 0x3b2a1b, char);
+        // A timber post at each outside corner.
+        if (beforeOpen) box(a0x + nx * 0.2, (WALL_H + 0.6) / 2, a0z + nz * 0.2, 1.3, WALL_H + 0.6, 1.3, 0x4a3522, char);
       });
     }
     void ci;
@@ -222,10 +262,79 @@ export function buildBuildings(map: GameMap, terrain: TerrainLayer, groundTex: T
     g.setAttribute('position', new THREE.Float32BufferAttribute(wallPos, 3));
     g.setAttribute('uv', new THREE.Float32BufferAttribute(wallUv, 2));
     g.setAttribute('normal', new THREE.Float32BufferAttribute(wallNorm, 3));
-    const walls = new THREE.Mesh(g, new THREE.MeshStandardMaterial({ map: wallAtlas(), roughness: 0.92, side: THREE.DoubleSide }));
+    g.setAttribute('color', new THREE.Float32BufferAttribute(wallCol, 3));
+    const walls = new THREE.Mesh(g, new THREE.MeshStandardMaterial({ map: wallAtlas(), roughness: 0.92, side: THREE.DoubleSide, vertexColors: true }));
     walls.castShadow = true;
     walls.receiveShadow = true;
     group.add(walls);
   }
+  const boxes = (list: { m: THREE.Matrix4; c: THREE.Color }[], mat: THREE.Material, geo: THREE.BufferGeometry = new THREE.BoxGeometry(1, 1, 1)) => {
+    if (!list.length) return;
+    const mesh = new THREE.InstancedMesh(geo, mat, list.length);
+    list.forEach((b, i) => {
+      mesh.setMatrixAt(i, b.m);
+      mesh.setColorAt(i, b.c);
+    });
+    mesh.castShadow = true;
+    mesh.receiveShadow = true;
+    group.add(mesh);
+  };
+  boxes(trim, new THREE.MeshStandardMaterial({ roughness: 0.95 }));
+  // What is left of houses that fell in.
+  const ruins = buildRuins(map);
+  boxes(ruins.stubs, new THREE.MeshStandardMaterial({ map: wallAtlas(), roughness: 0.95 }));
+  boxes(ruins.debris, new THREE.MeshStandardMaterial({ roughness: 1, flatShading: true }), new THREE.DodecahedronGeometry(1, 0));
+  boxes(ruins.beams, new THREE.MeshStandardMaterial({ roughness: 1 }));
   return { group, info };
+}
+
+/**
+ * Rubble where houses fell in: broken stubs of wall along the old outline,
+ * heaps of brick and plaster, and charred beams lying across them.
+ */
+function buildRuins(map: GameMap): Record<'stubs' | 'debris' | 'beams', { m: THREE.Matrix4; c: THREE.Color }[]> {
+  const out: Record<'stubs' | 'debris' | 'beams', { m: THREE.Matrix4; c: THREE.Color }[]> = { stubs: [], debris: [], beams: [] };
+  const isR = (tx: number, ty: number) => map.inBounds(tx, ty) && map.get(tx, ty) === T.Rubble;
+  const q = new THREE.Quaternion();
+  const e = new THREE.Euler();
+  const put = (list: { m: THREE.Matrix4; c: THREE.Color }[], x: number, y: number, z: number, sx: number, sy: number, sz: number, rx: number, ry: number, rz: number, color: number, k: number) =>
+    list.push({ m: new THREE.Matrix4().compose(new THREE.Vector3(x, y, z), q.setFromEuler(e.set(rx, ry, rz)).clone(), new THREE.Vector3(sx, sy, sz)), c: new THREE.Color(color).multiplyScalar(k) });
+  for (let ty = 0; ty < map.h; ty++) {
+    for (let tx = 0; tx < map.w; tx++) {
+      if (!isR(tx, ty)) continue;
+      const h = (i: number) => hash2(tx, ty, 700 + i);
+      const x0 = tx * TILE;
+      const z0 = ty * TILE;
+      // Stubs of wall along the edges that were outside walls, broken off at ragged heights.
+      const edges: [boolean, number, number, boolean][] = [
+        [!isR(tx, ty - 1), x0 + TILE / 2, z0 + INSET, true],
+        [!isR(tx, ty + 1), x0 + TILE / 2, z0 + TILE - INSET, true],
+        [!isR(tx - 1, ty), x0 + INSET, z0 + TILE / 2, false],
+        [!isR(tx + 1, ty), x0 + TILE - INSET, z0 + TILE / 2, false],
+      ];
+      edges.forEach(([open, x, z, along], ei) => {
+        if (!open) return;
+        for (let s = 0; s < 3; s++) {
+          if (h(ei * 10 + s) < 0.3) continue;
+          const tall = 1.5 + Math.pow(h(ei * 10 + s + 4), 1.6) * 7.5;
+          const off = (s - 1) * (TILE / 3);
+          const k = 0.45 + h(ei * 10 + s + 7) * 0.5;
+          put(out.stubs, along ? x + off : x, tall / 2, along ? z : z + off, along ? TILE / 3 - 0.4 : 1.1, tall, along ? 1.1 : TILE / 3 - 0.4, 0, 0, (h(ei + 40) - 0.5) * 0.12, 0xd8ccb4, k);
+        }
+      });
+      // Heaps of brick, plaster and roof tile.
+      for (let i = 0; i < 9; i++) {
+        const r = 1.2 + h(i + 50) * 2.6;
+        const tint = h(i + 60);
+        const color = tint < 0.35 ? 0xa0583a : tint < 0.7 ? 0xb4aa98 : 0x4a443c;
+        put(out.debris, x0 + 2 + h(i + 70) * (TILE - 4), r * 0.45, z0 + 2 + h(i + 80) * (TILE - 4), r * (1 + h(i + 90) * 0.6), r * 0.7, r, h(i + 100) * 3, h(i + 110) * 6, h(i + 120) * 3, color, 0.7 + h(i + 130) * 0.35);
+      }
+      // A charred beam or two across the heap.
+      for (let i = 0; i < 2; i++) {
+        if (h(i + 140) < 0.4) continue;
+        put(out.beams, x0 + TILE / 2 + (h(i + 150) - 0.5) * 8, 1.4 + h(i + 160) * 1.6, z0 + TILE / 2 + (h(i + 170) - 0.5) * 8, 12 + h(i + 180) * 8, 1.1, 1.1, 0, h(i + 190) * Math.PI, (h(i + 200) - 0.5) * 0.5, 0x2e231a, 1);
+      }
+    }
+  }
+  return out;
 }
