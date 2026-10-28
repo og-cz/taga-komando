@@ -2,6 +2,10 @@
 
 [Back to the README](../README.md)
 
+**0.9.7**
+- **Sound for the battlefield.** Burning houses roar and crackle (louder the more of them are on screen), a house falling in cracks and rumbles with bricks clattering down, and smoke rounds burst with a thump and a long hiss. Anti-tank guns have their own sharp, ringing crack instead of the tanks' boom (two of them were silent before). Under it all the wind blows, birds call when the fighting dies down, and guns thump far off now and then.
+- **The enemy's doctrine fits the battle.** It no longer nearly always picks its defensive anti-tank doctrine: every doctrine starts even, and what the enemy has seen tips the choice (tanks, dug-in guns and held houses, being ahead or behind on points, heavy losses), so jungle maps bring out the guerrillas and open towns see every doctrine.
+
 **0.9.6**
 - **Smoke.** Rifle squads throw smoke grenades and mortar teams fire smoke rounds (N). A thick white-grey cloud builds up, hangs for about twenty seconds and thins away; nobody sees or shoots through it, and whoever is inside it stays hidden and can barely see out. Throw it on a machine gun before you rush it, or across open ground before you cross.
 - **True sight past hedgerows.** A hedgerow now hides the field behind it. A squad lining the hedge sees and shoots over it; from farther back you only see the men hugging its far side. Buildings still block sight outright, and jungle and hedges thin it out.
