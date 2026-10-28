@@ -83,5 +83,26 @@ export const GARRISON = {
   sight: 1.25,
 };
 
+/**
+ * Houses have hit points. Only explosives hurt them, and it takes a real
+ * shelling (or a few satchels) to bring one down: first the roof goes and it
+ * smokes, then it catches fire, then it falls in and leaves rubble.
+ */
+export const HOUSE = {
+  /** Hit points: a base, plus more for every tile of floor. */
+  baseHp: 220,
+  hpPerTile: 85,
+  /** Below these shares of its health a house is damaged, then burning. */
+  damaged: 0.66,
+  burning: 0.33,
+  /** Damage per second the fire does to each man inside a burning house. */
+  fireDamage: 2.5,
+  /** Damage to each man inside when the house comes down on them. */
+  collapseDamage: 45,
+  /** Shares of houses already damaged, or already burning, when the battle starts. */
+  startDamaged: 0.2,
+  startBurning: 0.03,
+};
+
 export const DIFFICULTY: Record<Difficulty, number> = { easy: 0.75, normal: 1, hard: 1.3 };
 
