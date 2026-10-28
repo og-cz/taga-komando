@@ -13,7 +13,7 @@ import {
   type WeaponState,
 } from '../entities';
 import { hasLineOfSight } from '../los';
-import { canHit } from './garrison';
+import { canHit, damageHouses } from './garrison';
 import type { World } from '../world';
 import { earnCp, teamMult } from './doctrine';
 import { coverAt } from './cover';
@@ -361,6 +361,7 @@ export function explode(world: World, pos: Vec2, w: WeaponDef, source: Squad | n
   }
   // Defenses have hit points; they only break when those run out.
   damageDefenses(world, pos, w);
+  damageHouses(world, pos, w);
   if (w.craterChance > 0 && world.rng.chance(w.craterChance)) {
     const tx = Math.floor(pos.x / TILE);
     const ty = Math.floor(pos.y / TILE);
