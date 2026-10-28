@@ -209,6 +209,12 @@ const LIST: WeaponDef[] = [
     range: 110, damage: 70, penetration: [10, 10], aoe: 32, suppression: 0.4, scatter: 18,
     craterChance: 0.05, projectile: 'grenade',
   }),
+
+  // Smoke: no damage, a cloud that blocks sight and fire.
+  weapon('smoke_grenade_us', 'Granadang Usok', { range: 110, damage: 0, aoe: 36, scatter: 14, projectile: 'grenade', smoke: 22 }),
+  weapon('smoke_grenade_ija', 'Hatsuendan', { range: 110, damage: 0, aoe: 36, scatter: 16, projectile: 'grenade', smoke: 22 }),
+  weapon('smoke_mortar_us', 'Usok ng Mortero', { range: 440, minRange: 120, damage: 0, aoe: 44, indirect: true, scatter: 36, crew: true, projectile: 'mortar', smoke: 28 }),
+  weapon('smoke_mortar_ija', 'Enmakudan', { range: 450, minRange: 130, damage: 0, aoe: 44, indirect: true, scatter: 40, crew: true, projectile: 'mortar', smoke: 28 }),
 ];
 
 export const WEAPONS: Readonly<Record<string, WeaponDef>> = Object.fromEntries(LIST.map((w) => [w.id, w]));
