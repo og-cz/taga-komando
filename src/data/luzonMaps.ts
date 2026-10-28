@@ -40,101 +40,86 @@ const BASE_CLEAR = 4;
 type Cell = { x: number; y: number };
 
 /**
- * Buildings traced from the town plans come out as staircases wherever a house
- * stood at an angle to the grid. Rebuild each block of houses from its largest
- * clean rectangles (at least 2 × 2 tiles); the leftover steps and slivers become
- * open yard. A small house that would vanish keeps its biggest block.
+ * Lay the town out the way a barrio grows: houses along both sides of every
+ * road, each on its own lot behind a small front yard, two to four tiles wide
+ * with a gap to the next. Houses only go where the town plan had buildings,
+ * so each town keeps its own shape; fields, paddies, jungle and the plaza
+ * stay open.
  */
-function tidyHouses(grid: string[][]): void {
+function planTown(grid: string[][], id: string): void {
   const H = grid.length;
   const W = grid[0].length;
-  const seen = new Uint8Array(W * H);
-  for (let start = 0; start < W * H; start++) {
-    const sx = start % W;
-    const sy = Math.floor(start / W);
-    if (seen[start] || grid[sy][sx] !== '#') continue;
-    // One block of touching houses.
-    const tiles: number[] = [];
-    const stack = [start];
-    seen[start] = 1;
-    while (stack.length) {
-      const k = stack.pop()!;
-      tiles.push(k);
-      const kx = k % W;
-      const ky = Math.floor(k / W);
-      for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
-        const nx = kx + dx;
-        const ny = ky + dy;
-        if (nx < 0 || ny < 0 || nx >= W || ny >= H) continue;
-        const j = ny * W + nx;
-        if (!seen[j] && grid[ny][nx] === '#') {
-          seen[j] = 1;
-          stack.push(j);
-        }
+  // Where the town was built up, from the original plan.
+  const built = new Uint16Array(W * H);
+  for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) if (grid[y][x] === '#') built[y * W + x] = 1;
+  const density = (cx: number, cy: number) => {
+    let n = 0;
+    for (let y = cy - 3; y <= cy + 3; y++) for (let x = cx - 3; x <= cx + 3; x++) if (x >= 0 && y >= 0 && x < W && y < H) n += built[y * W + x];
+    return n;
+  };
+  for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) if (grid[y][x] === '#') grid[y][x] = '.';
+  const rng = mulberry(id.length * 977 + id.charCodeAt(0) * 31);
+  const at = (x: number, y: number) => (x >= 0 && y >= 0 && x < W && y < H ? grid[y][x] : '~');
+  // A lot is free when it is open ground, with a tile of clearance from other houses and roads.
+  const fits = (x0: number, y0: number, w: number, h: number) => {
+    for (let y = y0 - 1; y <= y0 + h; y++) {
+      for (let x = x0 - 1; x <= x0 + w; x++) {
+        const c = at(x, y);
+        const inside = x >= x0 && x < x0 + w && y >= y0 && y < y0 + h;
+        if (inside && c !== '.') return false;
+        if (!inside && (c === '#' || c === '=')) return false;
       }
     }
-    const left = new Set(tiles);
-    const keep = new Set<number>();
-    let first = true;
-    for (;;) {
-      const r = largestRect(left, W);
-      if (!r) break;
-      const big = r.w >= 2 && r.h >= 2;
-      if (!big && !(first && r.w * r.h >= 2)) break;
-      for (let y = r.y; y < r.y + r.h; y++) {
-        for (let x = r.x; x < r.x + r.w; x++) {
-          left.delete(y * W + x);
-          keep.add(y * W + x);
+    return density(x0 + (w >> 1), y0 + (h >> 1)) >= 2;
+  };
+  const place = (x0: number, y0: number, w: number, h: number) => {
+    for (let y = y0; y < y0 + h; y++) for (let x = x0; x < x0 + w; x++) grid[y][x] = '#';
+  };
+  // Along every straight stretch of road, both sides.
+  for (const horizontal of [true, false]) {
+    const len = horizontal ? H : W;
+    const run = horizontal ? W : H;
+    for (let a = 0; a < len; a++) {
+      let b = 0;
+      while (b < run) {
+        const road = (k: number) => (horizontal ? at(k, a) : at(a, k)) === '=';
+        if (!road(b)) {
+          b++;
+          continue;
         }
+        let e = b;
+        while (e < run && road(e)) e++;
+        if (e - b >= 3) {
+          // The front row faces the road across a one-tile yard; a second row stands behind it.
+          for (const [side, row] of [[-1, 0], [1, 0], [-1, 1], [1, 1]]) {
+            let k = b;
+            while (k < e) {
+              const w = 2 + Math.floor(rng() * 3);
+              const d = 2 + Math.floor(rng() * 2);
+              const off = side > 0 ? a + 2 + row * 5 : a - 1 - d - row * 5;
+              const [x0, y0, ww, hh] = horizontal ? [k, off, w, d] : [off, k, d, w];
+              if (fits(x0, y0, ww, hh)) {
+                place(x0, y0, ww, hh);
+                k += w + 1 + (rng() < 0.35 ? 1 : 0);
+              } else k++;
+            }
+          }
+        }
+        b = e;
       }
-      first = false;
-      if (!big) break;
     }
-    for (const k of tiles) if (!keep.has(k)) grid[Math.floor(k / W)][k % W] = '.';
   }
 }
 
-/** The largest axis-aligned rectangle made only of the given tiles. */
-function largestRect(tiles: Set<number>, W: number): { x: number; y: number; w: number; h: number } | null {
-  if (tiles.size === 0) return null;
-  let x0 = Infinity;
-  let x1 = -Infinity;
-  let y0 = Infinity;
-  let y1 = -Infinity;
-  for (const k of tiles) {
-    const x = k % W;
-    const y = Math.floor(k / W);
-    x0 = Math.min(x0, x);
-    x1 = Math.max(x1, x);
-    y0 = Math.min(y0, y);
-    y1 = Math.max(y1, y);
-  }
-  const bw = x1 - x0 + 1;
-  const heights = new Array<number>(bw).fill(0);
-  let best: { x: number; y: number; w: number; h: number } | null = null;
-  let bestArea = 0;
-  for (let y = y0; y <= y1; y++) {
-    for (let i = 0; i < bw; i++) heights[i] = tiles.has(y * W + x0 + i) ? heights[i] + 1 : 0;
-    // Largest rectangle in the histogram of heights ending on this row.
-    const stack: number[] = [];
-    for (let i = 0; i <= bw; i++) {
-      const h = i < bw ? heights[i] : 0;
-      while (stack.length && heights[stack[stack.length - 1]] >= h) {
-        const top = stack.pop()!;
-        const height = heights[top];
-        const start = stack.length ? stack[stack.length - 1] + 1 : 0;
-        const width = i - start;
-        // Prefer squarer houses: a long sliver of a row is not much of a house.
-        const area = height * width - (Math.min(height, width) < 2 ? 0.5 : 0);
-        if (height > 0 && area > bestArea) {
-          bestArea = area;
-          best = { x: x0 + start, y: y - height + 1, w: width, h: height };
-        }
-      }
-      stack.push(i);
-    }
-  }
-  return best;
+/** A small seeded random generator, so every town is laid out the same each time. */
+function mulberry(seed: number): () => number {
+  let s = seed >>> 0;
+  return () => {
+    s = (s + 0x6d2b79f5) >>> 0;
+    let r = Math.imul(s ^ (s >>> 15), 1 | s);
+    r = (r + Math.imul(r ^ (r >>> 7), 61 | r)) ^ r;
+    return ((r ^ (r >>> 14)) >>> 0) / 4294967296;
+  };
 }
 
 /** Decodes a grid and widens roads that only touch corner to corner (see below). */
@@ -336,7 +321,7 @@ function joinMiddle(grid: string[][]): void {
 
 function build(src: LuzonMapSource): MapDef {
   const grid = prepareGrid(src.rows);
-  tidyHouses(grid);
+  planTown(grid, src.id);
   mirrorGrid(grid);
   joinMiddle(grid);
   const H = grid.length;
