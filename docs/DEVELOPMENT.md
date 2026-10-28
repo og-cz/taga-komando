@@ -55,7 +55,7 @@ Development URL parameters (dev server only), for example `http://localhost:5173
 | `reveal=1` | Lift the fog of war |
 | `doctrine=<id>`, `cp=<n>`, `picker=1` | Doctrine, command points, open the chooser |
 | `menu=defense\|base`, `frame=1` | Open an engineers' menu, leave spawned structures half built |
-| `fire=1` | Light fires and a blast by the spawned units |
+| `fire=1` | Light fires, a blast and a burst of machine-gun and cannon fire by the spawned units |
 | `end=win\|lose` | End the battle at once (result screen) |
 | `screen=menu\|campaign\|skirmish\|theater` | Skip the intro and open a menu screen |
 
@@ -64,4 +64,4 @@ Development URL parameters (dev server only), for example `http://localhost:5173
 1. Open https://watabou.github.io/village-generator/, make a village you like, then right-click the map → *Export as* → *JSON*.
 2. On the same page, open the browser console, paste in `tools/watabou-to-grid.js`, and run `copy(JSON.stringify(watabouToGrid(<the exported JSON>)))`.
 3. Save the rows in `src/data/luzon/<town>.ts` and add an entry for the town in `src/data/luzonMaps.ts` (name, description, point names).
-4. Run `npm test`. Bases and capture points are placed automatically, houses traced at an angle are straightened into clean blocks, the map is mirrored so both sides are equal, and the tests check that every point can be reached by infantry and tanks from both bases.
+4. Run `npm test`. Bases and capture points are placed automatically, houses are laid out along the roads on their own lots, the map is mirrored so both sides are equal, and the tests check that every point can be reached by infantry and tanks from both bases.
