@@ -7,7 +7,7 @@
 
 以吕宋岛为背景、以班组为单位的 Windows 即时战术游戏。
 
-版本 0.9.5 · 战役、战区和对战 AI 遭遇战 · 离线
+版本 0.9.6 · 战役、战区和对战 AI 遭遇战 · 离线
 
 <picture>![Taga Komando](docs/screenshot.jpg)</picture>
 <sub>这是游戏未来目标画面的概念图。</sub>
