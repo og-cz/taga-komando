@@ -213,6 +213,8 @@ interface Fire {
   /** Seconds left; Infinity for fires that smoulder all battle. */
   left: number;
   smokeOnly: boolean;
+  /** Fires of one kind (a house's) can be put out together. */
+  tag?: string;
   acc: { flame: number; smoke: number; ember: number };
   phase: number;
 }
@@ -291,9 +293,14 @@ export class Effects3D {
   }
 
   /** A fire at a world point (x, y on the map). */
-  addFire(x: number, y: number, scale: number, seconds: number, smokeOnly = false): void {
-    this.fires.push({ x, z: y, scale, left: seconds, smokeOnly, acc: { flame: 0, smoke: 0, ember: 0 }, phase: Math.random() * 10 });
-    if (!smokeOnly) this.addScorch(x, y, 16 * scale);
+  addFire(x: number, y: number, scale: number, seconds: number, smokeOnly = false, tag?: string): void {
+    this.fires.push({ x, z: y, scale, left: seconds, smokeOnly, tag, acc: { flame: 0, smoke: 0, ember: 0 }, phase: Math.random() * 10 });
+    if (!smokeOnly && !tag) this.addScorch(x, y, 16 * scale);
+  }
+
+  /** Put out every fire with this tag. */
+  removeFires(tag: string): void {
+    for (let i = this.fires.length - 1; i >= 0; i--) if (this.fires[i].tag === tag) this.fires.splice(i, 1);
   }
 
   /** A burnt patch on the ground (oldest are reused). */
