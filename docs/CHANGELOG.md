@@ -2,6 +2,11 @@
 
 [Back to the README](../README.md)
 
+**0.9.6**
+- **Smoke.** Rifle squads throw smoke grenades and mortar teams fire smoke rounds (N). A thick white-grey cloud builds up, hangs for about twenty seconds and thins away; nobody sees or shoots through it, and whoever is inside it stays hidden and can barely see out. Throw it on a machine gun before you rush it, or across open ground before you cross.
+- **True sight past hedgerows.** A hedgerow now hides the field behind it. A squad lining the hedge sees and shoots over it; from farther back you only see the men hugging its far side. Buildings still block sight outright, and jungle and hedges thin it out.
+- **The enemy uses smoke too:** a squad pinned or cut up by a machine gun, an emplacement or a held house smokes it, and a mortar lays smoke on a gun that has its infantry pinned.
+
 **0.9.5**
 - **Houses can be shelled down.** Every house has health. Bullets never hurt it; mortars, shells, grenades and satchels do, and it takes a real shelling to bring one down (about nine mortar rounds for an ordinary house). Damage shows two ways: a damaged house has its roof broken open, soot up its walls and smoke rising; a badly hit one is on fire, with most of its roof gone and its walls charred, and it hurts the men inside until they get out. At the end it falls in: whoever was inside is thrown out hurt, and it leaves rubble, light cover that troops and tanks can cross but nobody can go into. Some houses are already damaged, a few burning, when the battle starts.
 - **The enemy plays like you.** It picks its doctrine for what the battle needs (anti-tank and mines against tanks, artillery against dug-in troops and held houses, speed and paratroopers when it is behind, a defensive one when it is ahead, ambushes in thick country, cheap levies after heavy losses) instead of at random; it gets out of a burning house, never goes into a burning one or a ruin, and shells houses your troops hold.
