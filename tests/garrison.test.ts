@@ -5,7 +5,7 @@ import { T } from '../src/data/terrain';
 import { WEAPONS } from '../src/data/weapons';
 import { issueGarrison, issueMove } from '../src/sim/commands';
 import { explode } from '../src/sim/systems/combat';
-import { houseAt } from '../src/sim/systems/garrison';
+import { hurtHouse, houseAt } from '../src/sim/systems/garrison';
 import { World } from '../src/sim/world';
 
 function run(world: World, seconds: number): void {
@@ -84,5 +84,66 @@ describe('garrisoning houses', () => {
     expect(lostInside).toBeGreaterThan(0);
     // The same blast in the open hurts more: the house is heavy cover.
     expect(lostInside).toBeLessThan(lostOutside);
+  });
+});
+
+describe('house damage', () => {
+  /** A fresh, undamaged house (some start the battle already shelled). */
+  function fresh() {
+    const v = village();
+    v.house.hp = v.house.maxHp;
+    v.house.stage = 0;
+    return v;
+  }
+
+  it('bullets never hurt a house, and one mortar round does not bring it down', () => {
+    const { w, house } = fresh();
+    explode(w, house.center, WEAPONS.m1_garand, null);
+    expect(house.hp).toBe(house.maxHp);
+    explode(w, house.center, WEAPONS.m2_mortar, null);
+    expect(house.hp).toBeLessThan(house.maxHp);
+    expect(house.stage).toBe(0);
+  });
+
+  it('a shelling breaks it, then sets it on fire, then brings it down to rubble', () => {
+    const { w, house } = fresh();
+    const stages: number[] = [];
+    let hits = 0;
+    while (house.stage < 3 && hits < 60) {
+      explode(w, house.center, WEAPONS.m2_mortar, null);
+      hits++;
+      if (stages[stages.length - 1] !== house.stage) stages.push(house.stage);
+    }
+    expect(stages).toEqual([0, 1, 2, 3]);
+    // Not easily: it takes a good number of rounds.
+    expect(hits).toBeGreaterThanOrEqual(6);
+    for (const k of house.tiles) expect(w.map.tiles[k]).toBe(T.Rubble);
+    expect(houseAt(w, house.center)).toBeUndefined();
+  });
+
+  it('whoever is inside is thrown out hurt, and nobody can go into the ruin', () => {
+    const { w, house } = fresh();
+    const sq = w.spawn(0, 'us_riflemen', { x: 22 * TILE, y: 35 * TILE }, 0);
+    issueGarrison(w, sq, house);
+    run(w, 12);
+    expect(sq.garrison).toBe(house.id);
+    const before = sq.models.reduce((n, m) => n + m.hp, 0);
+    hurtHouse(w, house, house.maxHp);
+    expect(sq.garrison).toBeNull();
+    expect(house.occupant).toBeNull();
+    expect(sq.models.reduce((n, m) => n + Math.max(0, m.hp), 0)).toBeLessThan(before);
+    expect(issueGarrison(w, sq, house).ok).toBe(false);
+  });
+
+  it('a burning house hurts the men inside', () => {
+    const { w, house } = fresh();
+    const sq = w.spawn(0, 'us_riflemen', { x: 22 * TILE, y: 35 * TILE }, 0);
+    issueGarrison(w, sq, house);
+    run(w, 12);
+    hurtHouse(w, house, house.maxHp * 0.7);
+    expect(house.stage).toBe(2);
+    const before = sq.models.reduce((n, m) => n + m.hp, 0);
+    run(w, 4);
+    expect(sq.models.reduce((n, m) => n + Math.max(0, m.hp), 0)).toBeLessThan(before);
   });
 });
