@@ -1,5 +1,5 @@
-import { GARRISON, MAX_SIGHT_DENSITY, TILE, VISION_INTERVAL } from '../../data/balance';
-import { TERRAIN } from '../../data/terrain';
+import { GARRISON, HEDGE_PEEK, MAX_SIGHT_DENSITY, SMOKE, TILE, VISION_INTERVAL } from '../../data/balance';
+import { T, TERRAIN } from '../../data/terrain';
 import type { TeamId } from '../../data/types';
 import type { Vec2 } from '../../core/vec';
 import type { GameMap } from '../grid';
@@ -7,7 +7,9 @@ import type { World } from '../world';
 
 /**
  * Per-team fog of war on the tile grid. Rays are cast from each unit to the rim
- * of its sight circle; buildings stop a ray, foliage thins it out.
+ * of its sight circle; buildings stop a ray, foliage thins it out, a hedgerow
+ * hides what lies beyond it (unless the unit is lining it), and smoke cannot
+ * be seen into.
  */
 export class Vision {
   readonly visible: [Uint8Array, Uint8Array];
@@ -83,19 +85,29 @@ export class Vision {
       const cx = Math.cos(a);
       const cy = Math.sin(a);
       let density = 0;
+      let smoke = 0;
       let last = -1;
-      for (let s = 0.5; s <= r; s += 0.5) {
+      let reach = r;
+      for (let s = 0.5; s <= reach; s += 0.5) {
         const tx = Math.floor(ox + cx * s);
         const ty = Math.floor(oy + cy * s);
         if (!map.inBounds(tx, ty)) break;
         const idx = ty * map.w + tx;
         if (idx === last) continue;
         last = idx;
+        // Thick smoke cannot be seen into: whoever is in it stays hidden.
+        if (s >= ignore && map.smoke[idx] > 0) {
+          smoke += map.smoke[idx];
+          if (smoke > SMOKE.see) break;
+        }
         vis[idx] = 1;
         if (s < ignore) continue;
-        const def = TERRAIN[map.tiles[idx]];
+        const t = map.tiles[idx];
+        const def = TERRAIN[t];
         if (def.blocksSight) break;
-        density += def.sightDensity;
+        // Past a hedgerow only the ground right behind it shows.
+        if (t === T.Hedge && s > HEDGE_PEEK) reach = Math.min(reach, s + 1);
+        density += def.sightDensity + map.smoke[idx];
         if (density > MAX_SIGHT_DENSITY) break;
       }
     }
