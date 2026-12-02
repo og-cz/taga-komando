@@ -59,8 +59,36 @@ function canopyBlob(seed: number, lumps: number): THREE.BufferGeometry {
   return g;
 }
 
-function instanced(geo: THREE.BufferGeometry, mat: THREE.Material, matrices: THREE.Matrix4[], shadow = true, setup?: (m: THREE.InstancedMesh) => void): THREE.Group {
-  return chunkedInstances(geo, mat, matrices, { castShadow: shadow, setup });
+function instanced(geo: THREE.BufferGeometry, mat: THREE.Material, matrices: THREE.Matrix4[], shadow = true, setup?: (m: THREE.InstancedMesh) => void, colors?: THREE.Color[]): THREE.Group {
+  return chunkedInstances(geo, mat, matrices, { castShadow: shadow, setup, colors });
+}
+
+/** A coconut palm's crown: a full head of long drooping fronds round a few young ones standing up. */
+function palmCrown(seed: number): THREE.BufferGeometry {
+  const old = crown(14, 0.66, 0.24, 0.5, seed);
+  const young = crown(5, 0.42, 0.18, 0.06, seed + 5);
+  young.translate(0, 0.01, 0);
+  return mergeGeometries([old, young])!;
+}
+
+/** A palm trunk, ringed and gently bowed, one unit tall. */
+function palmTrunk(): THREE.BufferGeometry {
+  const g = new THREE.CylinderGeometry(0.026, 0.045, 1, 8, 6);
+  g.translate(0, 0.5, 0);
+  const p = g.attributes.position;
+  for (let i = 0; i < p.count; i++) {
+    const t = p.getY(i);
+    p.setX(i, p.getX(i) + 0.07 * t * t);
+  }
+  g.computeVertexNormals();
+  return g;
+}
+
+/** A leafy green in the range seen across the field: lush, dusty, yellowed or deep. */
+function leafTint(a: number, b: number): THREE.Color {
+  // Multiplies the foliage texture: near white, leaning yellow, blue-green or dark.
+  const k = 0.8 + b * 0.45;
+  return new THREE.Color(k * (0.8 + a * 0.35), k * (1.0 + (b - 0.5) * 0.12), k * (0.62 + (1 - a) * 0.3));
 }
 
 const tmp = new THREE.Object3D();
@@ -94,11 +122,14 @@ export function buildVegetation(map: GameMap, terrain: TerrainLayer): { ground: 
         const r = tree.r / PX_PER_UNIT;
         const h = (i: number) => hash2(tree.seed, i, 777);
         if (tree.kind === 'palm') {
-          const height = 22 + h(1) * 12;
+          const height = 28 + h(1) * 16;
           const lean = (h(2) - 0.5) * 0.22;
           const lean2 = (h(3) - 0.5) * 0.22;
           trunks.push(mat4(x, 0, z, tree.turn, height, height, height, lean, lean2));
-          palmCrowns[Math.floor(h(4) * 3)].push(mat4(x, 0, z, tree.turn, (r / 0.55) * 1.25, height, (r / 0.55) * 1.25, lean, lean2));
+          // The crown sits on the bowed trunk's tip.
+          const crownMat = mat4(x, 0, z, tree.turn, (r / 0.55) * 1.35, height, (r / 0.55) * 1.35, lean, lean2);
+          crownMat.multiply(new THREE.Matrix4().makeTranslation((0.07 * height) / ((r / 0.55) * 1.35), 0, 0));
+          palmCrowns[Math.floor(h(4) * 3)].push(crownMat);
         } else if (tree.kind === 'broad') {
           const height = 16 + h(1) * 8;
           broadTrunks.push(mat4(x, 0, z, tree.turn, height * 0.7, height * 0.7, height * 0.7));
@@ -111,9 +142,7 @@ export function buildVegetation(map: GameMap, terrain: TerrainLayer): { ground: 
   }
 
   const bark = new THREE.MeshStandardMaterial({ map: barkTexture(), roughness: 0.95 });
-  const trunkGeo = new THREE.CylinderGeometry(0.03, 0.05, 1, 7, 1);
-  trunkGeo.translate(0, 0.5, 0);
-  ground.add(instanced(trunkGeo, bark, trunks));
+  ground.add(instanced(palmTrunk(), bark, trunks));
   const broadTrunkGeo = new THREE.CylinderGeometry(0.06, 0.1, 1, 6, 1);
   broadTrunkGeo.translate(0, 0.5, 0);
   ground.add(instanced(broadTrunkGeo, bark, broadTrunks));
@@ -124,7 +153,7 @@ export function buildVegetation(map: GameMap, terrain: TerrainLayer): { ground: 
   palmCrowns.forEach((list, v) => {
     if (!list.length) return;
     crowns.add(
-      instanced(crown(9 + v, 0.55, 0.2, 0.32, 40 + v), frondMat, list, true, (m) => {
+      instanced(palmCrown(40 + v), frondMat, list, true, (m) => {
         m.customDepthMaterial = frondDepth;
         m.renderOrder = 2;
       }),
@@ -143,18 +172,37 @@ export function buildVegetation(map: GameMap, terrain: TerrainLayer): { ground: 
     ground.add(instanced(g, bananaMat, bananas, true, (m) => (m.customDepthMaterial = depth)));
   }
 
-  // Bushes along the hedgerows.
+  // Bushes along the hedgerows, undergrowth in the jungle and along the edges of
+  // fields, yards and roads, and low leafy plants scattered through the grass.
   const bushes: THREE.Matrix4[] = [];
+  const bushTint: THREE.Color[] = [];
+  const plants: THREE.Matrix4[] = [];
   const grass: THREE.Matrix4[] = [];
+  const at = (tx: number, ty: number) => (map.inBounds(tx, ty) ? map.get(tx, ty) : T.Open);
+  const bush = (x: number, z: number, s: number, k: number) => {
+    bushes.push(mat4(x, s * 0.22, z, hash2(x, z, 71) * 6, s, s * (0.7 + hash2(x, z, 72) * 0.25), s));
+    bushTint.push(leafTint(hash2(x, z, 73), hash2(x, z, 74)).multiplyScalar(k));
+  };
   for (let ty = 0; ty < map.h; ty++) {
     for (let tx = 0; tx < map.w; tx++) {
       const t = map.get(tx, ty);
+      const hh = (i: number) => hash2(tx, ty, i);
       if (t === T.Hedge) {
-        for (let i = 0; i < 4; i++) {
-          const s = 6 + hash2(tx, ty, 40 + i) * 4;
-          bushes.push(mat4(tx * TILE + 3 + hash2(tx, ty, 50 + i) * 10, s * 0.25, ty * TILE + 3 + hash2(tx, ty, 60 + i) * 10, hash2(tx, ty, 70 + i) * 6, s, s * 0.8, s));
+        for (let i = 0; i < 5; i++) bush(tx * TILE + 2 + hh(50 + i) * 12, ty * TILE + 2 + hh(60 + i) * 12, 6 + hh(40 + i) * 5, 1);
+      } else if (t === T.Jungle) {
+        for (let i = 0; i < 2; i++) bush(tx * TILE + hh(130 + i) * TILE, ty * TILE + hh(140 + i) * TILE, 7 + hh(150 + i) * 6, 0.8);
+      } else if (t === T.Open) {
+        // Thicker where the field meets something else: jungle, hedges, yards, water, roads.
+        let edge = false;
+        for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+          const n = at(tx + dx, ty + dy);
+          if (n === T.Jungle || n === T.Hedge || n === T.Building || n === T.Water || n === T.Road || n === T.Paddy) edge = true;
         }
-      } else if (t === T.Open || t === T.Jungle) {
+        if (edge && hh(160) < 0.4) bush(tx * TILE + hh(161) * TILE, ty * TILE + hh(162) * TILE, 4 + hh(163) * 5, 1);
+        else if (hh(164) < 0.07) bush(tx * TILE + hh(165) * TILE, ty * TILE + hh(166) * TILE, 3.5 + hh(167) * 4, 1.05);
+        if (hh(170) < (edge ? 0.3 : 0.12)) plants.push(mat4(tx * TILE + hh(171) * TILE, 0, ty * TILE + hh(172) * TILE, hh(173) * 6, 3.5 + hh(174) * 2.5, 2.5 + hh(175) * 2, 3.5 + hh(174) * 2.5));
+      }
+      if (t === T.Open || t === T.Jungle) {
         const n = t === T.Jungle ? 3 : hash2(tx, ty, 80) < 0.55 ? 2 : 0;
         for (let i = 0; i < n; i++) {
           const s = 3 + hash2(tx, ty, 90 + i) * 3;
@@ -163,7 +211,15 @@ export function buildVegetation(map: GameMap, terrain: TerrainLayer): { ground: 
       }
     }
   }
-  if (bushes.length) ground.add(instanced(canopyBlob(20, 4), new THREE.MeshStandardMaterial({ map: foliageTexture(), roughness: 0.9, color: 0xb8c8a8 }), bushes));
+  if (bushes.length) ground.add(instanced(canopyBlob(20, 4), new THREE.MeshStandardMaterial({ map: foliageTexture(), roughness: 0.9 }), bushes, true, undefined, bushTint));
+  if (plants.length) {
+    // Taro, ginger and young banana: a low rosette of broad leaves.
+    const g = crown(7, 1, 0.42, 0.55, 95);
+    g.scale(1, 0.7, 1);
+    g.translate(0, -0.7, 0);
+    const mat = new THREE.MeshStandardMaterial({ map: bananaLeafTexture(), alphaTest: 0.4, side: THREE.DoubleSide, roughness: 0.75, color: 0xd8e8c0 });
+    ground.add(instanced(g, mat, plants, false));
+  }
   // Grass is left to the ground painting: seen from above, 3D tufts read as clutter.
   if (grass.length && false) {
     const blade = new THREE.PlaneGeometry(1, 1);
