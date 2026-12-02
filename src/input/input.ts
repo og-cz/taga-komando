@@ -596,13 +596,20 @@ export class Input {
       this.clickSelect(this.camera.screenToWorld(d.x0, d.y0), e.shiftKey);
       return;
     }
-    const a = this.camera.screenToWorld(Math.min(d.x0, d.x1), Math.min(d.y0, d.y1));
-    const b = this.camera.screenToWorld(Math.max(d.x0, d.x1), Math.max(d.y0, d.y1));
+    // The box is on the screen: under a perspective camera it covers a trapezoid of ground.
+    const x0 = Math.min(d.x0, d.x1);
+    const x1 = Math.max(d.x0, d.x1);
+    const y0 = Math.min(d.y0, d.y1);
+    const y1 = Math.max(d.y0, d.y1);
     const inBox = this.world.squads.filter(
       (s) =>
         !s.dead &&
         s.team === this.player &&
-        s.models.some((m) => m.alive && m.pos.x >= a.x && m.pos.x <= b.x && m.pos.y >= a.y && m.pos.y <= b.y),
+        s.models.some((m) => {
+          if (!m.alive) return false;
+          const p = this.camera.worldToScreen(m.pos);
+          return p.x >= x0 && p.x <= x1 && p.y >= y0 && p.y <= y1;
+        }),
     );
     const units = inBox.filter(notStructure);
     this.select((units.length > 0 ? units : inBox).map((s) => s.id), e.shiftKey);
