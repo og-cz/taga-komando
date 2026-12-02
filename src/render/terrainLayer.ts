@@ -18,15 +18,15 @@ const SHADOW_FILL = 'rgba(8,10,5,0.52)';
 type RGB = [number, number, number];
 
 /** Ground colours the terrain is blended from. */
-const GRASS: RGB = [64, 82, 40];
-const DRY: RGB = [102, 96, 56];
-const JUNGLE_FLOOR: RGB = [32, 46, 24];
-const DIRT: RGB = [146, 122, 86];
-const MUD: RGB = [68, 54, 36];
-const PADDY: RGB = [58, 80, 68];
+const GRASS: RGB = [84, 106, 44];
+const DRY: RGB = [126, 116, 64];
+const JUNGLE_FLOOR: RGB = [46, 62, 30];
+const DIRT: RGB = [150, 114, 80];
+const MUD: RGB = [90, 70, 48];
+const PADDY: RGB = [68, 94, 72];
 const WATER: RGB = [28, 56, 68];
 const STONE: RGB = [118, 112, 100];
-const YARD: RGB = [86, 74, 52];
+const YARD: RGB = [116, 94, 66];
 const RUBBLE: RGB = [104, 94, 80];
 
 const GROUND: Record<number, RGB> = {
@@ -74,9 +74,15 @@ function rgb(c: RGB, k = 1, a = 1): string {
 /** Roofing: Spanish tile, nipa thatch or rusted corrugated iron. */
 const ROOFS: { base: RGB; wall: RGB }[] = [
   { base: [168, 84, 48], wall: [196, 182, 150] },
-  { base: [150, 128, 78], wall: [128, 98, 60] },
+  { base: [140, 120, 84], wall: [128, 98, 60] },
   { base: [112, 100, 88], wall: [92, 76, 58] },
 ];
+
+/** A barrio is mostly nipa huts, with some tiled houses and a few under iron sheets. */
+function roofOf(label: number): number {
+  const r = hash2(label, 7);
+  return r < 0.28 ? 0 : r < 0.86 ? 1 : 2;
+}
 
 export interface Tree {
   x: number;
@@ -177,7 +183,8 @@ export class TerrainLayer {
     canvas.height = Math.ceil((h + m * 2) * SURROUND_SCALE);
     const c = canvas.getContext('2d')!;
     const world = () => c.setTransform(SURROUND_SCALE, 0, 0, SURROUND_SCALE, m * SURROUND_SCALE, m * SURROUND_SCALE);
-    c.filter = 'blur(3px) saturate(0.35) brightness(0.3) sepia(0.2)';
+    // In 3D the land runs on under the haze; flat, it fades into the dark.
+    c.filter = this.flat3d ? 'blur(2px) saturate(0.8) brightness(0.85)' : 'blur(3px) saturate(0.35) brightness(0.3) sepia(0.2)';
     for (const i of [-1, 0, 1]) {
       for (const j of [-1, 0, 1]) {
         if (i === 0 && j === 0) continue;
@@ -194,9 +201,10 @@ export class TerrainLayer {
     // Darker the further from the battlefield, like haze over distant country.
     const fade = (gx0: number, gy0: number, gx1: number, gy1: number, rx: number, ry: number, rw: number, rh: number) => {
       const g = c.createLinearGradient(gx0, gy0, gx1, gy1);
-      g.addColorStop(0, 'rgba(5,6,5,0.62)');
-      g.addColorStop(0.2, 'rgba(5,6,5,0.85)');
-      g.addColorStop(1, 'rgba(5,6,5,0.98)');
+      const tone = this.flat3d ? '120,128,98' : '5,6,5';
+      g.addColorStop(0, `rgba(${tone},${this.flat3d ? 0.05 : 0.62})`);
+      g.addColorStop(0.2, `rgba(${tone},${this.flat3d ? 0.25 : 0.85})`);
+      g.addColorStop(1, `rgba(${tone},${this.flat3d ? 0.9 : 0.98})`);
       c.fillStyle = g;
       c.fillRect(rx, ry, rw, rh);
     };
@@ -205,7 +213,7 @@ export class TerrainLayer {
     fade(0, 0, 0, -m, 0, -m, w, m);
     fade(0, h, 0, h + m, 0, h, w, m);
     // A soft shadow line where the battlefield ends.
-    c.strokeStyle = 'rgba(0,0,0,0.5)';
+    c.strokeStyle = this.flat3d ? 'rgba(0,0,0,0.18)' : 'rgba(0,0,0,0.5)';
     c.lineWidth = 6;
     c.strokeRect(-3, -3, w + 6, h + 6);
     return canvas;
@@ -372,8 +380,9 @@ export class TerrainLayer {
     const same = (dx: number, dy: number) => this.t(tx + dx, ty + dy) === t;
     switch (t) {
       case T.Road: {
-        const along = same(-1, 0) || same(1, 0) ? 'h' : 'v';
-        c.strokeStyle = 'rgba(52,40,26,0.35)';
+        // Ruts run along the road: a road two tiles wide has a road tile beside every tile.
+        const along = same(0, -1) && same(0, 1) && !(same(-1, 0) && same(1, 0)) ? 'v' : same(-1, 0) || same(1, 0) ? 'h' : 'v';
+        c.strokeStyle = 'rgba(52,40,26,0.24)';
         c.lineWidth = 2.4;
         c.beginPath();
         for (const off of [-6, 6]) {
@@ -754,7 +763,7 @@ export class TerrainLayer {
 
   /** Which roofing a building tile has: 0 clay tile, 1 nipa thatch, 2 corrugated iron. */
   roofMaterial(tx: number, ty: number): number {
-    return Math.floor(hash2(this.roofLabel[ty * this.map.w + tx], 7) * ROOFS.length);
+    return roofOf(this.roofLabel[ty * this.map.w + tx]);
   }
 
   /** Each building gets one roofing, chosen by its lowest tile so it never flickers when repainted. */
@@ -859,7 +868,7 @@ export class TerrainLayer {
         if (kd < 0) continue;
         const tx = Math.floor(gx / PX);
         const ty = Math.floor(gy / PX);
-        const mat = Math.floor(hash2(this.roofLabel[ty * map.w + tx], 7) * ROOFS.length);
+        const mat = roofOf(this.roofLabel[ty * map.w + tx]);
         const roof = ROOFS[mat];
         let col: RGB = roof.base;
         let k: number;
