@@ -2,6 +2,12 @@
 
 [Back to the README](../README.md)
 
+**1.0.0**
+- **A real 3D battlefield camera.** The battle is now seen through a true perspective camera high over the field: near ground is larger than far ground, and you see the sides of houses, the trunks of palms and the depth of the jungle. Clicks, orders, box selection, the minimap frame, health bars and markers all follow the new camera; selection rings, move lines and capture circles lie on the ground in perspective, and the fog of war lies on it too.
+- **Daylight over Luzon.** A high mid-afternoon sun with softer shadows, a bright hazy sky lighting the shade, and a light haze over the far side of the field. The heavy dark filter over the whole view is gone; only the corners darken a little. The land past the map edge carries on under the haze instead of fading to black.
+- **Barrios of nipa huts.** Most houses are now nipa huts: steep thatched roofs laid in shaggy courses, greyed in patches, hanging well out over the walls, on a timber sill. Tiled roofs show their rows of tiles and iron roofs their ribs and rust.
+- **Greener, thicker country.** Brighter tropical ground, with warm red-brown roads; ruts on wide roads now run along the road. Coconut palms are taller, with a full head of drooping fronds on a bowed trunk. Undergrowth grows in the jungle and along the edges of fields, yards, roads and paddies, bushes come in many shades of green, and low broad-leaved plants are scattered through the grass.
+
 **0.9.7**
 - **Sound for the battlefield.** Burning houses roar and crackle (louder the more of them are on screen), a house falling in cracks and rumbles with bricks clattering down, and smoke rounds burst with a thump and a long hiss. Anti-tank guns have their own sharp, ringing crack instead of the tanks' boom (two of them were silent before). Under it all the wind blows, birds call when the fighting dies down, and guns thump far off now and then.
 - **The enemy's doctrine fits the battle.** It no longer nearly always picks its defensive anti-tank doctrine: every doctrine starts even, and what the enemy has seen tips the choice (tanks, dug-in guns and held houses, being ahead or behind on points, heavy losses), so jungle maps bring out the guerrillas and open towns see every doctrine.
