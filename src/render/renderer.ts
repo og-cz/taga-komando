@@ -93,9 +93,9 @@ const LOOK: Record<string, FactionLook> = {
 
 /**
  * Direction shadows fall on the ground (unit vector) and how long they are per
- * unit of height: from the 3D scene's low north-west sun.
+ * unit of height: from the 3D scene's high north-west sun.
  */
-const SUN_SHADOW = { x: 0.77, y: 0.64, length: 1.42 };
+const SUN_SHADOW = { x: 0.64, y: 0.77, length: 0.82 };
 
 /** Draws the world from the player's point of view. Reads the simulation, never writes it. */
 export class Renderer {
@@ -170,10 +170,11 @@ export class Renderer {
     this.canvas.style.width = `${w}px`;
     this.canvas.style.height = `${h}px`;
     if (this.worldCanvas && this.world3d) {
-      // The ground overlay matches the 3D view's own resolution.
+      // The ground overlay is a plan of the ground in view: under the perspective
+      // camera that reaches further than the screen is tall, so it is taller.
       const k = Battlefield3D.pixelRatio(this.dpr);
-      this.worldCanvas.width = Math.round(w * k);
-      this.worldCanvas.height = Math.round(h * k);
+      this.worldCanvas.width = Math.round(w * k * 1.1);
+      this.worldCanvas.height = Math.round(h * k * 1.5);
       this.world3d.setSize(w, h, this.dpr);
     }
     this.camera.resize(w, h);
@@ -206,16 +207,21 @@ export class Renderer {
       ctx.fillStyle = '#10140f';
       ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
     }
-    const worldDpr = this.world3d ? Battlefield3D.pixelRatio(this.dpr) : this.dpr;
-    camera.apply(ctx, worldDpr);
+    if (this.world3d) {
+      // In 3D the ground drawing is a flat plan that the 3D ground lays out in perspective.
+      const v = this.world3d.overlayView(camera, ctx.canvas.width, ctx.canvas.height);
+      ctx.setTransform(v.scale, 0, 0, v.scale, -v.x0 * v.scale, -v.y0 * v.scale);
+    } else camera.apply(ctx, this.dpr);
     // Blasts near the camera shake the view a little.
     let shakeX = 0;
     let shakeY = 0;
     if (this.effects.shake > 0.2) {
       shakeX = (Math.random() - 0.5) * this.effects.shake;
       shakeY = (Math.random() - 0.5) * this.effects.shake;
-      const m = ctx.getTransform();
-      ctx.setTransform(m.a, m.b, m.c, m.d, m.e + shakeX * worldDpr, m.f + shakeY * worldDpr);
+      if (!this.world3d) {
+        const m = ctx.getTransform();
+        ctx.setTransform(m.a, m.b, m.c, m.d, m.e + shakeX * this.dpr, m.f + shakeY * this.dpr);
+      }
     }
 
     if (this.terrain) {
@@ -282,7 +288,7 @@ export class Renderer {
     }
   }
 
-  /** Late-afternoon light over the whole view: warm in the middle, darkening to the edges. */
+  /** Late-afternoon light over the flat view, warm in the middle and darkening to the edges (3D: a light vignette). */
   private drawGrade(): void {
     const { ctx, camera } = this;
     const w = camera.viewW;
@@ -290,10 +296,17 @@ export class Renderer {
     if (!this.gradeCache || this.gradeCache.w !== w || this.gradeCache.h !== h) {
       const vignette = ctx.createRadialGradient(w / 2, h * 0.45, Math.min(w, h) * 0.35, w / 2, h * 0.45, Math.max(w, h) * 0.75);
       vignette.addColorStop(0, 'rgba(0,0,0,0)');
-      vignette.addColorStop(1, 'rgba(4,6,3,0.68)');
+      vignette.addColorStop(1, this.world3d ? 'rgba(10,12,6,0.32)' : 'rgba(4,6,3,0.68)');
       this.gradeCache = { w, h, vignette };
     }
     ctx.save();
+    if (this.world3d) {
+      // The 3D scene has its own light and haze: only darken the corners a little.
+      ctx.fillStyle = this.gradeCache.vignette;
+      ctx.fillRect(0, 0, w, h);
+      ctx.restore();
+      return;
+    }
     ctx.globalCompositeOperation = 'soft-light';
     ctx.fillStyle = 'rgba(255,190,110,0.2)';
     ctx.fillRect(0, 0, w, h);
@@ -2166,7 +2179,9 @@ export class Renderer {
     const { ctx, camera } = this;
     let top = Infinity;
     for (const m of sq.models) if (m.alive) top = Math.min(top, m.pos.y);
-    const anchor = camera.worldToScreen({ x: sq.pos.x, y: top - sq.def.radius });
+    // Over the heads of the men (or the top of the tank or building) in 3D.
+    const tall = sq.def.kind === 'structure' ? 18 : sq.def.kind === 'vehicle' ? 14 : 10;
+    const anchor = this.world3d ? camera.worldToScreen({ x: sq.pos.x, y: top }, tall) : camera.worldToScreen({ x: sq.pos.x, y: top - sq.def.radius });
     const x = Math.round(anchor.x);
     const y = Math.round(anchor.y - 12);
     const col = TEAM[sq.team];
