@@ -1,8 +1,9 @@
 import * as THREE from 'three';
+import { TILE } from '../data/balance';
 import { T } from '../data/terrain';
 import type { SimEvent } from '../sim/entities';
 import type { World } from '../sim/world';
-import { CAMERA_TILT, type Camera } from '../render/camera';
+import { CAMERA_FOV, type Camera } from '../render/camera';
 import { TerrainLayer } from '../render/terrainLayer';
 import { WEAPONS } from '../data/weapons';
 import { smokeStrength } from '../sim/systems/smoke';
@@ -15,22 +16,36 @@ import { buildProps } from './props';
 import { disposeTextures, groundDetailTexture, groundNormalTexture } from './textures';
 import { buildVegetation } from './vegetation';
 
-/** A plane over the map that shows a screen-aligned canvas, so 2D drawing sits in the 3D scene. */
-function screenOverlayMaterial(tex: THREE.Texture): THREE.ShaderMaterial {
+/**
+ * A plane over the map showing the units-and-markers canvas. That canvas is a
+ * flat plan of the ground in view (see `overlayView`), so each point of the
+ * plane looks up its own spot and the markers lie on the ground in perspective.
+ */
+function groundOverlayMaterial(tex: THREE.Texture): THREE.ShaderMaterial {
   return new THREE.ShaderMaterial({
-    uniforms: { map: { value: tex }, res: { value: new THREE.Vector2(1, 1) } },
-    vertexShader: 'void main() { gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }',
+    uniforms: { map: { value: tex }, view: { value: new THREE.Vector4(0, 0, 1, 1) } },
+    vertexShader: 'varying vec2 vGround; void main() { vec4 w = modelMatrix * vec4(position, 1.0); vGround = w.xz; gl_Position = projectionMatrix * viewMatrix * w; }',
     fragmentShader: `
       uniform sampler2D map;
-      uniform vec2 res;
+      uniform vec4 view;
+      varying vec2 vGround;
       void main() {
-        vec4 c = texture2D(map, gl_FragCoord.xy / res);
+        vec2 uv = vec2((vGround.x - view.x) * view.z, 1.0 - (vGround.y - view.y) * view.w);
+        if (uv.x < 0.0 || uv.x > 1.0 || uv.y < 0.0 || uv.y > 1.0) discard;
+        vec4 c = texture2D(map, uv);
         if (c.a < 0.003) discard;
         gl_FragColor = c;
       }`,
     transparent: true,
     depthWrite: false,
   });
+}
+
+/** Where the units-and-markers canvas lies on the ground: canvas pixel = (world - origin) × scale. */
+export interface OverlayView {
+  x0: number;
+  y0: number;
+  scale: number;
 }
 
 /** A plane over the map showing a map-aligned canvas (the fog of war). */
@@ -65,7 +80,7 @@ export class Battlefield3D {
   readonly canvas: HTMLCanvasElement;
   private readonly renderer: THREE.WebGLRenderer;
   private readonly scene = new THREE.Scene();
-  private readonly cam = new THREE.OrthographicCamera(-1, 1, 1, -1, 1, 6000);
+  private readonly cam = new THREE.PerspectiveCamera(30, 1, 4, 9000);
   readonly terrain: TerrainLayer;
   private readonly groundTex: THREE.CanvasTexture;
   private readonly overlayTex: THREE.CanvasTexture;
@@ -98,11 +113,13 @@ export class Battlefield3D {
     this.renderer = new THREE.WebGLRenderer({ canvas: this.canvas, antialias: true, powerPreference: 'high-performance' });
     this.renderer.outputColorSpace = THREE.SRGBColorSpace;
     this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
-    this.renderer.toneMappingExposure = 1.05;
+    this.renderer.toneMappingExposure = 1.18;
     this.renderer.shadowMap.enabled = true;
-    this.renderer.shadowMap.type = THREE.PCFShadowMap;
+    this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
     this.renderer.shadowMap.autoUpdate = false;
-    this.renderer.setClearColor(0x0c0f0b);
+    this.renderer.setClearColor(0x8c9478);
+    // Tropical haze: soft and warm, only far off.
+    this.scene.fog = new THREE.Fog(0x9aa184, 800, 3000);
 
     const map = world.map;
     const W = map.pixelWidth;
@@ -112,19 +129,20 @@ export class Battlefield3D {
     this.groundTex.colorSpace = THREE.SRGBColorSpace;
     this.groundTex.anisotropy = this.renderer.capabilities.getMaxAnisotropy();
 
-    // Light: a low afternoon sun from the north-west, and sky and earth bounce.
-    this.sun = new THREE.DirectionalLight(0xffd6a0, 3.6);
-    this.sun.position.set(W / 2 - 520, 470, H / 2 - 430);
+    // Light: a high mid-afternoon tropical sun from the north-west, a bright
+    // hazy sky and warm bounce off the earth.
+    this.sun = new THREE.DirectionalLight(0xfff0d6, 3.0);
+    this.sun.position.set(W / 2 - 430, 820, H / 2 - 520);
     this.sun.target.position.set(W / 2, 0, H / 2);
     this.sun.castShadow = true;
     this.sun.shadow.mapSize.set(4096, 4096);
     const half = Math.max(W, H) * 0.62;
-    Object.assign(this.sun.shadow.camera, { left: -half, right: half, top: half, bottom: -half, near: 10, far: 2600 });
-    this.sun.shadow.bias = -0.0006;
-    this.sun.shadow.normalBias = 0.5;
-    this.sun.shadow.radius = 3;
+    Object.assign(this.sun.shadow.camera, { left: -half, right: half, top: half, bottom: -half, near: 10, far: 3200 });
+    this.sun.shadow.bias = -0.0005;
+    this.sun.shadow.normalBias = 0.6;
+    this.sun.shadow.radius = 2.5;
     this.scene.add(this.sun, this.sun.target);
-    this.scene.add(new THREE.HemisphereLight(0x9fb3c8, 0x3d3220, 0.7));
+    this.scene.add(new THREE.HemisphereLight(0xc8d8ea, 0x6a5838, 1.55));
 
     // The land beyond the battlefield, then the battlefield itself.
     const surround = new THREE.CanvasTexture(this.terrain.surroundCanvas());
@@ -174,7 +192,7 @@ export class Battlefield3D {
     this.overlayTex = new THREE.CanvasTexture(overlay);
     this.overlayTex.minFilter = THREE.LinearFilter;
     this.overlayTex.generateMipmaps = false;
-    this.overlayMat = screenOverlayMaterial(this.overlayTex);
+    this.overlayMat = groundOverlayMaterial(this.overlayTex);
     const overlayPlane = mapPlane(W + 2400, H + 2400, 0.35, this.overlayMat);
     overlayPlane.position.set(W / 2, 0.35, H / 2);
     overlayPlane.renderOrder = 1;
@@ -211,7 +229,16 @@ export class Battlefield3D {
         (Array.isArray(o.material) ? o.material : [o.material]).forEach((m) => m.dispose());
       }
     });
-    const b = buildBuildings(map, this.terrain, this.groundTex, (k) => stage.get(k) ?? 0);
+    // A headquarters stands in its own compound: the house under it is its model's, not the map's.
+    const hqTiles = new Set<number>();
+    for (const sq of this.world.squads) {
+      if (sq.dead || sq.def.role !== 'hq') continue;
+      const tx = Math.floor(sq.pos.x / TILE);
+      const ty = Math.floor(sq.pos.y / TILE);
+      const n = Math.ceil(sq.def.radius / TILE) + 1;
+      for (let dy = -n; dy <= n; dy++) for (let dx = -n; dx <= n; dx++) if (map.inBounds(tx + dx, ty + dy)) hqTiles.add((ty + dy) * map.w + tx + dx);
+    }
+    const b = buildBuildings(map, this.terrain, this.groundTex, (k) => stage.get(k) ?? 0, (k) => hqTiles.has(k));
     this.buildingTiles = new Set();
     map.tiles.forEach((t, i) => t === T.Building && this.buildingTiles.add(i));
     this.info = b.info;
@@ -267,28 +294,46 @@ export class Battlefield3D {
     this.renderer.setSize(w, h, false);
     this.canvas.style.width = `${w}px`;
     this.canvas.style.height = `${h}px`;
-    const size = this.renderer.getDrawingBufferSize(new THREE.Vector2());
-    this.overlayMat.uniforms.res.value.copy(size);
     // The units-and-markers canvas has a new size: free the old texture so it is
     // allocated afresh, or every update would fail and the markers drift off the map.
     this.overlayTex.dispose();
     this.overlayTex.needsUpdate = true;
   }
 
+  /**
+   * Where to draw the units-and-markers canvas: a flat plan of the ground the
+   * camera sees, scaled to fit the canvas. The 2D renderer draws with it and
+   * the ground plane maps it back, so both agree.
+   */
+  overlayView(camera: Camera, canvasW: number, canvasH: number): OverlayView {
+    const b = camera.visibleBounds();
+    const pad = 40;
+    const x0 = b.x0 - pad;
+    const y0 = b.y0 - pad;
+    const scale = Math.min(canvasW / (b.x1 - b.x0 + pad * 2), canvasH / (b.y1 - b.y0 + pad * 2));
+    this.overlayMat.uniforms.view.value.set(x0, y0, scale / canvasW, scale / canvasH);
+    return { x0, y0, scale };
+  }
+
   /** Match the 3D camera to the game camera (plus screen shake, in screen pixels). */
   private syncCamera(camera: Camera, shakeX: number, shakeY: number): void {
-    const z = camera.zoom;
-    const w = camera.viewW / z;
-    const h = camera.viewH / z;
     const cam = this.cam;
-    cam.left = -w / 2 - shakeX / z;
-    cam.right = w / 2 - shakeX / z;
-    cam.top = h / 2 + shakeY / z;
-    cam.bottom = -h / 2 + shakeY / z;
+    cam.fov = (CAMERA_FOV * 180) / Math.PI;
+    cam.aspect = camera.viewW / Math.max(1, camera.viewH);
+    const d = camera.distance;
+    // Near and far planes follow the zoom, so depth precision stays where the battle is.
+    cam.near = Math.max(2, d * 0.25);
+    cam.far = d * 6 + 1500;
     cam.updateProjectionMatrix();
-    const D = 2500;
-    cam.position.set(camera.x, Math.cos(CAMERA_TILT) * D, camera.y + Math.sin(CAMERA_TILT) * D);
-    cam.lookAt(camera.x, 0, camera.y);
+    const e = camera.eye;
+    const sx = -shakeX / camera.zoom;
+    const sy = -shakeY / camera.zoom;
+    cam.position.set(e.x + sx, e.h, e.y + sy);
+    cam.lookAt(camera.x + sx, 0, camera.y + sy);
+    // A light haze over the far side of the field, never over the near side.
+    const fog = this.scene.fog as THREE.Fog;
+    fog.near = d * 1.15;
+    fog.far = d * 4.5;
   }
 
   /** New fires and blasts from this frame's battle events. */
